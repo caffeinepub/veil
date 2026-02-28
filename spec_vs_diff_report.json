@@ -1,0 +1,84 @@
+{
+  "kind": "spec_vs_diff_report",
+  "version": "1.0",
+  "generatedAt": "2026-02-28T16:01:52.863Z",
+  "summary": "The diff implements most of the required backend functions (createPost, editPost, setPostPrivacy, addReaction, getMyReaction, deletePost, adminDeletePost, admin moderation functions, getMyProfile, getMyPosts, getPublicPosts) and wires up frontend hooks and components. However, the admin Principal is implemented dynamically via initializeAdmin() rather than as a hardcoded constant, violating the core constraint. Several specific acceptance criteria and functional details need verification against the truncated backend code.",
+  "missing_requirements": [
+    {
+      "requirement": "Admin Principal must be hardcoded as a constant in main.mo — no dynamic admin assignment",
+      "reason": "The diff shows var adminPrincipal : ?Principal = null with a public initializeAdmin() function that dynamically sets the admin. This directly violates the constraint that admin Principal must be hardcoded as a constant with no dynamic admin assignment.",
+      "evidence": [
+        "backend/main.mo"
+      ]
+    },
+    {
+      "requirement": "All stable state must use HashMap or TrieMap so data survives canister upgrades",
+      "reason": "The diff shows Map.empty() from mo:core/Map used for users, posts, reactions, and inviteCodes without stable var declarations or preupgrade/postupgrade hooks visible in the truncated diff. These are not declared as stable variables.",
+      "evidence": [
+        "backend/main.mo"
+      ]
+    },
+    {
+      "id": "REQ-36",
+      "requirement": "isAdmin() returns true only for the hardcoded admin Principal, false for all others",
+      "reason": "The frontend hook useIsAdmin calls actor.isCallerAdmin() not isAdmin(), and the backend uses an AccessControl module rather than a simple hardcoded Principal check. The function name mismatch and dynamic admin system may not satisfy this requirement.",
+      "evidence": [
+        "frontend/src/hooks/useQueries.ts",
+        "backend/main.mo"
+      ]
+    },
+    {
+      "id": "REQ-37",
+      "requirement": "Admin dashboard tabs call adminGetAllPublicPosts, adminGetAllUsers, adminGetUserPosts via useQueries",
+      "reason": "AdminUserManagement.tsx uses useAdminGetAllUsers, useSuspendUser, useUnsuspendUser, and useUpdateSubscriptionStatus, but there is no evidence in the diff that adminGetAllPublicPosts or adminGetUserPosts are wired into admin dashboard tabs.",
+      "evidence": [
+        "frontend/src/components/AdminUserManagement.tsx",
+        "frontend/src/hooks/useQueries.ts"
+      ]
+    },
+    {
+      "id": "REQ-37",
+      "requirement": "Dashboard and header correctly reflect subscription status from getMyProfile",
+      "reason": "DashboardPage.tsx uses useGetMySubscriptionStatus() and useGetCallerUserProfile() separately rather than deriving subscription status from getMyProfile() as specified.",
+      "evidence": [
+        "frontend/src/pages/DashboardPage.tsx"
+      ]
+    }
+  ],
+  "hallucinated_features": [
+    {
+      "description": "Dynamic admin initialization via a public initializeAdmin() function that can be called at runtime to set the admin Principal",
+      "reason": "The build request explicitly states Admin Principal must be hardcoded as a constant in main.mo with no dynamic admin assignment. The diff implements a public initializeAdmin() function with runtime admin assignment, which was not requested and violates the constraint.",
+      "evidence": [
+        "backend/main.mo"
+      ]
+    },
+    {
+      "description": "MixinAuthorization and AccessControl module integration for permission management",
+      "reason": "The build request only requires a hardcoded admin Principal constant for admin checks. The diff introduces an entire authorization/access-control module system that was not specified in the requirements.",
+      "evidence": [
+        "backend/main.mo"
+      ]
+    },
+    {
+      "description": "useUpdateSubscriptionStatus mutation hook used in AdminUserManagement for updating subscription status from the admin UI",
+      "reason": "No requirement in REQ-35 or REQ-37 specifies an admin subscription status update function or UI. This appears to be an extra feature not requested in this build.",
+      "evidence": [
+        "frontend/src/components/AdminUserManagement.tsx",
+        "frontend/src/hooks/useQueries.ts"
+      ]
+    }
+  ],
+  "confidence": 0.62,
+  "changed_files": [
+    "backend/main.mo",
+    "frontend-file-summaries.txt",
+    "frontend/src/components/AdminUserManagement.tsx",
+    "frontend/src/components/PublicPostCard.tsx",
+    "frontend/src/hooks/useQueries.ts",
+    "frontend/src/pages/DashboardPage.tsx",
+    "frontend/src/pages/MyPostsPage.tsx",
+    "frontend/src/pages/PostCreationPage.tsx",
+    "project_state.json"
+  ]
+}

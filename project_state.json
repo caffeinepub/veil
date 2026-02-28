@@ -1,0 +1,360 @@
+{
+  "schemaVersion": "1.0.0",
+  "projectStateVersion": 7,
+  "summary": "Veil is a private, invite-only emotional sharing platform capped at 100 members. It is pseudonymous, subscription-based, and human-moderated. Members share posts in three emotional states (Confess, Broke, Happy). Posts are private by default with user-controlled visibility. No DMs, comments, follower system, or feed ranking. Built with React frontend and Node.js/Express/MongoDB backend.",
+  "architectural_notes": [
+    "Stack: React (functional components) frontend, Node.js/Express backend, MongoDB, JWT authentication",
+    "Subscription validation middleware required; region-based pricing logic (India vs Global)",
+    "DB schema: Users (id, email, pseudonym, region, subscriptionStatus, subscriptionStartDate, inviteCode, createdAt, suspended), Posts (id, userId, emotionType, isPrivate, reactionCount, editable, createdAt), Reactions (id, postId, userId, reactionType, createdAt)",
+    "No DMs, comments, replies, follower system, feed ranking, or AI moderation — ever",
+    "UI must be calm/minimal: soft grayscale or muted pastel, no red alerts, no popularity badges, chronological order only"
+  ],
+  "known_issues": [],
+  "isFixRequest": false,
+  "existing_features": [
+    {
+      "id": "feature-build-the-invite-only-signup-screen-on-the-frontend-show-a-single-centered-form-with-invite-code-input-pseudonym-input-region-selector-india-global-on-submit-validate-invite-code-against-the-backend-create-the-account-and-route-to-the-dashboard-show-a-clear-error-if-the-invite-code-is-invalid-already-used-or-capacity-is-reached-no-email-or-real-name-field",
+      "title": "Build the invite-only signup screen on the frontend. Show a single centered form with: invite code input, pseudonym input, region selector (India / Global). On submit, validate invite code against the backend, create the account, and route to the dashboard. Show a clear error if the invite code is invalid, already used, or capacity is reached. No email or real name field.",
+      "reqIds": [
+        "REQ-11"
+      ],
+      "version": 1
+    },
+    {
+      "id": "feature-build-the-main-dashboard-screen-on-the-frontend-display-the-greeting-what-are-you-feeling-today-centered-on-screen-show-three-large-equally-spaced-softly-styled-emotion-buttons-confess-broke-happy-no-notification-badges-no-unread-counts-no-red-indicators-include-a-minimal-top-bar-showing-the-user-s-pseudonym-and-subscription-status-layout-must-be-spacious-with-generous-whitespace",
+      "title": "Build the main dashboard screen on the frontend. Display the greeting 'What are you feeling today?' centered on screen. Show three large, equally-spaced, softly-styled emotion buttons: Confess, Broke, Happy. No notification badges, no unread counts, no red indicators. Include a minimal top bar showing the user's pseudonym and subscription status. Layout must be spacious with generous whitespace.",
+      "reqIds": [
+        "REQ-12"
+      ],
+      "version": 1
+    },
+    {
+      "id": "feature-build-the-post-creation-screen-on-the-frontend-when-a-user-selects-an-emotion-show-the-emotion-title-a-large-textarea-a-live-word-counter-and-the-post-button-for-confess-and-happy-display-the-prompt-please-share-at-least-24-words-so-your-future-self-understands-this-moment-disable-the-post-button-and-show-a-validation-message-if-confess-happy-word-count-24-always-show-the-message-below-the-post-button-your-post-is-private-by-default-only-you-can-see-it-you-can-choose-to-make-it-public-after-posting-broke-shows-no-minimum-prompt",
+      "title": "Build the post creation screen on the frontend. When a user selects an emotion, show: the emotion title, a large textarea, a live word counter, and the post button. For Confess and Happy, display the prompt: 'Please share at least 24 words so your future self understands this moment.' Disable the post button and show a validation message if Confess/Happy word count < 24. Always show the message below the post button: '🔒 Your post is private by default. Only you can see it. You can choose to make it public after posting.' Broke shows no minimum prompt.",
+      "reqIds": [
+        "REQ-13"
+      ],
+      "version": 1
+    },
+    {
+      "id": "feature-build-the-post-card-component-and-the-user-s-personal-post-list-on-the-frontend-each-card-displays-emotion-type-label-post-content-a-status-badge-private-public-reaction-count-visible-to-owner-only-an-edit-button-shown-only-if-editable-true-and-a-go-public-or-make-private-toggle-button-clicking-go-public-opens-a-confirmation-dialog-with-the-text-this-post-will-be-visible-to-all-veil-members-clicking-make-private-immediately-hides-it-from-the-community-without-a-dialog-the-personal-post-list-is-sorted-chronologically-newest-first",
+      "title": "Build the post card component and the user's personal post list on the frontend. Each card displays: emotion type label, post content, a status badge (Private / Public), reaction count (visible to owner only), an Edit button (shown only if editable = true), and a 'Go Public' or 'Make Private' toggle button. Clicking 'Go Public' opens a confirmation dialog with the text: 'This post will be visible to all Veil members.' Clicking 'Make Private' immediately hides it from the community without a dialog. The personal post list is sorted chronologically (newest first).",
+      "reqIds": [
+        "REQ-14"
+      ],
+      "version": 1
+    },
+    {
+      "id": "feature-build-the-community-public-feed-on-the-frontend-show-all-public-posts-from-all-members-sorted-strictly-chronologically-oldest-to-newest-or-newest-first-consistently-no-ranking-display-each-post-with-emotion-type-label-poster-s-pseudonym-content-reaction-count-and-reaction-buttons-support-care-strength-a-user-cannot-react-to-their-own-posts-show-the-user-s-existing-reaction-if-they-have-already-reacted-no-comments-section-no-reply-button-no-follower-count-no-popularity-indicators",
+      "title": "Build the community public feed on the frontend. Show all public posts from all members sorted strictly chronologically (oldest to newest, or newest first consistently — no ranking). Display each post with: emotion type label, poster's pseudonym, content, reaction count, and reaction buttons (Support, Care, Strength). A user cannot react to their own posts. Show the user's existing reaction if they have already reacted. No comments section, no reply button, no follower count, no popularity indicators.",
+      "reqIds": [
+        "REQ-15"
+      ],
+      "version": 1
+    },
+    {
+      "id": "feature-implement-subscription-gating-on-the-frontend-when-a-user-s-subscription-is-expired-grace-period-ended-and-not-active-display-a-calm-non-alarming-banner-on-the-dashboard-and-post-creation-screen-explaining-they-cannot-create-posts-or-go-public-show-the-region-appropriate-pricing-150-month-for-india-9-month-for-global-do-not-use-red-colors-or-urgent-language-use-muted-supportive-tone-block-the-post-creation-form-submission-and-go-public-action-with-an-inline-message-rather-than-a-modal-interruption",
+      "title": "Implement subscription gating on the frontend. When a user's subscription is expired (grace period ended and not active), display a calm, non-alarming banner on the dashboard and post creation screen explaining they cannot create posts or go public. Show the region-appropriate pricing: ₹150/month for India, $9/month for Global. Do not use red colors or urgent language — use muted, supportive tone. Block the post creation form submission and go-public action with an inline message rather than a modal interruption.",
+      "reqIds": [
+        "REQ-16"
+      ],
+      "version": 1
+    },
+    {
+      "id": "feature-build-the-admin-moderation-dashboard-on-the-frontend-as-a-protected-route-accessible-only-to-the-admin-principal-include-tabs-or-sections-for-1-all-public-posts-chronological-list-with-delete-button-per-post-2-user-management-list-all-users-with-pseudonym-region-subscription-status-suspended-status-with-buttons-to-suspend-unsuspend-3-invite-codes-list-active-codes-add-new-codes-revoke-unused-codes-4-user-post-history-search-by-pseudonym-to-view-all-posts-by-that-user-no-ai-moderation-ui-all-actions-are-manual",
+      "title": "Build the admin moderation dashboard on the frontend as a protected route accessible only to the admin principal. Include tabs or sections for: (1) All Public Posts — chronological list with delete button per post; (2) User Management — list all users with pseudonym, region, subscription status, suspended status, with buttons to suspend/unsuspend; (3) Invite Codes — list active codes, add new codes, revoke unused codes; (4) User Post History — search by pseudonym to view all posts by that user. No AI moderation UI. All actions are manual.",
+      "reqIds": [
+        "REQ-17"
+      ],
+      "version": 1
+    },
+    {
+      "id": "feature-apply-a-calm-emotionally-safe-visual-design-system-consistently-across-all-screens-use-a-soft-warm-gray-and-muted-sage-dusty-rose-pastel-palette-typography-should-be-spacious-legible-and-unhurried-use-a-serif-or-humanist-sans-serif-with-generous-line-height-no-red-ui-elements-anywhere-no-bold-high-contrast-call-to-action-colors-generous-padding-and-whitespace-throughout-the-overall-feel-should-evoke-a-quiet-reflection-room-not-a-social-app-consistent-use-of-subtle-rounded-corners-and-low-contrast-borders",
+      "title": "Apply a calm, emotionally safe visual design system consistently across all screens. Use a soft warm-gray and muted sage/dusty-rose pastel palette. Typography should be spacious, legible, and unhurried — use a serif or humanist sans-serif with generous line-height. No red UI elements anywhere. No bold/high-contrast call-to-action colors. Generous padding and whitespace throughout. The overall feel should evoke a quiet reflection room, not a social app. Consistent use of subtle rounded corners and low-contrast borders.",
+      "reqIds": [
+        "REQ-18"
+      ],
+      "version": 1
+    },
+    {
+      "id": "feature-wire-all-frontend-pages-and-hooks-to-the-now-complete-backend-update-frontend-src-hooks-usequeries-ts-to-call-createpost-editpost-deletepost-setpostprivacy-addreaction-getmyreaction-getmyposts-getpublicposts-getmyprofile-and-isadmin-using-the-actor-from-useactor-ensure-mutation-hooks-invalidate-the-correct-query-keys-on-success-so-ui-stays-in-sync-without-manual-refresh",
+      "title": "Wire all frontend pages and hooks to the now-complete backend. Update `frontend/src/hooks/useQueries.ts` to call createPost, editPost, deletePost, setPostPrivacy, addReaction, getMyReaction, getMyPosts, getPublicPosts, getMyProfile, and isAdmin using the actor from useActor. Ensure mutation hooks invalidate the correct query keys on success so UI stays in sync without manual refresh.",
+      "reqIds": [
+        "REQ-37"
+      ],
+      "version": 1
+    }
+  ],
+  "new_feature_requests": [
+    {
+      "id": "AR-1",
+      "summary": "Invite-only onboarding with invite code, pseudonym selection, region selection, 15-day grace period, and 100-member cap",
+      "reqIds": [],
+      "status": "pending"
+    },
+    {
+      "id": "AR-2",
+      "summary": "Emotion posting system with three states (Confess, Broke, Happy), live word counter, and private-by-default posts",
+      "reqIds": [],
+      "status": "pending"
+    },
+    {
+      "id": "AR-3",
+      "summary": "Word validation: Confess and Happy require minimum 24 words (server-side enforced); Broke has no minimum",
+      "reqIds": [],
+      "status": "pending"
+    },
+    {
+      "id": "AR-4",
+      "summary": "Privacy toggle: posts private by default, user can go public or revert to private anytime",
+      "reqIds": [],
+      "status": "pending"
+    },
+    {
+      "id": "AR-5",
+      "summary": "Support reactions (Support, Care, Strength) on public posts only; one reaction per user per post; editing locked after first reaction",
+      "reqIds": [],
+      "status": "pending"
+    },
+    {
+      "id": "AR-6",
+      "summary": "Subscription gating: region-based pricing (India ₹150/month, Global $9/month); expired users can view but cannot post or go public",
+      "reqIds": [],
+      "status": "pending"
+    },
+    {
+      "id": "AR-7",
+      "summary": "Human moderation admin panel: view/delete public posts, flag posts, suspend users, revoke invites, view user post history",
+      "reqIds": [],
+      "status": "pending"
+    },
+    {
+      "id": "AR-8",
+      "summary": "Implement the backend data models for Users, Posts, and Reactions as stable Motoko types in the main actor. Users: id, pseudonym, region (India | Global), subscriptionStatus (grace | active | expired), subscriptionStartDate (Int timestamp), inviteCode, createdAt, suspended (Bool). Posts: id, userId, emotionType (confess | broke | happy), content, isPrivate (default true), reactionCount (default 0), editable (default true), createdAt. Reactions: id, postId, userId, reactionType (support | care | strength), createdAt.",
+      "reqIds": [
+        "REQ-1"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "AR-9",
+      "summary": "Implement an invite code system in the backend. Store a set of valid invite codes pre-seeded by the admin. Expose a query to validate an invite code. On registration, consume and invalidate the code. Block registration when total user count reaches 100. Expose an admin function to add new invite codes and revoke existing ones.",
+      "reqIds": [
+        "REQ-2"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "AR-10",
+      "summary": "Implement user registration in the backend: accept (inviteCode, pseudonym, region). Validate invite code, check capacity, create user with subscriptionStatus = 'grace' and subscriptionStartDate = now. Return a session token (principal-based). Enforce pseudonymous identity only — no real name or email field stored or required.",
+      "reqIds": [
+        "REQ-3"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "AR-11",
+      "summary": "Implement subscription status logic in the backend. Compute effective subscription status based on subscriptionStatus field and subscriptionStartDate: during the first 15 days after creation treat status as 'grace'; after 15 days if not upgraded to 'active', treat as 'expired'. Expose an admin function to manually set a user's subscriptionStatus to 'active' or 'expired'. Enforce subscription gating on post creation and go-public actions: users with status 'expired' can read posts but cannot create posts or make posts public.",
+      "reqIds": [
+        "REQ-4"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "AR-12",
+      "summary": "Implement post creation in the backend. Accept (userId, emotionType, content). Enforce server-side word count validation: Confess and Happy require minimum 24 words; Broke has no minimum. Store post with isPrivate = true, reactionCount = 0, editable = true. Reject creation if subscription status is 'expired'.",
+      "reqIds": [
+        "REQ-5"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "AR-13",
+      "summary": "Implement post editing in the backend. Allow the post owner to update post content only when editable = true (i.e., reactionCount = 0). Enforce the same word-count rules on edit as on creation. Once reactionCount > 0, set editable = false permanently and reject any further edit attempts.",
+      "reqIds": [
+        "REQ-6"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "AR-14",
+      "summary": "Implement privacy toggle in the backend. Allow post owner to set isPrivate = false (go public) or isPrivate = true (make private again) at any time. When going public, validate that the user's subscription is not expired. When a post is made private again, it is immediately hidden from community queries and no new reactions can be added, but existing reactionCount is preserved.",
+      "reqIds": [
+        "REQ-7"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "AR-15",
+      "summary": "Implement the reactions system in the backend. Allow any authenticated non-suspended member to react to a public post with one of: support | care | strength. Enforce one reaction per user per post. On reaction creation, increment post.reactionCount and set post.editable = false. Reactions on private posts are not accepted. Expose a query for a user to check their own reaction on a post.",
+      "reqIds": [
+        "REQ-8"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "AR-16",
+      "summary": "Implement post deletion in the backend. Allow post owner to delete their post silently at any time. No notifications are triggered. Remove associated reactions. Expose this as a private owner-only function.",
+      "reqIds": [
+        "REQ-9"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "AR-17",
+      "summary": "Implement admin moderation functions in the backend. Expose admin-only functions for: view all public posts in chronological order, view all posts by a specific user, delete any post, suspend a user (sets suspended = true), unsuspend a user, add invite codes, revoke unused invite codes. Suspended users cannot create posts or react. Protect all admin functions with a hardcoded admin principal check.",
+      "reqIds": [
+        "REQ-10"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "AR-18",
+      "summary": "Implement the backend data models for Users, Posts, Reactions, and InviteCodes as stable Motoko types in the main actor. Users: id (Principal), pseudonym (Text), region (variant { India; Global }), subscriptionStatus (variant { grace; active; expired }), subscriptionStartDate (Int timestamp), inviteCode (Text), createdAt (Int), suspended (Bool). Posts: id (Text), userId (Principal), emotionType (variant { confess; broke; happy }), content (Text), isPrivate (Bool, default true), reactionCount (Nat, default 0), editable (Bool, default true), createdAt (Int). Reactions: id (Text), postId (Text), userId (Principal), reactionType (variant { support; care; strength }), createdAt (Int). InviteCodes: code (Text), used (Bool), usedBy (optional Principal). Use stable HashMap or TrieMap for all state so data survives upgrades.",
+      "reqIds": [
+        "REQ-19"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "AR-19",
+      "summary": "Implement an invite code system in the backend. Pre-seed a set of admin-defined invite codes in stable state. Expose a query `validateInviteCode(code: Text): Bool`. On registration, mark the code as used and record the Principal who used it. Block registration when total user count reaches 100. Expose admin-only functions `addInviteCode(code: Text)` and `revokeInviteCode(code: Text)` — revoking only works on unused codes.",
+      "reqIds": [
+        "REQ-20"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "AR-20",
+      "summary": "Implement user registration in the backend. Expose `register(inviteCode: Text, pseudonym: Text, region: { #India; #Global }): Result<User, Text>`. Validate invite code validity and capacity. Create user with caller's Principal as id, subscriptionStatus = #grace, subscriptionStartDate = Time.now(), suspended = false. Return the created user record on success or a descriptive error text on failure. No email or real name stored.",
+      "reqIds": [
+        "REQ-21"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "AR-21",
+      "summary": "Implement subscription status logic in the backend. Add a helper function `getEffectiveStatus(user: User): SubscriptionStatus` that returns #grace if Time.now() - subscriptionStartDate < 15 days and stored status is #grace; returns #active if status is #active; otherwise returns #expired. Expose a query `getMySubscriptionStatus(): Result<SubscriptionStatus, Text>` for the caller. Expose admin-only functions `setSubscriptionStatus(userId: Principal, status: SubscriptionStatus): Result<(), Text>` to manually override status.",
+      "reqIds": [
+        "REQ-22"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "AR-22",
+      "summary": "Implement post creation in the backend. Expose `createPost(emotionType: EmotionType, content: Text): Result<Post, Text>`. Reject if caller is not registered, is suspended, or has effective subscription status of #expired. Enforce server-side word count: Confess and Happy require minimum 24 words; Broke has no minimum. Store post with isPrivate = true, reactionCount = 0, editable = true, createdAt = Time.now(). Generate a unique post id.",
+      "reqIds": [
+        "REQ-23"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "AR-23",
+      "summary": "Implement post editing in the backend. Expose `editPost(postId: Text, newContent: Text): Result<Post, Text>`. Allow edit only if caller is the post owner and editable = true (reactionCount = 0). Apply the same word-count rules as post creation. If reactionCount > 0, return an error and do not modify the post.",
+      "reqIds": [
+        "REQ-24"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "AR-24",
+      "summary": "Implement privacy toggle in the backend. Expose `setPostPrivacy(postId: Text, isPrivate: Bool): Result<Post, Text>`. When going public (isPrivate = false), validate caller is owner and effective subscription status is not #expired and user is not suspended. When making private (isPrivate = true), validate caller is owner only — no subscription check needed. Private posts are immediately excluded from all community feed queries. Existing reactionCount is preserved when toggling private.",
+      "reqIds": [
+        "REQ-25"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "AR-25",
+      "summary": "Implement the reactions system in the backend. Expose `addReaction(postId: Text, reactionType: ReactionType): Result<Reaction, Text>`. Only allow reactions on public posts (isPrivate = false). Reject if caller is the post owner, is suspended, or is not registered. Enforce one reaction per user per post — return an error if a reaction already exists. On successful reaction: increment post.reactionCount and set post.editable = false. Expose a query `getMyReaction(postId: Text): ?ReactionType` for the caller to check their existing reaction.",
+      "reqIds": [
+        "REQ-26"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "AR-26",
+      "summary": "Implement post deletion in the backend. Expose `deletePost(postId: Text): Result<(), Text>`. Allow post owner to delete their post at any time. Remove all associated reactions from stable state. No notifications triggered. Expose an admin-only function `adminDeletePost(postId: Text): Result<(), Text>` that can delete any post regardless of ownership.",
+      "reqIds": [
+        "REQ-27"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "AR-27",
+      "summary": "Implement admin moderation functions in the backend. Protect all functions with a hardcoded admin Principal constant. Expose: `adminGetAllPublicPosts(): [Post]` (chronological order), `adminGetUserPosts(userId: Principal): [Post]` (all posts by user), `adminSuspendUser(userId: Principal): Result<(), Text>`, `adminUnsuspendUser(userId: Principal): Result<(), Text>`, `adminGetAllUsers(): [User]`. Suspended users cannot create posts, react, or go public — enforce this in all relevant functions.",
+      "reqIds": [
+        "REQ-28"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "AR-28",
+      "summary": "Expose the necessary backend query and update functions to support all existing frontend screens. At minimum expose: `getMyProfile(): Result<User, Text>`, `getMyPosts(): [Post]`, `getPublicPosts(): [Post]`, `isAdmin(): Bool`. Ensure all function signatures are compatible with the existing frontend hooks in `frontend/src/hooks/useQueries.ts` and the Candid interface auto-generated from main.mo. Do not break any existing frontend data-fetching contracts.",
+      "reqIds": [
+        "REQ-29"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "AR-29",
+      "summary": "Implement post creation in the backend. Expose `createPost(emotionType: EmotionType, content: Text): async Result<Post, Text>`. Reject if caller is not registered, is suspended, or has effective subscription status of #expired. Enforce server-side word count: Confess and Happy require minimum 24 words; Broke has no minimum. Store post with isPrivate = true, reactionCount = 0, editable = true, createdAt = Time.now(). Generate a unique post id using a counter or hash.",
+      "reqIds": [
+        "REQ-30"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "AR-30",
+      "summary": "Implement post editing in the backend. Expose `editPost(postId: Text, newContent: Text): async Result<Post, Text>`. Allow edit only if caller is the post owner and editable = true (reactionCount = 0). Apply the same word-count rules as post creation. If reactionCount > 0, return a clear error and do not modify the post.",
+      "reqIds": [
+        "REQ-31"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "AR-31",
+      "summary": "Implement privacy toggle in the backend. Expose `setPostPrivacy(postId: Text, isPrivate: Bool): async Result<Post, Text>`. When going public (isPrivate = false), validate caller is owner, effective subscription is not #expired, and user is not suspended. When making private (isPrivate = true), validate caller is owner only — no subscription check needed. Private posts are immediately excluded from all community feed queries. Existing reactionCount is preserved when toggling private.",
+      "reqIds": [
+        "REQ-32"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "AR-32",
+      "summary": "Implement the reactions system in the backend. Expose `addReaction(postId: Text, reactionType: ReactionType): async Result<Reaction, Text>` where ReactionType is variant { #support; #care; #strength }. Only allow reactions on public posts (isPrivate = false). Reject if caller is the post owner, is suspended, or is not registered. Enforce one reaction per user per post — return an error if a reaction already exists. On successful reaction: increment post.reactionCount and set post.editable = false. Expose `getMyReaction(postId: Text): async ?ReactionType` for the caller.",
+      "reqIds": [
+        "REQ-33"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "AR-33",
+      "summary": "Implement post deletion in the backend. Expose `deletePost(postId: Text): async Result<(), Text>` allowing post owner to delete their post at any time. Remove all associated reactions from stable state on deletion. No notifications triggered. Expose `adminDeletePost(postId: Text): async Result<(), Text>` protected by admin Principal check that can delete any post regardless of ownership, also removing associated reactions.",
+      "reqIds": [
+        "REQ-34"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "AR-34",
+      "summary": "Implement admin moderation functions in the backend. Protect all with a hardcoded admin Principal constant. Expose: `adminGetAllPublicPosts(): async [Post]` (chronological order), `adminGetUserPosts(userId: Principal): async [Post]` (all posts by user), `adminSuspendUser(userId: Principal): async Result<(), Text>`, `adminUnsuspendUser(userId: Principal): async Result<(), Text>`, `adminGetAllUsers(): async [User]`. Enforce throughout: suspended users cannot create posts, react, or go public.",
+      "reqIds": [
+        "REQ-35"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "AR-35",
+      "summary": "Expose all query and update functions required by the frontend. At minimum: `getMyProfile(): async Result<User, Text>`, `getMyPosts(): async [Post]`, `getPublicPosts(): async [Post]`, `isAdmin(): async Bool`. Ensure all function signatures exactly match what is expected by `frontend/src/hooks/useQueries.ts` and the auto-generated Candid interface. Do not break any existing frontend data-fetching contracts.",
+      "reqIds": [
+        "REQ-36"
+      ],
+      "status": "pending"
+    }
+  ],
+  "gameProjectType": "none",
+  "projectName": "Veil",
+  "clarification_mode": "instant",
+  "clarification_rounds": 0
+}

@@ -1,0 +1,190 @@
+{
+  "kind": "build_request",
+  "title": "Complete backend implementation: posts, reactions, privacy, admin functions, and frontend wiring",
+  "projectName": "Veil",
+  "priority": "high",
+  "requirements": [
+    {
+      "id": "REQ-30",
+      "text": "Implement post creation in the backend. Expose `createPost(emotionType: EmotionType, content: Text): async Result<Post, Text>`. Reject if caller is not registered, is suspended, or has effective subscription status of #expired. Enforce server-side word count: Confess and Happy require minimum 24 words; Broke has no minimum. Store post with isPrivate = true, reactionCount = 0, editable = true, createdAt = Time.now(). Generate a unique post id using a counter or hash.",
+      "target": "backend",
+      "source": {
+        "messageIds": [
+          "msg-1"
+        ],
+        "quotes": [
+          "Implement post creation in the backend"
+        ]
+      },
+      "acceptanceCriteria": [
+        "createPost rejects callers who are not registered with a descriptive error",
+        "createPost rejects suspended users",
+        "createPost rejects users with effective status #expired",
+        "Confess and Happy posts with fewer than 24 words return an error",
+        "Broke posts with any non-empty content are accepted regardless of word count",
+        "Successfully created post has isPrivate=true, reactionCount=0, editable=true"
+      ]
+    },
+    {
+      "id": "REQ-31",
+      "text": "Implement post editing in the backend. Expose `editPost(postId: Text, newContent: Text): async Result<Post, Text>`. Allow edit only if caller is the post owner and editable = true (reactionCount = 0). Apply the same word-count rules as post creation. If reactionCount > 0, return a clear error and do not modify the post.",
+      "target": "backend",
+      "source": {
+        "messageIds": [
+          "msg-1"
+        ],
+        "quotes": [
+          "Implement post editing in the backend"
+        ]
+      },
+      "acceptanceCriteria": [
+        "editPost returns error if caller is not the post owner",
+        "editPost returns error if editable = false (reactionCount > 0)",
+        "editPost enforces 24-word minimum for Confess and Happy on edit",
+        "editPost succeeds and returns updated post when all conditions are met"
+      ]
+    },
+    {
+      "id": "REQ-32",
+      "text": "Implement privacy toggle in the backend. Expose `setPostPrivacy(postId: Text, isPrivate: Bool): async Result<Post, Text>`. When going public (isPrivate = false), validate caller is owner, effective subscription is not #expired, and user is not suspended. When making private (isPrivate = true), validate caller is owner only — no subscription check needed. Private posts are immediately excluded from all community feed queries. Existing reactionCount is preserved when toggling private.",
+      "target": "backend",
+      "source": {
+        "messageIds": [
+          "msg-1"
+        ],
+        "quotes": [
+          "Implement privacy toggle in the backend"
+        ]
+      },
+      "acceptanceCriteria": [
+        "setPostPrivacy(postId, false) rejects expired-subscription users",
+        "setPostPrivacy(postId, false) rejects suspended users",
+        "setPostPrivacy(postId, true) succeeds for owner regardless of subscription",
+        "getPublicPosts() does not include posts where isPrivate = true",
+        "reactionCount is unchanged after toggling privacy"
+      ]
+    },
+    {
+      "id": "REQ-33",
+      "text": "Implement the reactions system in the backend. Expose `addReaction(postId: Text, reactionType: ReactionType): async Result<Reaction, Text>` where ReactionType is variant { #support; #care; #strength }. Only allow reactions on public posts (isPrivate = false). Reject if caller is the post owner, is suspended, or is not registered. Enforce one reaction per user per post — return an error if a reaction already exists. On successful reaction: increment post.reactionCount and set post.editable = false. Expose `getMyReaction(postId: Text): async ?ReactionType` for the caller.",
+      "target": "backend",
+      "source": {
+        "messageIds": [
+          "msg-1"
+        ],
+        "quotes": [
+          "Implement the reactions system in the backend"
+        ]
+      },
+      "acceptanceCriteria": [
+        "addReaction rejects reactions on private posts",
+        "addReaction rejects if caller is post owner",
+        "addReaction rejects if caller is suspended or not registered",
+        "addReaction rejects duplicate reactions from same user on same post",
+        "On successful reaction, post.reactionCount increments by 1 and post.editable becomes false",
+        "getMyReaction returns the existing reactionType if caller has reacted, null otherwise"
+      ]
+    },
+    {
+      "id": "REQ-34",
+      "text": "Implement post deletion in the backend. Expose `deletePost(postId: Text): async Result<(), Text>` allowing post owner to delete their post at any time. Remove all associated reactions from stable state on deletion. No notifications triggered. Expose `adminDeletePost(postId: Text): async Result<(), Text>` protected by admin Principal check that can delete any post regardless of ownership, also removing associated reactions.",
+      "target": "backend",
+      "source": {
+        "messageIds": [
+          "msg-1"
+        ],
+        "quotes": [
+          "Implement post deletion in the backend"
+        ]
+      },
+      "acceptanceCriteria": [
+        "deletePost returns error if caller is not the post owner",
+        "deletePost removes the post and all its reactions from stable state",
+        "adminDeletePost succeeds for any post when called by admin Principal",
+        "adminDeletePost rejects non-admin callers",
+        "After deletion, the post no longer appears in any feed or user post list"
+      ]
+    },
+    {
+      "id": "REQ-35",
+      "text": "Implement admin moderation functions in the backend. Protect all with a hardcoded admin Principal constant. Expose: `adminGetAllPublicPosts(): async [Post]` (chronological order), `adminGetUserPosts(userId: Principal): async [Post]` (all posts by user), `adminSuspendUser(userId: Principal): async Result<(), Text>`, `adminUnsuspendUser(userId: Principal): async Result<(), Text>`, `adminGetAllUsers(): async [User]`. Enforce throughout: suspended users cannot create posts, react, or go public.",
+      "target": "backend",
+      "source": {
+        "messageIds": [
+          "msg-1"
+        ],
+        "quotes": [
+          "Implement admin moderation functions in the backend"
+        ]
+      },
+      "acceptanceCriteria": [
+        "All admin functions reject non-admin callers with a permission error",
+        "adminGetAllPublicPosts returns only public posts in chronological order",
+        "adminGetUserPosts returns all posts (public and private) for a given user",
+        "adminSuspendUser sets suspended = true; suspended user is blocked from createPost, addReaction, setPostPrivacy(false)",
+        "adminUnsuspendUser sets suspended = false and restores normal access",
+        "adminGetAllUsers returns all registered user records"
+      ]
+    },
+    {
+      "id": "REQ-36",
+      "text": "Expose all query and update functions required by the frontend. At minimum: `getMyProfile(): async Result<User, Text>`, `getMyPosts(): async [Post]`, `getPublicPosts(): async [Post]`, `isAdmin(): async Bool`. Ensure all function signatures exactly match what is expected by `frontend/src/hooks/useQueries.ts` and the auto-generated Candid interface. Do not break any existing frontend data-fetching contracts.",
+      "target": "backend",
+      "source": {
+        "messageIds": [
+          "msg-1"
+        ],
+        "quotes": [
+          "Expose the necessary backend query and update functions to support all existing frontend screens"
+        ]
+      },
+      "acceptanceCriteria": [
+        "getMyProfile() returns the caller's User record or a descriptive error if not registered",
+        "getMyPosts() returns all posts belonging to the caller sorted newest first",
+        "getPublicPosts() returns all posts where isPrivate = false sorted newest first",
+        "isAdmin() returns true only for the hardcoded admin Principal, false for all others",
+        "All signatures are compatible with the existing useQueries.ts hook definitions"
+      ]
+    },
+    {
+      "id": "REQ-37",
+      "text": "Wire all frontend pages and hooks to the now-complete backend. Update `frontend/src/hooks/useQueries.ts` to call createPost, editPost, deletePost, setPostPrivacy, addReaction, getMyReaction, getMyPosts, getPublicPosts, getMyProfile, and isAdmin using the actor from useActor. Ensure mutation hooks invalidate the correct query keys on success so UI stays in sync without manual refresh.",
+      "target": "frontend",
+      "source": {
+        "messageIds": [
+          "msg-1"
+        ],
+        "quotes": [
+          "to get the app fully wired"
+        ]
+      },
+      "acceptanceCriteria": [
+        "Creating a post from PostCreationPage calls createPost and navigates to My Posts on success",
+        "Editing a post from PostCard calls editPost and refreshes the post list",
+        "Deleting a post calls deletePost and removes the card from the list immediately",
+        "Go Public / Make Private toggle calls setPostPrivacy and updates the card's status badge",
+        "Reaction buttons in PublicPostCard call addReaction and reflect the chosen reaction state",
+        "getMyReaction is called per post in the community feed to show existing reactions",
+        "Dashboard and header correctly reflect subscription status from getMyProfile",
+        "Admin dashboard tabs call adminGetAllPublicPosts, adminGetAllUsers, adminGetUserPosts via useQueries"
+      ]
+    }
+  ],
+  "constraints": [
+    "All Motoko logic must remain in a single actor in backend/main.mo",
+    "Do not modify files under frontend/src/hooks/useInternetIdentity.ts, frontend/src/hooks/useActor.ts, frontend/src/main.tsx, or frontend/src/components/ui",
+    "Admin Principal must be hardcoded as a constant in main.mo — no dynamic admin assignment",
+    "All stable state must use HashMap or TrieMap so data survives canister upgrades"
+  ],
+  "nonGoals": [
+    "No new frontend UI screens — all screens are already built",
+    "No email, real name, or external authentication beyond Internet Identity",
+    "No real-time features, WebSockets, or push notifications",
+    "No AI or automated moderation — all moderation is manual",
+    "No payment processing integration in this build"
+  ],
+  "imageRequirements": {
+    "required": [],
+    "edits": []
+  }
+}

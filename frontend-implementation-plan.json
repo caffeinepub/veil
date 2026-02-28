@@ -1,0 +1,83 @@
+{
+  "kind": "implementation_plan",
+  "version": "1.0",
+  "title": "Complete frontend wiring for posts, reactions, privacy, and admin moderation",
+  "requirements": [
+    {
+      "id": "REQ-37",
+      "summary": "Wire all frontend pages and hooks to the complete backend, ensuring mutation hooks invalidate query keys and UI stays in sync",
+      "acceptanceCriteria": [
+        "Creating a post from PostCreationPage calls createPost and navigates to My Posts on success",
+        "Editing a post from PostCard calls editPost and refreshes the post list",
+        "Deleting a post calls deletePost and removes the card from the list immediately",
+        "Go Public / Make Private toggle calls setPostPrivacy and updates the card's status badge",
+        "Reaction buttons in PublicPostCard call addReaction and reflect the chosen reaction state",
+        "getMyReaction is called per post in the community feed to show existing reactions",
+        "Dashboard and header correctly reflect subscription status from getMyProfile",
+        "Admin dashboard tabs call adminGetAllPublicPosts, adminGetAllUsers, adminGetUserPosts via useQueries"
+      ],
+      "file_operations": [
+        {
+          "path": "frontend/src/hooks/useQueries.ts",
+          "operation": "modify",
+          "description": "Add mutation hooks for createPost, editPost, deletePost, and setPostPrivacy with proper query invalidation. Add query hooks for getMyReaction per post. Ensure all hooks use the actor from useActor and include error handling. Invalidate ['myPosts'] and ['publicPosts'] on successful post mutations. Invalidate ['myReaction', postId] after addReaction succeeds. Add query hooks for adminGetAllPublicPosts, adminGetAllUsers, and adminGetUserPosts with admin-only guards."
+        },
+        {
+          "path": "frontend/src/pages/PostCreationPage.tsx",
+          "operation": "modify",
+          "description": "Wire the form submission to call the createPost mutation hook from useQueries. On success, navigate to '/posts' (My Posts page). On error, show a toast with the error message. Ensure the 24-word minimum validation for Confess and Happy is enforced before submission and matches backend validation rules."
+        },
+        {
+          "path": "frontend/src/components/PostCard.tsx",
+          "operation": "modify",
+          "description": "Wire the edit functionality to call editPost mutation hook. Wire the delete button to call deletePost mutation hook. Wire the Go Public / Make Private toggle to call setPostPrivacy mutation hook. Ensure query invalidation triggers UI refresh without manual reload. Handle backend errors (e.g., 'not editable', 'expired subscription') with toast notifications."
+        },
+        {
+          "path": "frontend/src/pages/MyPostsPage.tsx",
+          "operation": "modify",
+          "description": "Ensure the page uses the getMyPosts query hook from useQueries and displays posts sorted newest-first. Verify PostCard components receive proper props for edit/delete/privacy toggle mutations. Show loading skeletons during fetch and an empty state if no posts exist."
+        },
+        {
+          "path": "frontend/src/components/PublicPostCard.tsx",
+          "operation": "modify",
+          "description": "Wire reaction buttons (support, care, strength) to call addReaction mutation hook from useQueries. Call getMyReaction query hook for each post to display existing reaction state (highlight the button if user already reacted). Disable reaction buttons if user is the post owner or if already reacted. Show toast on error (e.g., 'cannot react on private post', 'already reacted')."
+        },
+        {
+          "path": "frontend/src/pages/CommunityFeedPage.tsx",
+          "operation": "modify",
+          "description": "Ensure the page uses getPublicPosts query hook from useQueries and passes each post to PublicPostCard. Verify that PublicPostCard calls getMyReaction for each post to show reaction state. Display loading skeletons and empty state appropriately."
+        },
+        {
+          "path": "frontend/src/pages/DashboardPage.tsx",
+          "operation": "modify",
+          "description": "Ensure the dashboard calls getMyProfile query hook from useQueries and displays subscription status correctly. Show SubscriptionBanner if subscription is expired or in grace period and user cannot post. Verify emotion selection buttons navigate to post creation routes."
+        },
+        {
+          "path": "frontend/src/components/Header.tsx",
+          "operation": "modify",
+          "description": "Wire the header to call getMyProfile query hook from useQueries to display the user's pseudonym. Conditionally render the Admin nav link only if isAdmin query returns true. Ensure sign-out clears cached queries including posts and reactions."
+        },
+        {
+          "path": "frontend/src/components/AdminDashboard.tsx",
+          "operation": "modify",
+          "description": "Ensure AdminDashboard tabs correctly delegate to AdminPublicPostsList, AdminUserManagement, AdminInviteCodes, and AdminUserPostHistory components. Verify all admin query hooks are wired through useQueries."
+        },
+        {
+          "path": "frontend/src/components/AdminPublicPostsList.tsx",
+          "operation": "modify",
+          "description": "Wire the component to call adminGetAllPublicPosts query hook from useQueries. Display posts sorted chronologically. Wire the delete button to call adminDeletePost mutation hook. Show confirmation dialog before deletion. Invalidate ['adminPublicPosts'] and ['publicPosts'] on successful deletion."
+        },
+        {
+          "path": "frontend/src/components/AdminUserPostHistory.tsx",
+          "operation": "modify",
+          "description": "Wire the component to call adminGetUserPosts query hook from useQueries when a Principal ID is provided. Display all posts (public and private) for that user. Wire the delete button to call adminDeletePost mutation hook. Invalidate ['adminUserPosts', userId] and ['myPosts'] on successful deletion."
+        },
+        {
+          "path": "frontend/src/components/AdminUserManagement.tsx",
+          "operation": "modify",
+          "description": "Wire the component to call adminGetAllUsers query hook from useQueries. Wire suspend/unsuspend buttons to call adminSuspendUser and adminUnsuspendUser mutation hooks. Show toast on success/error. Invalidate ['adminUsers'] after suspension changes. Display subscription status and allow admins to change it using setSubscriptionStatus mutation hook."
+        }
+      ]
+    }
+  ]
+}
