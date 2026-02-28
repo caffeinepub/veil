@@ -1,6 +1,5 @@
-import { createRouter, RouterProvider, createRootRoute, createRoute, Outlet, redirect } from '@tanstack/react-router';
-import { useInternetIdentity } from './hooks/useInternetIdentity';
-import { useQueryClient } from '@tanstack/react-query';
+import { RouterProvider, createRouter, createRoute, createRootRoute, Outlet } from '@tanstack/react-router';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Toaster } from '@/components/ui/sonner';
 import Layout from './components/Layout';
 import LoginPage from './pages/LoginPage';
@@ -10,17 +9,21 @@ import PostCreationPage from './pages/PostCreationPage';
 import MyPostsPage from './pages/MyPostsPage';
 import CommunityFeedPage from './pages/CommunityFeedPage';
 import AdminPage from './pages/AdminPage';
-import { useGetCallerUserProfile } from './hooks/useQueries';
 
-// Root route with layout
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 1000 * 30,
+      retry: 1,
+    },
+  },
+});
+
 const rootRoute = createRootRoute({
   component: () => (
-    <>
-      <Layout>
-        <Outlet />
-      </Layout>
-      <Toaster position="bottom-center" />
-    </>
+    <Layout>
+      <Outlet />
+    </Layout>
   ),
 });
 
@@ -38,19 +41,25 @@ const signupRoute = createRoute({
 
 const dashboardRoute = createRoute({
   getParentRoute: () => rootRoute,
+  path: '/dashboard',
+  component: DashboardPage,
+});
+
+const indexRoute = createRoute({
+  getParentRoute: () => rootRoute,
   path: '/',
   component: DashboardPage,
 });
 
-const postCreateRoute = createRoute({
+const createRoute_ = createRoute({
   getParentRoute: () => rootRoute,
-  path: '/post/new/$emotion',
+  path: '/create',
   component: PostCreationPage,
 });
 
-const myPostsRoute = createRoute({
+const postsRoute = createRoute({
   getParentRoute: () => rootRoute,
-  path: '/my-posts',
+  path: '/posts',
   component: MyPostsPage,
 });
 
@@ -67,11 +76,12 @@ const adminRoute = createRoute({
 });
 
 const routeTree = rootRoute.addChildren([
+  indexRoute,
   loginRoute,
   signupRoute,
   dashboardRoute,
-  postCreateRoute,
-  myPostsRoute,
+  createRoute_,
+  postsRoute,
   communityRoute,
   adminRoute,
 ]);
@@ -85,5 +95,10 @@ declare module '@tanstack/react-router' {
 }
 
 export default function App() {
-  return <RouterProvider router={router} />;
+  return (
+    <QueryClientProvider client={queryClient}>
+      <RouterProvider router={router} />
+      <Toaster richColors position="top-right" />
+    </QueryClientProvider>
+  );
 }

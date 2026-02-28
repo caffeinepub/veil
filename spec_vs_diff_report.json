@@ -1,55 +1,92 @@
 {
   "kind": "spec_vs_diff_report",
   "version": "1.0",
-  "generatedAt": "2026-02-28T21:09:17.565Z",
-  "summary": "The diff only modifies project_state.json (a metadata/state tracking file) and does not touch any actual implementation files. None of the 7 requirements (REQ-62 through REQ-68) are implemented — no changes were made to useQueries.ts, SignupPage, PostCreationPage, PostCard, PublicPostCard, admin dashboard components, DashboardPage, or subscriptionHelpers.ts.",
+  "generatedAt": "2026-02-28T22:45:05.820Z",
+  "summary": "The diff only modifies two files: backend/main.mo (truncated) and project_state.json. The backend/main.mo changes appear incomplete and problematic — it uses non-standard Motoko imports (mo:core/* instead of standard base library), references external modules not shown as added files, and the visible portion does not demonstrate all 22 required public functions, stable var/preupgrade/postupgrade pattern, or pre-seeded invite codes. The entire frontend codebase (REQ-105 through REQ-112) shows no changes at all in the diff.",
   "missing_requirements": [
     {
-      "id": "REQ-62",
-      "requirement": "Update frontend/src/hooks/useQueries.ts to correctly call all backend functions with correct parameter shapes and return types matching the Candid interface.",
-      "reason": "No changes to frontend/src/hooks/useQueries.ts or any related frontend hook files are present in the diff.",
+      "id": "REQ-104",
+      "requirement": "backend/main.mo must compile correctly with all 22 required public functions, at least 5 pre-seeded invite codes, stable var with preupgrade/postupgrade pattern, and admin Principal protection.",
+      "reason": "The visible backend/main.mo uses non-standard imports (mo:core/* instead of mo:base/*), imports external modules (MixinAuthorization, AccessControl, InviteLinksModule) not present in the diff, uses non-standard Map/Text APIs, does not show stable var declarations, no preupgrade/postupgrade hooks, no pre-seeded invite codes, and only a subset of the 22 required functions are visible before truncation. The file appears unlikely to compile.",
+      "evidence": [
+        "backend/main.mo"
+      ]
+    },
+    {
+      "id": "REQ-105",
+      "requirement": "useQueries.ts must have complete, correctly-typed React Query hooks for every backend function with correct cache invalidation.",
+      "reason": "No frontend files were modified in the diff. useQueries.ts is not present in any added or modified files.",
       "evidence": []
     },
     {
-      "id": "REQ-63",
-      "requirement": "Ensure the SignupPage calls the register mutation with correct arguments, handles #ok/#err Result variants, and routes to dashboard on success or displays error on failure.",
-      "reason": "No changes to SignupPage or related components are present in the diff.",
+      "id": "REQ-106",
+      "requirement": "LoginPage must call login from useInternetIdentity, redirect to /dashboard or /signup after auth, protect routes, and Header logout must redirect to /login.",
+      "reason": "No frontend files were modified in the diff. LoginPage and Header components are not present in any added or modified files.",
       "evidence": []
     },
     {
-      "id": "REQ-64",
-      "requirement": "Ensure the PostCreationPage calls the createPost mutation with correct (emotionType, content) arguments, handles Result, and navigates to /my-posts on success or shows error inline.",
-      "reason": "No changes to PostCreationPage or related components are present in the diff.",
+      "id": "REQ-107",
+      "requirement": "SignupPage must read invite code from URL params, pre-fill input, call register mutation, unwrap Result variants, route on success, show inline errors, and offer exactly India and Global region options.",
+      "reason": "No frontend files were modified in the diff. SignupPage is not present in any added or modified files.",
       "evidence": []
     },
     {
-      "id": "REQ-65",
-      "requirement": "Ensure PostCard calls editPost, deletePost, and setPostPrivacy mutations with correct arguments, handles Result variants, and invalidates 'myPosts' and 'publicPosts' query keys on success.",
-      "reason": "No changes to PostCard or related components are present in the diff.",
+      "id": "REQ-108",
+      "requirement": "DashboardPage must call getMyProfile and getMySubscriptionStatus, pass status to SubscriptionBanner, block /create navigation when expired, and have emotion buttons navigating with query params.",
+      "reason": "No frontend files were modified in the diff. DashboardPage is not present in any added or modified files.",
       "evidence": []
     },
     {
-      "id": "REQ-66",
-      "requirement": "Ensure PublicPostCard calls addReaction mutation and getMyReaction query with correct arguments, displays existing reaction, and disables reaction buttons for post owner or already-reacted users.",
-      "reason": "No changes to PublicPostCard or related components are present in the diff.",
+      "id": "REQ-109",
+      "requirement": "PostCreationPage must read emotion from params, call createPost mutation, enforce 24-word minimum, show live word counter, handle Result, navigate to /posts on success, and show inline errors.",
+      "reason": "No frontend files were modified in the diff. PostCreationPage is not present in any added or modified files.",
       "evidence": []
     },
     {
-      "id": "REQ-67",
-      "requirement": "Ensure all admin functions are exposed as hooks in useQueries.ts and correctly consumed by admin dashboard components (AdminPublicPostsList, AdminUserManagement, AdminInviteCodes, AdminUserPostHistory).",
-      "reason": "No changes to useQueries.ts or admin dashboard components are present in the diff.",
+      "id": "REQ-110",
+      "requirement": "MyPostsPage and PostCard must use editPost, deletePost, setPostPrivacy mutations with correct cache invalidation, show exact confirmation dialog text, and conditionally show Edit button.",
+      "reason": "No frontend files were modified in the diff. MyPostsPage and PostCard components are not present in any added or modified files.",
       "evidence": []
     },
     {
-      "id": "REQ-68",
-      "requirement": "Ensure DashboardPage and PostCreationPage read effective subscription status from getMySubscriptionStatus and correctly pass it to SubscriptionBanner and subscription-gating logic.",
-      "reason": "No changes to DashboardPage, PostCreationPage, SubscriptionBanner, or subscriptionHelpers.ts are present in the diff.",
+      "id": "REQ-111",
+      "requirement": "CommunityFeedPage and PublicPostCard must call getMyReaction, addReaction, disable reaction buttons for owners and already-reacted users, sort newest-first, and show no comments/replies/follower counts.",
+      "reason": "No frontend files were modified in the diff. CommunityFeedPage and PublicPostCard are not present in any added or modified files.",
+      "evidence": []
+    },
+    {
+      "id": "REQ-112",
+      "requirement": "AdminPage and sub-components must wire all admin hooks, redirect non-admins, and have working AdminPublicPostsList, AdminUserManagement, AdminInviteCodes, and AdminUserPostHistory.",
+      "reason": "No frontend files were modified in the diff. AdminPage and admin sub-components are not present in any added or modified files.",
       "evidence": []
     }
   ],
-  "hallucinated_features": [],
-  "confidence": 0.97,
+  "hallucinated_features": [
+    {
+      "description": "generateInviteCode, submitRSVP, and getAllRSVPs public functions added to backend",
+      "reason": "The backend/main.mo adds these functions which are not among the 22 required functions in REQ-104. submitRSVP and getAllRSVPs relate to RSVP functionality which was never requested.",
+      "evidence": [
+        "backend/main.mo"
+      ]
+    },
+    {
+      "description": "External module imports: MixinAuthorization, AccessControl, InviteLinksModule",
+      "reason": "The backend imports authorization and invite-links modules from external files not requested and not present in the diff as added files, making the backend likely uncompilable.",
+      "evidence": [
+        "backend/main.mo"
+      ]
+    },
+    {
+      "description": "adminPrincipal stored as mutable optional var initialized to null rather than hardcoded",
+      "reason": "REQ-104 explicitly requires admin functions to be protected by a hardcoded admin Principal check. The diff declares 'var adminPrincipal : ?Principal = null' which is mutable and starts as null, contradicting the hardcoded requirement.",
+      "evidence": [
+        "backend/main.mo"
+      ]
+    }
+  ],
+  "confidence": 0.88,
   "changed_files": [
+    "backend/main.mo",
     "project_state.json"
   ]
 }

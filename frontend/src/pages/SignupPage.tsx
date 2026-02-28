@@ -1,163 +1,161 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from '@tanstack/react-router';
 import { useInternetIdentity } from '../hooks/useInternetIdentity';
-import { useRegister } from '../hooks/useQueries';
+import { useGetMyProfile, useRegister } from '../hooks/useQueries';
 import { Region } from '../backend';
+import { getPersistedUrlParameter, clearSessionParameter } from '../utils/urlParams';
+import { Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Loader2, AlertCircle } from 'lucide-react';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 export default function SignupPage() {
   const navigate = useNavigate();
-  const { identity } = useInternetIdentity();
-  const register = useRegister();
+  const { identity, isInitializing } = useInternetIdentity();
+  const { data: profile, isFetched: profileFetched, isLoading: profileLoading } = useGetMyProfile();
+  const registerMutation = useRegister();
 
-  const [inviteCode, setInviteCode] = useState('');
   const [pseudonym, setPseudonym] = useState('');
-  const [region, setRegion] = useState<Region>(Region.global);
-  const [error, setError] = useState('');
+  const [region, setRegion] = useState<Region>(Region.india);
+  const [inviteCode, setInviteCode] = useState('');
+  const [formError, setFormError] = useState<string | null>(null);
 
-  if (!identity) {
-    navigate({ to: '/login' });
-    return null;
-  }
+  const isAuthenticated = !!identity;
+
+  // Pre-fill invite code from URL query param or sessionStorage
+  useEffect(() => {
+    const code = getPersistedUrlParameter('code');
+    if (code) setInviteCode(code);
+  }, []);
+
+  // Redirect unauthenticated users
+  useEffect(() => {
+    if (!isInitializing && !isAuthenticated) {
+      navigate({ to: '/login' });
+    }
+  }, [isInitializing, isAuthenticated, navigate]);
+
+  // Redirect already-registered users
+  useEffect(() => {
+    if (isAuthenticated && profileFetched && !profileLoading && profile) {
+      navigate({ to: '/dashboard' });
+    }
+  }, [isAuthenticated, profile, profileFetched, profileLoading, navigate]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError('');
+    setFormError(null);
 
     if (!pseudonym.trim()) {
-      setError('Please choose a pseudonymous name.');
+      setFormError('Please enter a pseudonym.');
       return;
     }
     if (!inviteCode.trim()) {
-      setError('Please enter your invite code.');
+      setFormError('Please enter your invite code.');
       return;
     }
 
     try {
-      await register.mutateAsync({ pseudonym: pseudonym.trim(), region, inviteCode: inviteCode.trim() });
-      navigate({ to: '/' });
+      await registerMutation.mutateAsync({ pseudonym: pseudonym.trim(), region, inviteCode: inviteCode.trim() });
+      clearSessionParameter('code');
+      navigate({ to: '/dashboard' });
     } catch (err: unknown) {
-      const msg = (err as Error)?.message || '';
-      if (msg.includes('capacity')) {
-        setError('Veil is currently at capacity. No new members can join at this time.');
-      } else if (msg.includes('Invalid') || msg.includes('invite')) {
-        setError('This invite code is invalid or has already been used.');
-      } else if (msg.includes('Already registered')) {
-        navigate({ to: '/' });
-      } else {
-        setError('Something went wrong. Please try again.');
-      }
+      const message = err instanceof Error ? err.message : 'Registration failed. Please try again.';
+      setFormError(message);
     }
   };
 
+  if (isInitializing || (isAuthenticated && profileLoading)) {
+    return (
+      <div className="min-h-[60vh] flex items-center justify-center">
+        <Loader2 className="animate-spin text-muted-foreground" size={28} />
+      </div>
+    );
+  }
+
+  if (!isAuthenticated) return null;
+
   return (
-    <div className="min-h-[calc(100vh-8rem)] flex items-center justify-center px-6">
-      <div className="w-full max-w-sm animate-fade-in">
-        <div className="text-center mb-10">
-          <h1 className="font-serif text-3xl font-medium text-foreground mb-3">
-            Join Veil
-          </h1>
-          <p className="text-muted-foreground font-sans text-sm leading-relaxed">
-            Choose a name only you will know you by. No real names here.
-          </p>
+    <div className="min-h-[80vh] flex flex-col items-center justify-center px-4 py-10">
+      <div className="w-full max-w-sm space-y-6">
+        {/* Header */}
+        <div className="text-center space-y-1">
+          <h1 className="font-serif text-2xl font-semibold text-foreground">Join Veil</h1>
+          <p className="text-sm text-muted-foreground">Create your anonymous identity</p>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-6">
-          {/* Invite Code */}
-          <div className="space-y-2">
-            <Label htmlFor="inviteCode" className="font-sans text-sm text-foreground">
-              Invite Code
-            </Label>
-            <Input
-              id="inviteCode"
-              type="text"
-              value={inviteCode}
-              onChange={(e) => setInviteCode(e.target.value)}
-              placeholder="Enter your invite code"
-              className="h-12 rounded-xl font-sans"
-              autoComplete="off"
-            />
-          </div>
-
+        <form onSubmit={handleSubmit} className="space-y-4">
           {/* Pseudonym */}
-          <div className="space-y-2">
-            <Label htmlFor="pseudonym" className="font-sans text-sm text-foreground">
-              Your Pseudonymous Name
-            </Label>
+          <div className="space-y-1.5">
+            <Label htmlFor="pseudonym">Pseudonym</Label>
             <Input
               id="pseudonym"
-              type="text"
+              placeholder="Your anonymous name"
               value={pseudonym}
-              onChange={(e) => setPseudonym(e.target.value)}
-              placeholder="e.g. quietmoon, saltwater, ember"
-              className="h-12 rounded-xl font-sans"
+              onChange={e => setPseudonym(e.target.value)}
+              disabled={registerMutation.isPending}
               autoComplete="off"
             />
-            <p className="text-xs text-muted-foreground font-sans">
-              This is how others will see you. No real names.
-            </p>
+            <p className="text-xs text-muted-foreground">This is how others will see you — no real name needed.</p>
           </div>
 
           {/* Region */}
-          <div className="space-y-2">
-            <Label className="font-sans text-sm text-foreground">Region</Label>
-            <div className="grid grid-cols-2 gap-3">
-              <button
-                type="button"
-                onClick={() => setRegion(Region.india)}
-                className={`h-12 rounded-xl border font-sans text-sm transition-all ${
-                  region === Region.india
-                    ? 'border-primary bg-primary/8 text-foreground font-medium'
-                    : 'border-border bg-card text-muted-foreground hover:border-primary/40'
-                }`}
-              >
-                India
-                <span className="block text-xs font-normal mt-0.5 opacity-70">₹150/month</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => setRegion(Region.global)}
-                className={`h-12 rounded-xl border font-sans text-sm transition-all ${
-                  region === Region.global
-                    ? 'border-primary bg-primary/8 text-foreground font-medium'
-                    : 'border-border bg-card text-muted-foreground hover:border-primary/40'
-                }`}
-              >
-                Global
-                <span className="block text-xs font-normal mt-0.5 opacity-70">$9/month</span>
-              </button>
-            </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="region">Region</Label>
+            <Select
+              value={region}
+              onValueChange={val => setRegion(val as Region)}
+              disabled={registerMutation.isPending}
+            >
+              <SelectTrigger id="region">
+                <SelectValue placeholder="Select your region" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value={Region.india}>India</SelectItem>
+                <SelectItem value={Region.global}>Global</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
 
-          {/* Error */}
-          {error && (
-            <div className="flex items-start gap-2 p-3 rounded-xl bg-muted border border-border">
-              <AlertCircle size={15} className="text-muted-foreground mt-0.5 shrink-0" />
-              <p className="text-sm text-muted-foreground font-sans">{error}</p>
+          {/* Invite Code */}
+          <div className="space-y-1.5">
+            <Label htmlFor="inviteCode">Invite Code</Label>
+            <Input
+              id="inviteCode"
+              placeholder="Enter your invite code"
+              value={inviteCode}
+              onChange={e => setInviteCode(e.target.value)}
+              disabled={registerMutation.isPending}
+              autoComplete="off"
+            />
+          </div>
+
+          {/* Inline error */}
+          {formError && (
+            <div className="text-sm text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/30 rounded-md px-3 py-2">
+              {formError}
             </div>
           )}
 
           <Button
             type="submit"
-            disabled={register.isPending}
-            className="w-full h-12 font-sans text-base rounded-xl"
+            className="w-full"
+            disabled={registerMutation.isPending}
           >
-            {register.isPending ? (
-              <span className="flex items-center gap-2">
-                <Loader2 size={16} className="animate-spin" />
-                Creating your space...
-              </span>
+            {registerMutation.isPending ? (
+              <>
+                <Loader2 className="animate-spin mr-2" size={16} />
+                Creating account…
+              </>
             ) : (
-              'Enter Veil'
+              'Create Account'
             )}
           </Button>
         </form>
 
-        <p className="mt-6 text-center text-xs text-muted-foreground font-sans leading-relaxed">
-          15-day grace period begins immediately. No payment required to start.
+        <p className="text-xs text-muted-foreground text-center">
+          Invite-only · Your identity stays anonymous
         </p>
       </div>
     </div>

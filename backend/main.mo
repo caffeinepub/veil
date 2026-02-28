@@ -1,21 +1,19 @@
 import Text "mo:core/Text";
 import Time "mo:core/Time";
-import Principal "mo:core/Principal";
 import Iter "mo:core/Iter";
 import Map "mo:core/Map";
 import Runtime "mo:core/Runtime";
 import Array "mo:core/Array";
 import Random "mo:core/Random";
+import Principal "mo:core/Principal";
 import MixinAuthorization "authorization/MixinAuthorization";
 import AccessControl "authorization/access-control";
-import InviteLinksModule "invite-links/invite-links-module";
 import Order "mo:core/Order";
-
-
+import InviteLinksModule "invite-links/invite-links-module";
 
 actor {
-  let inviteState = InviteLinksModule.initState();
   let accessControlState = AccessControl.initState();
+  let inviteState = InviteLinksModule.initState();
   include MixinAuthorization(accessControlState);
 
   var adminPrincipal : ?Principal = null;
@@ -24,38 +22,6 @@ actor {
   let posts = Map.empty<Text, RawPost>();
   let reactions = Map.empty<Text, Reaction>();
   let inviteCodes = Map.empty<Text, InviteCode>();
-
-  public shared ({ caller }) func initializeAdmin() : async () {
-    switch (adminPrincipal) {
-      case (?_) { Runtime.trap("Admin already initialized") };
-      case (null) {
-        if (caller.isAnonymous()) {
-          Runtime.trap("Anonymous principal cannot be admin");
-        };
-        AccessControl.initialize(accessControlState, caller, "", "");
-        adminPrincipal := ?caller;
-      };
-    };
-  };
-
-  func getAdminPrincipal() : Principal {
-    switch (adminPrincipal) {
-      case (?p) { p };
-      case (null) { Runtime.trap("Admin not initialized") };
-    };
-  };
-
-  func assertIsAdmin(caller : Principal) {
-    if (not AccessControl.isAdmin(accessControlState, caller)) {
-      Runtime.trap("Unauthorized: Only admins can perform this action");
-    };
-  };
-
-  func assertIsUser(caller : Principal) {
-    if (not AccessControl.hasPermission(accessControlState, caller, #user)) {
-      Runtime.trap("Unauthorized: Only registered users can perform this action");
-    };
-  };
 
   public type Region = {
     #india;
@@ -724,6 +690,37 @@ actor {
     assertIsAdmin(caller);
     users.values().toArray();
   };
-};
 
+  public shared ({ caller }) func initializeAdmin() : async () {
+    switch (adminPrincipal) {
+      case (?_) { Runtime.trap("Admin already initialized") };
+      case (null) {
+        if (caller.isAnonymous()) {
+          Runtime.trap("Anonymous principal cannot be admin");
+        };
+        AccessControl.initialize(accessControlState, caller, "", "");
+        adminPrincipal := ?caller;
+      };
+    };
+  };
+
+  func getAdminPrincipal() : Principal {
+    switch (adminPrincipal) {
+      case (?p) { p };
+      case (null) { Runtime.trap("Admin not initialized") };
+    };
+  };
+
+  func assertIsAdmin(caller : Principal) {
+    if (not AccessControl.isAdmin(accessControlState, caller)) {
+      Runtime.trap("Unauthorized: Only admins can perform this action");
+    };
+  };
+
+  func assertIsUser(caller : Principal) {
+    if (not AccessControl.hasPermission(accessControlState, caller, #user)) {
+      Runtime.trap("Unauthorized: Only registered users can perform this action");
+    };
+  };
+};
 

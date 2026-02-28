@@ -1,9 +1,11 @@
 import { useState } from 'react';
-import { Post, SubscriptionStatus, Region } from '../backend';
-import { useEditPost, useDeletePost, useSetPostPrivacy } from '../hooks/useQueries';
-import { canMakePublic, getRegionalPricing } from '../utils/subscriptionHelpers';
-import { countWords, MIN_WORDS_CONFESS_HAPPY } from '../utils/wordCounter';
+import { EmotionType, type Post } from '../backend';
+import { useEditPost, useDeletePost, useSetPostPrivacy, useGetMySubscriptionStatus } from '../hooks/useQueries';
+import { countWords, MINIMUM_WORD_COUNT, needsMinimumWords } from '../utils/wordCounter';
+import { canGoPublic } from '../utils/subscriptionHelpers';
 import EmotionBadge from './EmotionBadge';
+import { Button } from '@/components/ui/button';
+import { Textarea } from '@/components/ui/textarea';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -15,221 +17,201 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
-import { Button } from '@/components/ui/button';
-import { Textarea } from '@/components/ui/textarea';
-import { Loader2, Lock, Globe, Pencil, Trash2, Eye } from 'lucide-react';
-import { toast } from 'sonner';
-import { EmotionType } from '../backend';
+import { Loader2, Pencil, Trash2, Globe, Lock } from 'lucide-react';
 
 interface PostCardProps {
   post: Post;
-  subscriptionStatus: SubscriptionStatus | null;
-  region: Region | null;
 }
 
-export default function PostCard({ post, subscriptionStatus, region }: PostCardProps) {
+export default function PostCard({ post }: PostCardProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [editContent, setEditContent] = useState(post.content);
+  const [editError, setEditError] = useState<string | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
+
   const editPost = useEditPost();
   const deletePost = useDeletePost();
-  const setPrivacy = useSetPostPrivacy();
+  const setPostPrivacy = useSetPostPrivacy();
+  const { data: subscriptionStatus } = useGetMySubscriptionStatus();
 
-  const needsMinWords = post.emotionType === EmotionType.confess || post.emotionType === EmotionType.happy;
-  const editWordCount = countWords(editContent);
-  const editMeetsRequirement = !needsMinWords || editWordCount >= MIN_WORDS_CONFESS_HAPPY;
-  const canPublish = canMakePublic(subscriptionStatus);
+  const wordCount = countWords(editContent);
+  const requiresMinWords = needsMinimumWords(post.emotionType);
+  const meetsWordCount = !requiresMinWords || wordCount >= MINIMUM_WORD_COUNT;
 
-  const handleSaveEdit = async () => {
-    if (!editMeetsRequirement) return;
+  const createdAt = new Date(Number(post.createdAt / BigInt(1_000_000)));
+
+  const handleEdit = async () => {
+    setEditError(null);
+    if (!editContent.trim()) {
+      setEditError('Content cannot be empty.');
+      return;
+    }
+    if (!meetsWordCount) {
+      setEditError(`At least ${MINIMUM_WORD_COUNT} words required. You have ${wordCount}.`);
+      return;
+    }
     try {
-      await editPost.mutateAsync({ postId: post.id, newContent: editContent });
+      await editPost.mutateAsync({ postId: post.id, newContent: editContent.trim() });
       setIsEditing(false);
-      toast.success('Post updated.');
     } catch (err: unknown) {
-      const msg = (err as Error)?.message || '';
-      if (msg.includes('editable')) {
-        toast.error('This post can no longer be edited.');
-      } else {
-        toast.error('Could not save changes.');
-      }
+      setEditError(err instanceof Error ? err.message : 'Failed to edit post.');
     }
   };
 
   const handleDelete = async () => {
+    setActionError(null);
     try {
       await deletePost.mutateAsync(post.id);
-      toast.success('Post removed quietly.');
-    } catch {
-      toast.error('Could not delete post.');
-    }
-  };
-
-  const handleGoPublic = async () => {
-    try {
-      await setPrivacy.mutateAsync({ postId: post.id, isPrivate: false });
-      toast.success('Your post is now visible to the community.');
     } catch (err: unknown) {
-      const msg = (err as Error)?.message || '';
-      if (msg.includes('expired')) {
-        toast.error('Your subscription has expired.');
-      } else {
-        toast.error('Could not make post public.');
-      }
+      setActionError(err instanceof Error ? err.message : 'Failed to delete post.');
     }
   };
 
   const handleMakePrivate = async () => {
+    setActionError(null);
     try {
-      await setPrivacy.mutateAsync({ postId: post.id, isPrivate: true });
-      toast.success('Post is private again.');
-    } catch {
-      toast.error('Could not update privacy.');
+      await setPostPrivacy.mutateAsync({ postId: post.id, isPrivate: true });
+    } catch (err: unknown) {
+      setActionError(err instanceof Error ? err.message : 'Failed to update privacy.');
     }
   };
 
-  const formattedDate = new Date(Number(post.createdAt / BigInt(1_000_000))).toLocaleDateString('en-US', {
-    month: 'long',
-    day: 'numeric',
-    year: 'numeric',
-  });
+  const handleMakePublic = async () => {
+    setActionError(null);
+    try {
+      await setPostPrivacy.mutateAsync({ postId: post.id, isPrivate: false });
+    } catch (err: unknown) {
+      setActionError(err instanceof Error ? err.message : 'Failed to update privacy.');
+    }
+  };
+
+  const canPublish = canGoPublic(subscriptionStatus ?? 'expired' as never);
 
   return (
-    <article className="veil-card p-6 space-y-4 animate-fade-in">
+    <div className="veil-card space-y-3">
       {/* Header */}
-      <div className="flex items-start justify-between gap-4">
-        <div className="flex items-center gap-3">
-          <EmotionBadge emotion={post.emotionType} />
-          <span className="text-xs text-muted-foreground font-sans">{formattedDate}</span>
+      <div className="flex items-start justify-between gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
+          <EmotionBadge emotion={post.emotionType as EmotionType} />
+          <span className={`text-xs px-2 py-0.5 rounded-full border ${
+            post.isPrivate
+              ? 'bg-muted/50 text-muted-foreground border-border'
+              : 'bg-primary/10 text-primary border-primary/30'
+          }`}>
+            {post.isPrivate ? '🔒 Private' : '🌐 Public'}
+          </span>
         </div>
-        <div className="flex items-center gap-1.5">
-          {post.isPrivate ? (
-            <span className="calm-badge bg-muted text-muted-foreground border border-border">
-              <Lock size={11} />
-              Private
-            </span>
-          ) : (
-            <span className="calm-badge bg-secondary text-secondary-foreground border border-border">
-              <Globe size={11} />
-              Public
-            </span>
-          )}
-        </div>
+        <span className="text-xs text-muted-foreground shrink-0">
+          {createdAt.toLocaleDateString()}
+        </span>
       </div>
 
       {/* Content */}
       {isEditing ? (
-        <div className="space-y-3">
+        <div className="space-y-2">
+          <div className="flex items-center justify-between">
+            <span className={`text-xs ${requiresMinWords && wordCount < MINIMUM_WORD_COUNT ? 'text-amber-600' : 'text-muted-foreground'}`}>
+              {wordCount} {requiresMinWords ? `/ ${MINIMUM_WORD_COUNT} words min` : 'words'}
+            </span>
+          </div>
           <Textarea
             value={editContent}
-            onChange={(e) => setEditContent(e.target.value)}
-            className="min-h-[160px] rounded-xl font-sans text-sm leading-relaxed resize-none"
+            onChange={e => setEditContent(e.target.value)}
+            rows={5}
+            className="resize-none text-sm"
+            disabled={editPost.isPending}
           />
-          <div className="flex items-center justify-between">
-            {needsMinWords && (
-              <span className={`text-xs font-sans ${editMeetsRequirement ? 'text-status-grace' : 'text-muted-foreground'}`}>
-                {editWordCount} / {MIN_WORDS_CONFESS_HAPPY} words
-              </span>
-            )}
-            <div className="flex gap-2 ml-auto">
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => { setIsEditing(false); setEditContent(post.content); }}
-                className="font-sans text-xs rounded-lg"
-              >
-                Cancel
-              </Button>
-              <Button
-                size="sm"
-                onClick={handleSaveEdit}
-                disabled={!editMeetsRequirement || editPost.isPending}
-                className="font-sans text-xs rounded-lg"
-              >
-                {editPost.isPending ? <Loader2 size={12} className="animate-spin" /> : 'Save'}
-              </Button>
-            </div>
+          {editError && (
+            <p className="text-xs text-amber-700 dark:text-amber-400">{editError}</p>
+          )}
+          <div className="flex gap-2">
+            <Button
+              size="sm"
+              onClick={handleEdit}
+              disabled={editPost.isPending || !meetsWordCount || !editContent.trim()}
+            >
+              {editPost.isPending ? <Loader2 className="animate-spin" size={14} /> : 'Save'}
+            </Button>
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={() => { setIsEditing(false); setEditContent(post.content); setEditError(null); }}
+              disabled={editPost.isPending}
+            >
+              Cancel
+            </Button>
           </div>
         </div>
       ) : (
-        <p className="font-sans text-sm leading-relaxed text-foreground whitespace-pre-wrap">
-          {post.content}
-        </p>
+        <p className="text-sm text-foreground leading-relaxed whitespace-pre-wrap">{post.content}</p>
       )}
 
-      {/* Reaction count (owner only) */}
+      {/* Reaction count */}
       {Number(post.reactionCount) > 0 && (
-        <p className="text-xs text-muted-foreground font-sans">
-          {Number(post.reactionCount)} {Number(post.reactionCount) === 1 ? 'person' : 'people'} felt this
+        <p className="text-xs text-muted-foreground">
+          {Number(post.reactionCount)} reaction{Number(post.reactionCount) !== 1 ? 's' : ''}
         </p>
       )}
 
-      {/* Subscription block for go public */}
-      {!canPublish && post.isPrivate && (
-        <div className="p-3 rounded-xl bg-muted/60 border border-border">
-          <p className="text-xs text-muted-foreground font-sans">
-            Renew your subscription ({getRegionalPricing(region)}) to make posts public.
-          </p>
-        </div>
+      {/* Action error */}
+      {actionError && (
+        <p className="text-xs text-amber-700 dark:text-amber-400">{actionError}</p>
       )}
 
       {/* Actions */}
       {!isEditing && (
-        <div className="flex items-center gap-2 pt-1 border-t border-border/50">
-          {/* Edit */}
+        <div className="flex items-center gap-2 pt-1 flex-wrap">
+          {/* Edit — only when editable */}
           {post.editable && (
             <Button
-              variant="ghost"
               size="sm"
-              onClick={() => setIsEditing(true)}
-              className="text-xs font-sans text-muted-foreground hover:text-foreground gap-1.5 rounded-lg h-8"
+              variant="ghost"
+              onClick={() => { setIsEditing(true); setEditContent(post.content); }}
+              className="text-muted-foreground hover:text-foreground"
             >
-              <Pencil size={12} />
+              <Pencil size={13} className="mr-1" />
               Edit
             </Button>
           )}
 
           {/* Privacy toggle */}
           {post.isPrivate ? (
-            canPublish ? (
-              <AlertDialog>
-                <AlertDialogTrigger asChild>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="text-xs font-sans text-muted-foreground hover:text-foreground gap-1.5 rounded-lg h-8"
-                  >
-                    <Eye size={12} />
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  disabled={!canPublish || setPostPrivacy.isPending}
+                  className="text-muted-foreground hover:text-foreground"
+                >
+                  {setPostPrivacy.isPending ? <Loader2 className="animate-spin mr-1" size={13} /> : <Globe size={13} className="mr-1" />}
+                  Go Public
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Make this post public?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    This post will be visible to all Veil members.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                  <AlertDialogAction onClick={handleMakePublic}>
                     Go Public
-                  </Button>
-                </AlertDialogTrigger>
-                <AlertDialogContent className="rounded-2xl">
-                  <AlertDialogHeader>
-                    <AlertDialogTitle className="font-serif text-xl">Share with the room?</AlertDialogTitle>
-                    <AlertDialogDescription className="font-sans text-sm leading-relaxed">
-                      This post will be visible to all Veil members. You can make it private again at any time.
-                    </AlertDialogDescription>
-                  </AlertDialogHeader>
-                  <AlertDialogFooter>
-                    <AlertDialogCancel className="rounded-xl font-sans">Keep Private</AlertDialogCancel>
-                    <AlertDialogAction
-                      onClick={handleGoPublic}
-                      className="rounded-xl font-sans"
-                    >
-                      {setPrivacy.isPending ? <Loader2 size={14} className="animate-spin" /> : 'Share'}
-                    </AlertDialogAction>
-                  </AlertDialogFooter>
-                </AlertDialogContent>
-              </AlertDialog>
-            ) : null
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
           ) : (
             <Button
-              variant="ghost"
               size="sm"
+              variant="ghost"
               onClick={handleMakePrivate}
-              disabled={setPrivacy.isPending}
-              className="text-xs font-sans text-muted-foreground hover:text-foreground gap-1.5 rounded-lg h-8"
+              disabled={setPostPrivacy.isPending}
+              className="text-muted-foreground hover:text-foreground"
             >
-              {setPrivacy.isPending ? <Loader2 size={12} className="animate-spin" /> : <Lock size={12} />}
+              {setPostPrivacy.isPending ? <Loader2 className="animate-spin mr-1" size={13} /> : <Lock size={13} className="mr-1" />}
               Make Private
             </Button>
           )}
@@ -238,34 +220,32 @@ export default function PostCard({ post, subscriptionStatus, region }: PostCardP
           <AlertDialog>
             <AlertDialogTrigger asChild>
               <Button
-                variant="ghost"
                 size="sm"
-                className="text-xs font-sans text-muted-foreground hover:text-foreground gap-1.5 rounded-lg h-8 ml-auto"
+                variant="ghost"
+                disabled={deletePost.isPending}
+                className="text-muted-foreground hover:text-foreground ml-auto"
               >
-                <Trash2 size={12} />
+                {deletePost.isPending ? <Loader2 className="animate-spin mr-1" size={13} /> : <Trash2 size={13} className="mr-1" />}
                 Delete
               </Button>
             </AlertDialogTrigger>
-            <AlertDialogContent className="rounded-2xl">
+            <AlertDialogContent>
               <AlertDialogHeader>
-                <AlertDialogTitle className="font-serif text-xl">Remove this post?</AlertDialogTitle>
-                <AlertDialogDescription className="font-sans text-sm leading-relaxed">
-                  This will be removed quietly. No one will be notified.
+                <AlertDialogTitle>Delete this post?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  This action cannot be undone. The post will be permanently removed.
                 </AlertDialogDescription>
               </AlertDialogHeader>
               <AlertDialogFooter>
-                <AlertDialogCancel className="rounded-xl font-sans">Keep it</AlertDialogCancel>
-                <AlertDialogAction
-                  onClick={handleDelete}
-                  className="rounded-xl font-sans"
-                >
-                  {deletePost.isPending ? <Loader2 size={14} className="animate-spin" /> : 'Remove'}
+                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                <AlertDialogAction onClick={handleDelete}>
+                  Delete
                 </AlertDialogAction>
               </AlertDialogFooter>
             </AlertDialogContent>
           </AlertDialog>
         </div>
       )}
-    </article>
+    </div>
   );
 }

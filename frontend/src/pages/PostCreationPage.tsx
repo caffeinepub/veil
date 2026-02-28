@@ -1,157 +1,193 @@
-import { useState } from 'react';
-import { useNavigate, useParams } from '@tanstack/react-router';
+import { useState, useEffect } from 'react';
+import { useNavigate, useSearch } from '@tanstack/react-router';
 import { useInternetIdentity } from '../hooks/useInternetIdentity';
-import { useGetCallerUserProfile, useGetMySubscriptionStatus, useCreatePost } from '../hooks/useQueries';
-import { EmotionType } from '../backend';
-import { countWords, MIN_WORDS_CONFESS_HAPPY } from '../utils/wordCounter';
+import { useGetMyProfile, useGetMySubscriptionStatus, useCreatePost } from '../hooks/useQueries';
+import { EmotionType, SubscriptionStatus } from '../backend';
+import { countWords, MINIMUM_WORD_COUNT, needsMinimumWords } from '../utils/wordCounter';
 import { canCreatePost } from '../utils/subscriptionHelpers';
-import SubscriptionBanner from '../components/SubscriptionBanner';
+import { Loader2, ArrowLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
-import { Loader2, ArrowLeft, Lock } from 'lucide-react';
-import { toast } from 'sonner';
 
-const EMOTION_CONFIG: Record<string, { label: string; colorClass: string; placeholder: string }> = {
-  confess: {
-    label: 'Confess',
-    colorClass: 'text-emotion-confess',
-    placeholder: 'What have you been carrying? Let it out here...',
-  },
-  broke: {
-    label: 'Broke',
-    colorClass: 'text-emotion-broke',
-    placeholder: 'You don\'t have to explain. Just write...',
-  },
-  happy: {
-    label: 'Happy',
-    colorClass: 'text-emotion-happy',
-    placeholder: 'What made you feel alive today? Capture it...',
-  },
-};
+const emotionOptions = [
+  { key: EmotionType.confess, label: 'Confess', emoji: '🤫' },
+  { key: EmotionType.broke, label: 'Broke', emoji: '💸' },
+  { key: EmotionType.happy, label: 'Happy', emoji: '🌸' },
+];
 
 export default function PostCreationPage() {
   const navigate = useNavigate();
-  const { emotion } = useParams({ from: '/post/new/$emotion' });
-  const { identity } = useInternetIdentity();
-  const { data: profile } = useGetCallerUserProfile();
-  const { data: subscriptionStatus } = useGetMySubscriptionStatus();
+  const search = useSearch({ strict: false }) as { emotion?: string };
+  const { identity, isInitializing } = useInternetIdentity();
+  const { data: profile, isFetched: profileFetched, isLoading: profileLoading } = useGetMyProfile();
+  const { data: subscriptionStatus, isLoading: subLoading } = useGetMySubscriptionStatus();
   const createPost = useCreatePost();
 
-  const [content, setContent] = useState('');
+  const initialEmotion = (() => {
+    const e = search?.emotion;
+    if (e === 'confess') return EmotionType.confess;
+    if (e === 'broke') return EmotionType.broke;
+    if (e === 'happy') return EmotionType.happy;
+    return EmotionType.confess;
+  })();
 
-  const emotionType = emotion as EmotionType;
-  const config = EMOTION_CONFIG[emotion] || EMOTION_CONFIG.confess;
+  const [emotionType, setEmotionType] = useState<EmotionType>(initialEmotion);
+  const [content, setContent] = useState('');
+  const [formError, setFormError] = useState<string | null>(null);
+
+  const isAuthenticated = !!identity;
   const wordCount = countWords(content);
-  const needsMinWords = emotionType === EmotionType.confess || emotionType === EmotionType.happy;
-  const meetsRequirement = !needsMinWords || wordCount >= MIN_WORDS_CONFESS_HAPPY;
-  const canPost = canCreatePost(subscriptionStatus);
+  const requiresMinWords = needsMinimumWords(emotionType);
+  const meetsWordCount = !requiresMinWords || wordCount >= MINIMUM_WORD_COUNT;
+  const canPost = canCreatePost(subscriptionStatus ?? SubscriptionStatus.expired);
+
+  useEffect(() => {
+    if (!isInitializing && !isAuthenticated) {
+      navigate({ to: '/login' });
+    }
+  }, [isInitializing, isAuthenticated, navigate]);
+
+  useEffect(() => {
+    if (isAuthenticated && profileFetched && !profileLoading && !profile) {
+      navigate({ to: '/signup' });
+    }
+  }, [isAuthenticated, profile, profileFetched, profileLoading, navigate]);
+
+  if (isInitializing || profileLoading || subLoading) {
+    return (
+      <div className="min-h-[60vh] flex items-center justify-center">
+        <Loader2 className="animate-spin text-muted-foreground" size={28} />
+      </div>
+    );
+  }
+
+  if (!isAuthenticated || !profile) return null;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!meetsRequirement || !canPost) return;
+    setFormError(null);
+
+    if (!canPost) {
+      setFormError('Your subscription has expired. Please renew to create posts.');
+      return;
+    }
+
+    if (!content.trim()) {
+      setFormError('Please write something before posting.');
+      return;
+    }
+
+    if (!meetsWordCount) {
+      setFormError(`Please write at least ${MINIMUM_WORD_COUNT} words for this emotion type. You have ${wordCount} so far.`);
+      return;
+    }
 
     try {
-      await createPost.mutateAsync({ emotionType, content });
-      toast.success('Your post has been saved privately.');
-      navigate({ to: '/my-posts' });
+      await createPost.mutateAsync({ emotionType, content: content.trim() });
+      navigate({ to: '/posts' });
     } catch (err: unknown) {
-      const msg = (err as Error)?.message || '';
-      if (msg.includes('24 words')) {
-        toast.error('Please write at least 24 words for this emotion type.');
-      } else if (msg.includes('expired')) {
-        toast.error('Your subscription has expired. You cannot create new posts.');
-      } else if (msg.includes('Suspended')) {
-        toast.error('Your account is suspended. You cannot create posts.');
-      } else {
-        toast.error('Something went wrong. Please try again.');
-      }
+      const message = err instanceof Error ? err.message : 'Failed to create post. Please try again.';
+      setFormError(message);
     }
   };
 
   return (
-    <div className="max-w-2xl mx-auto px-6 py-12 animate-fade-in">
-      {/* Back */}
+    <div className="max-w-2xl mx-auto px-4 py-10 space-y-6">
+      {/* Back button */}
       <button
-        onClick={() => navigate({ to: '/' })}
-        className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors font-sans mb-10"
+        onClick={() => navigate({ to: '/dashboard' })}
+        className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
       >
         <ArrowLeft size={15} />
-        Back
+        Back to dashboard
       </button>
 
-      {/* Subscription banner */}
-      {!canPost && profile && (
-        <div className="mb-8">
-          <SubscriptionBanner region={profile.region} />
+      <div className="space-y-1">
+        <h1 className="font-serif text-2xl font-semibold text-foreground">New Post</h1>
+        <p className="text-sm text-muted-foreground">Express yourself anonymously</p>
+      </div>
+
+      {/* Subscription gating */}
+      {!canPost && (
+        <div className="text-sm text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/30 rounded-md px-3 py-2">
+          Your subscription has expired. Please renew your membership to create new posts.
         </div>
       )}
 
-      {/* Emotion title */}
-      <div className="mb-8">
-        <h1 className={`font-serif text-4xl font-medium ${config.colorClass}`}>
-          {config.label}
-        </h1>
-        {needsMinWords && (
-          <p className="mt-3 text-sm text-muted-foreground font-sans leading-relaxed">
-            Please share at least 24 words so your future self understands this moment.
-          </p>
-        )}
-      </div>
+      <form onSubmit={handleSubmit} className="space-y-5">
+        {/* Emotion selector */}
+        <div className="space-y-2">
+          <p className="text-sm font-medium text-foreground">Emotion</p>
+          <div className="flex gap-2">
+            {emotionOptions.map(opt => (
+              <button
+                key={opt.key}
+                type="button"
+                onClick={() => setEmotionType(opt.key)}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-sm transition-all ${
+                  emotionType === opt.key
+                    ? 'bg-primary text-primary-foreground border-primary'
+                    : 'bg-background border-border text-muted-foreground hover:border-primary/50'
+                }`}
+              >
+                <span>{opt.emoji}</span>
+                <span>{opt.label}</span>
+              </button>
+            ))}
+          </div>
+        </div>
 
-      <form onSubmit={handleSubmit} className="space-y-6">
-        {/* Textarea */}
-        <div className="relative">
+        {/* Content */}
+        <div className="space-y-2">
+          <div className="flex items-center justify-between">
+            <p className="text-sm font-medium text-foreground">Your thoughts</p>
+            <span className={`text-xs ${requiresMinWords && wordCount < MINIMUM_WORD_COUNT ? 'text-amber-600 dark:text-amber-400' : 'text-muted-foreground'}`}>
+              {wordCount} {requiresMinWords ? `/ ${MINIMUM_WORD_COUNT} words min` : 'words'}
+            </span>
+          </div>
           <Textarea
+            placeholder={
+              emotionType === EmotionType.confess
+                ? 'What have you been holding inside?'
+                : emotionType === EmotionType.broke
+                ? 'Share your financial struggle…'
+                : 'What made you smile today?'
+            }
             value={content}
-            onChange={(e) => setContent(e.target.value)}
-            placeholder={config.placeholder}
-            disabled={!canPost}
-            className="min-h-[240px] rounded-2xl font-sans text-base leading-relaxed resize-none border-border focus:ring-ring/30 p-5"
+            onChange={e => setContent(e.target.value)}
+            disabled={createPost.isPending || !canPost}
+            rows={8}
+            className="resize-none"
           />
         </div>
 
-        {/* Word counter */}
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            {needsMinWords && (
-              <span className={`text-sm font-sans ${
-                wordCount >= MIN_WORDS_CONFESS_HAPPY
-                  ? 'text-status-grace'
-                  : 'text-muted-foreground'
-              }`}>
-                {wordCount} / {MIN_WORDS_CONFESS_HAPPY} words
-              </span>
-            )}
-            {!needsMinWords && (
-              <span className="text-sm text-muted-foreground font-sans">
-                {wordCount} {wordCount === 1 ? 'word' : 'words'}
-              </span>
-            )}
+        {/* Error */}
+        {formError && (
+          <div className="text-sm text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/30 rounded-md px-3 py-2">
+            {formError}
           </div>
+        )}
 
-          <Button
-            type="submit"
-            disabled={!meetsRequirement || !canPost || createPost.isPending}
-            className="rounded-xl font-sans px-8"
-          >
-            {createPost.isPending ? (
-              <span className="flex items-center gap-2">
-                <Loader2 size={15} className="animate-spin" />
-                Saving...
-              </span>
-            ) : (
-              'Post'
-            )}
-          </Button>
-        </div>
+        {/* Submit */}
+        <Button
+          type="submit"
+          className="w-full"
+          disabled={createPost.isPending || !canPost || !meetsWordCount || !content.trim()}
+        >
+          {createPost.isPending ? (
+            <>
+              <Loader2 className="animate-spin mr-2" size={16} />
+              Posting…
+            </>
+          ) : (
+            'Post'
+          )}
+        </Button>
 
-        {/* Private notice */}
-        <div className="flex items-start gap-3 p-4 rounded-xl bg-muted/60 border border-border">
-          <Lock size={14} className="text-muted-foreground mt-0.5 shrink-0" />
-          <p className="text-sm text-muted-foreground font-sans leading-relaxed">
-            🔒 Your post is private by default. Only you can see it. You can choose to make it public after posting.
-          </p>
-        </div>
+        {/* Privacy notice */}
+        <p className="text-xs text-muted-foreground text-center">
+          🔒 Your post is private by default — only you can see it until you choose to share it.
+        </p>
       </form>
     </div>
   );

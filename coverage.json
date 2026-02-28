@@ -1,18 +1,25 @@
 {
   "kind": "coverage_report",
   "version": "1.0",
-  "generatedAt": "2026-02-28T21:09:17.568Z",
+  "generatedAt": "2026-02-28T22:45:05.826Z",
   "sources": {
     "buildRequest": true,
     "implementationPlan": true
   },
   "requirements": {
-    "total": 7,
+    "total": 9,
     "implemented": 0,
     "items": [
       {
-        "id": "REQ-62",
-        "summary": "Update frontend/src/hooks/useQueries.ts to correctly call all backend functions — createPost, editPost, deletePost, setPostPrivacy, addReaction, getMyReaction, getMyPosts, getPublicPosts, getMyProfile, isAdmin, register, validateInviteCode, and getMySubscriptionStatus — using the actor from useActor. Ensure parameter shapes and return types exactly match the Candid interface generated from backend/main.mo.",
+        "id": "REQ-104",
+        "summary": "Verify and fix backend/main.mo so it compiles correctly and exposes all required public functions with exact signatures matching the frontend Candid interface: register, validateInviteCode, getMyProfile, getMyPosts, getPublicPosts, isAdmin, getMySubscriptionStatus, createPost, editPost, deletePost, setPostPrivacy, addReaction, getMyReaction, adminGetAllPublicPosts, adminGetUserPosts, adminDeletePost, adminSuspendUser, adminUnsuspendUser, adminGetAllUsers, addInviteCode, revokeInviteCode, setSubscriptionStatus. Pre-seed at least 5 invite codes. Use stable var with preupgrade/postupgrade pattern so data survives canister upgrades.",
+        "status": "unknown",
+        "plannedFiles": [],
+        "matchedFiles": []
+      },
+      {
+        "id": "REQ-105",
+        "summary": "Ensure useQueries.ts has complete, correctly-typed React Query hooks for every backend function consumed by the frontend: getMyProfile, getMyPosts, getPublicPosts, isAdmin, getMySubscriptionStatus, getMyReaction, createPost, editPost, deletePost, setPostPrivacy, addReaction, register, validateInviteCode, adminGetAllPublicPosts, adminGetUserPosts, adminDeletePost, adminSuspendUser, adminUnsuspendUser, adminGetAllUsers, addInviteCode, revokeInviteCode, setSubscriptionStatus. All parameter shapes and return types must exactly match the Candid interface generated from backend/main.mo. All mutation hooks must call queryClient.invalidateQueries with the correct cache keys on success.",
         "status": "missing",
         "plannedFiles": [
           "frontend/src/hooks/useQueries.ts"
@@ -20,8 +27,22 @@
         "matchedFiles": []
       },
       {
-        "id": "REQ-63",
-        "summary": "Ensure the SignupPage calls the register mutation from useQueries.ts with the correct (inviteCode, pseudonym, region) arguments, handles #ok and #err Result variants from the backend, and routes to the dashboard on success or displays the backend error message on failure.",
+        "id": "REQ-106",
+        "summary": "Audit and fix the LoginPage: it must call the login function from useInternetIdentity on button click, then check getMyProfile after authentication, redirect to /dashboard if a profile exists, or redirect to /signup if no profile is found. Unauthenticated users visiting any protected route (/dashboard, /posts, /community, /admin) must be redirected to /login. The logout button in Header must call logout from useInternetIdentity and redirect to /login.",
+        "status": "missing",
+        "plannedFiles": [
+          "frontend/src/pages/LoginPage.tsx",
+          "frontend/src/pages/DashboardPage.tsx",
+          "frontend/src/pages/MyPostsPage.tsx",
+          "frontend/src/pages/CommunityFeedPage.tsx",
+          "frontend/src/pages/AdminPage.tsx",
+          "frontend/src/components/Header.tsx"
+        ],
+        "matchedFiles": []
+      },
+      {
+        "id": "REQ-107",
+        "summary": "Audit and fix the SignupPage: it must read the invite code from URL params (if present) via urlParams.ts, pre-fill the invite code input, call the register mutation from useQueries.ts with (inviteCode, pseudonym, region) arguments, correctly unwrap #ok and #err Result variants from the backend, route to /dashboard on success, and display the backend error text inline (not in a modal) on failure. The region selector must offer exactly 'India' and 'Global' options.",
         "status": "missing",
         "plannedFiles": [
           "frontend/src/pages/SignupPage.tsx"
@@ -29,8 +50,18 @@
         "matchedFiles": []
       },
       {
-        "id": "REQ-64",
-        "summary": "Ensure the PostCreationPage calls the createPost mutation with the correct (emotionType, content) arguments, handles the Result returned by the backend, and navigates to the My Posts page on success or shows the error inline on failure.",
+        "id": "REQ-108",
+        "summary": "Audit and fix the DashboardPage: it must call getMyProfile and getMySubscriptionStatus (or derive status from profile), pass the effective subscription status to SubscriptionBanner, and block navigation to /create if the user's effective status is #expired. The three emotion buttons (Confess, Broke, Happy) must each navigate to /create with the chosen emotion passed as a query parameter. No red UI elements; use the muted, supportive SubscriptionBanner when status is #expired.",
+        "status": "missing",
+        "plannedFiles": [
+          "frontend/src/pages/DashboardPage.tsx",
+          "frontend/src/components/SubscriptionBanner.tsx"
+        ],
+        "matchedFiles": []
+      },
+      {
+        "id": "REQ-109",
+        "summary": "Audit and fix the PostCreationPage: it must read the emotion type from route/query params, call the createPost mutation with (emotionType, content), enforce the 24-word minimum client-side for #confess and #happy (disabling the submit button if below threshold), handle the Result from the backend, navigate to /posts on success, and show any backend error inline on failure. The subscription-expired gate must block form submission with an inline message.",
         "status": "missing",
         "plannedFiles": [
           "frontend/src/pages/PostCreationPage.tsx"
@@ -38,51 +69,43 @@
         "matchedFiles": []
       },
       {
-        "id": "REQ-65",
-        "summary": "Ensure PostCard calls the editPost, deletePost, and setPostPrivacy mutations with correct arguments, handles Result variants, and invalidates the 'myPosts' and 'publicPosts' query keys on success so the card list updates immediately.",
+        "id": "REQ-110",
+        "summary": "Audit and fix the MyPostsPage and PostCard: PostCard must call editPost with (postId, newContent), deletePost with (postId), and setPostPrivacy with (postId, isPrivate) using mutations from useQueries.ts. On success each mutation must invalidate both the 'myPosts' and 'publicPosts' React Query cache keys so the list updates without a manual refresh. The 'Go Public' confirmation dialog must show the exact text 'This post will be visible to all Veil members.' The Edit button must only appear when post.editable is true.",
         "status": "missing",
         "plannedFiles": [
+          "frontend/src/pages/MyPostsPage.tsx",
           "frontend/src/components/PostCard.tsx"
         ],
         "matchedFiles": []
       },
       {
-        "id": "REQ-66",
-        "summary": "Ensure PublicPostCard calls the addReaction mutation and getMyReaction query with correct arguments. Display the user's existing reaction if getMyReaction returns a value. Disable reaction buttons for the post owner and for posts on which the user has already reacted.",
+        "id": "REQ-111",
+        "summary": "Audit and fix the CommunityFeedPage and PublicPostCard: PublicPostCard must call getMyReaction(postId) to fetch the user's existing reaction and display it highlighted. The addReaction mutation must be called with (postId, reactionType). Reaction buttons (Support, Care, Strength) must be disabled for the post owner and for any post the user has already reacted to. Posts must be sorted newest-first consistently. No comments, no reply buttons, no follower counts, no popularity indicators.",
         "status": "missing",
         "plannedFiles": [
+          "frontend/src/pages/CommunityFeedPage.tsx",
           "frontend/src/components/PublicPostCard.tsx"
         ],
         "matchedFiles": []
       },
       {
-        "id": "REQ-67",
-        "summary": "Ensure all admin functions (adminGetAllPublicPosts, adminGetUserPosts, adminDeletePost, adminSuspendUser, adminUnsuspendUser, adminGetAllUsers, addInviteCode, revokeInviteCode, setSubscriptionStatus) are exposed as query or mutation hooks in useQueries.ts and correctly consumed by the admin dashboard components (AdminPublicPostsList, AdminUserManagement, AdminInviteCodes, AdminUserPostHistory).",
+        "id": "REQ-112",
+        "summary": "Audit and fix the AdminPage and all AdminDashboard sub-components. AdminPublicPostsList must call adminGetAllPublicPosts query and adminDeletePost mutation. AdminUserManagement must call adminGetAllUsers query and adminSuspendUser, adminUnsuspendUser, setSubscriptionStatus mutations. AdminInviteCodes must call addInviteCode and revokeInviteCode mutations and list all codes with their used/unused status. AdminUserPostHistory must call adminGetUserPosts query by principal. All hooks must be correctly wired in useQueries.ts. The AdminPage must redirect non-admin users away from /admin.",
         "status": "missing",
         "plannedFiles": [
-          "frontend/src/hooks/useQueries.ts",
+          "frontend/src/pages/AdminPage.tsx",
+          "frontend/src/components/AdminDashboard.tsx",
           "frontend/src/components/AdminPublicPostsList.tsx",
           "frontend/src/components/AdminUserManagement.tsx",
           "frontend/src/components/AdminInviteCodes.tsx",
           "frontend/src/components/AdminUserPostHistory.tsx"
         ],
         "matchedFiles": []
-      },
-      {
-        "id": "REQ-68",
-        "summary": "Ensure the DashboardPage and PostCreationPage read the effective subscription status from the getMySubscriptionStatus query (or getMyProfile) and correctly pass it to the SubscriptionBanner and subscription-gating logic in subscriptionHelpers.ts, so expired users see the calm banner and cannot submit posts or go public.",
-        "status": "missing",
-        "plannedFiles": [
-          "frontend/src/pages/DashboardPage.tsx",
-          "frontend/src/pages/PostCreationPage.tsx",
-          "frontend/src/components/PostCard.tsx",
-          "frontend/src/pages/MyPostsPage.tsx"
-        ],
-        "matchedFiles": []
       }
     ]
   },
   "changedFiles": [
+    "backend/main.mo",
     "build-request.json",
     "feature_evidence.json",
     "frontend-implementation-plan.json",

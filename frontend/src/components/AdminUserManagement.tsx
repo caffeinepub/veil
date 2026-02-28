@@ -1,167 +1,155 @@
 import { useState } from 'react';
-import { Principal } from '@dfinity/principal';
-import { useActor } from '../hooks/useActor';
-import { useQuery } from '@tanstack/react-query';
-import { useAdminGetAllUsers, useSuspendUser, useUnsuspendUser, useUpdateSubscriptionStatus } from '../hooks/useQueries';
-import { SubscriptionStatus, Region } from '../backend';
-import { getSubscriptionLabel, getRegionalPricing } from '../utils/subscriptionHelpers';
+import { useAdminGetAllUsers, useAdminSuspendUser, useAdminUnsuspendUser, useSetSubscriptionStatus } from '../hooks/useQueries';
+import { SubscriptionStatus, type User } from '../backend';
 import { Button } from '@/components/ui/button';
-import { Skeleton } from '@/components/ui/skeleton';
-import { Loader2, Users, ChevronDown, ChevronUp } from 'lucide-react';
-import { toast } from 'sonner';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
+import { Loader2, Users } from 'lucide-react';
 
 export default function AdminUserManagement() {
-  const { actor, isFetching } = useActor();
-  const { data: allUsers, isLoading: usersLoading } = useAdminGetAllUsers();
-  const suspendUser = useSuspendUser();
-  const unsuspendUser = useUnsuspendUser();
-  const updateSub = useUpdateSubscriptionStatus();
-  const [expandedUser, setExpandedUser] = useState<string | null>(null);
+  const { data: users, isLoading } = useAdminGetAllUsers();
+  const suspendUser = useAdminSuspendUser();
+  const unsuspendUser = useAdminUnsuspendUser();
+  const setSubStatus = useSetSubscriptionStatus();
+  const [actionErrors, setActionErrors] = useState<Record<string, string>>({});
 
-  const handleSuspend = async (userId: Principal) => {
+  const handleSuspend = async (userId: string) => {
     try {
       await suspendUser.mutateAsync(userId);
-      toast.success('User suspended.');
-    } catch {
-      toast.error('Could not suspend user.');
+      setActionErrors(prev => { const n = { ...prev }; delete n[userId]; return n; });
+    } catch (err: unknown) {
+      setActionErrors(prev => ({ ...prev, [userId]: err instanceof Error ? err.message : 'Action failed.' }));
     }
   };
 
-  const handleUnsuspend = async (userId: Principal) => {
+  const handleUnsuspend = async (userId: string) => {
     try {
       await unsuspendUser.mutateAsync(userId);
-      toast.success('User unsuspended.');
-    } catch {
-      toast.error('Could not unsuspend user.');
+      setActionErrors(prev => { const n = { ...prev }; delete n[userId]; return n; });
+    } catch (err: unknown) {
+      setActionErrors(prev => ({ ...prev, [userId]: err instanceof Error ? err.message : 'Action failed.' }));
     }
   };
 
-  const handleUpdateSub = async (userId: Principal, status: SubscriptionStatus) => {
+  const handleSetSubStatus = async (userId: string, status: SubscriptionStatus) => {
     try {
-      await updateSub.mutateAsync({ userId, status });
-      toast.success(`Subscription updated to ${getSubscriptionLabel(status)}.`);
-    } catch {
-      toast.error('Could not update subscription.');
+      await setSubStatus.mutateAsync({ userId, status });
+      setActionErrors(prev => { const n = { ...prev }; delete n[userId + '_sub']; return n; });
+    } catch (err: unknown) {
+      setActionErrors(prev => ({ ...prev, [userId + '_sub']: err instanceof Error ? err.message : 'Action failed.' }));
     }
   };
 
-  if (usersLoading) {
+  if (isLoading) {
     return (
-      <div className="space-y-3">
-        {[1, 2, 3].map((i) => <Skeleton key={i} className="h-16 rounded-2xl" />)}
+      <div className="flex items-center justify-center py-12">
+        <Loader2 className="animate-spin text-muted-foreground" size={24} />
       </div>
     );
   }
 
-  if (!allUsers || allUsers.length === 0) {
+  if (!users || users.length === 0) {
     return (
-      <div className="text-center py-16">
-        <Users size={28} className="text-muted-foreground/40 mx-auto mb-3" />
-        <p className="text-muted-foreground font-sans text-sm">No members yet.</p>
+      <div className="flex flex-col items-center justify-center py-12 gap-2 text-center">
+        <Users size={32} className="text-muted-foreground/40" />
+        <p className="text-sm text-muted-foreground">No members yet.</p>
       </div>
     );
   }
 
   return (
     <div className="space-y-3">
-      <div className="flex items-center gap-2 mb-4">
-        <Users size={16} className="text-muted-foreground" />
-        <p className="text-sm text-muted-foreground font-sans">{allUsers.length} member{allUsers.length !== 1 ? 's' : ''}</p>
-      </div>
-      {allUsers.map((user) => {
-        const userId = user.id.toString();
-        const isExpanded = expandedUser === userId;
-        return (
-          <div key={userId} className="veil-card overflow-hidden">
-            <button
-              className="w-full p-4 flex items-center justify-between gap-4 text-left hover:bg-muted/30 transition-colors"
-              onClick={() => setExpandedUser(isExpanded ? null : userId)}
-            >
-              <div className="flex items-center gap-3 min-w-0">
-                <div className="min-w-0">
-                  <p className="font-sans text-sm font-medium text-foreground truncate">{user.pseudonym}</p>
-                  <p className="text-xs text-muted-foreground font-sans">
-                    {user.region === Region.india ? 'India' : 'Global'} ·{' '}
-                    <span className={user.suspended ? 'text-status-expired' : ''}>
-                      {user.suspended ? 'Suspended' : getSubscriptionLabel(user.subscriptionStatus)}
+      <p className="text-sm text-muted-foreground">{users.length} member{users.length !== 1 ? 's' : ''}</p>
+      <Accordion type="multiple" className="space-y-2">
+        {users.map((user: User) => {
+          const userId = user.id.toString();
+          return (
+            <AccordionItem key={userId} value={userId} className="veil-card border-0 px-0">
+              <AccordionTrigger className="px-4 py-3 hover:no-underline">
+                <div className="flex items-center gap-3 text-left">
+                  <div>
+                    <p className="text-sm font-medium text-foreground">{user.pseudonym}</p>
+                    <p className="text-xs text-muted-foreground font-mono">{userId.slice(0, 20)}…</p>
+                  </div>
+                  <div className="flex gap-1.5 ml-auto mr-2">
+                    <span className={`text-xs px-2 py-0.5 rounded-full border ${
+                      user.suspended
+                        ? 'bg-amber-50 dark:bg-amber-950/20 text-amber-700 dark:text-amber-400 border-amber-200 dark:border-amber-800/40'
+                        : 'bg-muted/50 text-muted-foreground border-border'
+                    }`}>
+                      {user.suspended ? 'Suspended' : 'Active'}
                     </span>
-                  </p>
+                    <span className="text-xs px-2 py-0.5 rounded-full border bg-muted/50 text-muted-foreground border-border">
+                      {user.subscriptionStatus}
+                    </span>
+                  </div>
                 </div>
-              </div>
-              <div className="flex items-center gap-2 shrink-0">
-                {user.suspended && (
-                  <span className="calm-badge bg-muted text-status-expired border border-border text-xs">
-                    Suspended
-                  </span>
-                )}
-                {isExpanded ? <ChevronUp size={14} className="text-muted-foreground" /> : <ChevronDown size={14} className="text-muted-foreground" />}
-              </div>
-            </button>
+              </AccordionTrigger>
+              <AccordionContent className="px-4 pb-4 space-y-3">
+                <div className="text-xs text-muted-foreground space-y-1">
+                  <p>Region: {user.region}</p>
+                  <p>Joined: {new Date(Number(user.createdAt / BigInt(1_000_000))).toLocaleDateString()}</p>
+                  <p>Invite code: {user.inviteCode}</p>
+                </div>
 
-            {isExpanded && (
-              <div className="px-4 pb-4 space-y-3 border-t border-border/50 pt-3">
-                <p className="text-xs font-mono text-muted-foreground break-all">{userId}</p>
-                <p className="text-xs text-muted-foreground font-sans">
-                  Region: {user.region === Region.india ? 'India' : 'Global'} · {getRegionalPricing(user.region)}
-                </p>
-                <p className="text-xs text-muted-foreground font-sans">
-                  Subscription: <span className="font-medium">{getSubscriptionLabel(user.subscriptionStatus)}</span>
-                </p>
-                <div className="flex flex-wrap gap-2 pt-1">
+                {/* Suspend/Unsuspend */}
+                <div className="flex gap-2">
                   {user.suspended ? (
                     <Button
-                      variant="outline"
                       size="sm"
-                      onClick={() => handleUnsuspend(user.id)}
+                      variant="outline"
+                      onClick={() => handleUnsuspend(userId)}
                       disabled={unsuspendUser.isPending}
-                      className="rounded-lg font-sans text-xs"
                     >
-                      {unsuspendUser.isPending ? <Loader2 size={12} className="animate-spin" /> : 'Unsuspend'}
+                      {unsuspendUser.isPending ? <Loader2 className="animate-spin mr-1" size={13} /> : null}
+                      Unsuspend
                     </Button>
                   ) : (
                     <Button
-                      variant="outline"
                       size="sm"
-                      onClick={() => handleSuspend(user.id)}
+                      variant="outline"
+                      onClick={() => handleSuspend(userId)}
                       disabled={suspendUser.isPending}
-                      className="rounded-lg font-sans text-xs"
                     >
-                      {suspendUser.isPending ? <Loader2 size={12} className="animate-spin" /> : 'Suspend'}
+                      {suspendUser.isPending ? <Loader2 className="animate-spin mr-1" size={13} /> : null}
+                      Suspend
                     </Button>
                   )}
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => handleUpdateSub(user.id, SubscriptionStatus.active)}
-                    disabled={updateSub.isPending}
-                    className="rounded-lg font-sans text-xs"
-                  >
-                    Set Active
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => handleUpdateSub(user.id, SubscriptionStatus.expired)}
-                    disabled={updateSub.isPending}
-                    className="rounded-lg font-sans text-xs"
-                  >
-                    Set Expired
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => handleUpdateSub(user.id, SubscriptionStatus.grace)}
-                    disabled={updateSub.isPending}
-                    className="rounded-lg font-sans text-xs"
-                  >
-                    Set Grace
-                  </Button>
                 </div>
-              </div>
-            )}
-          </div>
-        );
-      })}
+
+                {actionErrors[userId] && (
+                  <p className="text-xs text-amber-700 dark:text-amber-400">{actionErrors[userId]}</p>
+                )}
+
+                {/* Subscription status */}
+                <div className="space-y-1.5">
+                  <p className="text-xs font-medium text-foreground">Subscription Status</p>
+                  <div className="flex gap-2 items-center">
+                    <Select
+                      defaultValue={user.subscriptionStatus}
+                      onValueChange={val => handleSetSubStatus(userId, val as SubscriptionStatus)}
+                      disabled={setSubStatus.isPending}
+                    >
+                      <SelectTrigger className="h-8 text-xs w-36">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value={SubscriptionStatus.active}>Active</SelectItem>
+                        <SelectItem value={SubscriptionStatus.grace}>Grace</SelectItem>
+                        <SelectItem value={SubscriptionStatus.expired}>Expired</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    {setSubStatus.isPending && <Loader2 className="animate-spin text-muted-foreground" size={14} />}
+                  </div>
+                  {actionErrors[userId + '_sub'] && (
+                    <p className="text-xs text-amber-700 dark:text-amber-400">{actionErrors[userId + '_sub']}</p>
+                  )}
+                </div>
+              </AccordionContent>
+            </AccordionItem>
+          );
+        })}
+      </Accordion>
     </div>
   );
 }

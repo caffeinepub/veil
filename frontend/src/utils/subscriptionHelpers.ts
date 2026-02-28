@@ -1,30 +1,33 @@
 import { SubscriptionStatus, Region } from '../backend';
 
-export function canCreatePost(status: SubscriptionStatus | null | undefined): boolean {
-  if (!status) return false;
-  return status === SubscriptionStatus.grace || status === SubscriptionStatus.active;
+export function isSubscriptionActive(status: SubscriptionStatus): boolean {
+  return status === SubscriptionStatus.active || status === SubscriptionStatus.grace;
 }
 
-export function canMakePublic(status: SubscriptionStatus | null | undefined): boolean {
-  if (!status) return false;
-  return status === SubscriptionStatus.grace || status === SubscriptionStatus.active;
+export function canCreatePost(status: SubscriptionStatus): boolean {
+  return isSubscriptionActive(status);
 }
 
-export function getRegionalPricing(region: Region | null | undefined): string {
-  if (region === Region.india) return '₹150/month';
+export function canGoPublic(status: SubscriptionStatus): boolean {
+  return isSubscriptionActive(status);
+}
+
+export function getRegionalPricing(region: Region): string {
+  if (region === Region.india) {
+    return '₹150/month';
+  }
   return '$9/month';
 }
 
-export function getSubscriptionLabel(status: SubscriptionStatus | null | undefined): string {
-  if (!status) return '';
+export function getSubscriptionStatusLabel(status: SubscriptionStatus): string {
   switch (status) {
-    case SubscriptionStatus.grace:
-      return 'Grace Period';
     case SubscriptionStatus.active:
       return 'Active';
+    case SubscriptionStatus.grace:
+      return 'Grace Period';
     case SubscriptionStatus.expired:
       return 'Expired';
     default:
-      return '';
+      return 'Unknown';
   }
 }

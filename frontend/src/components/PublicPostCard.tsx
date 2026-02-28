@@ -1,105 +1,87 @@
-import { Post, ReactionType } from '../backend';
-import { useAddReaction, useMyReaction } from '../hooks/useQueries';
+import { EmotionType, ReactionType, type Post } from '../backend';
+import { useGetMyReaction, useAddReaction } from '../hooks/useQueries';
+import { useInternetIdentity } from '../hooks/useInternetIdentity';
 import EmotionBadge from './EmotionBadge';
-import { Button } from '@/components/ui/button';
 import { Loader2 } from 'lucide-react';
-import { toast } from 'sonner';
 
 interface PublicPostCardProps {
   post: Post;
-  currentUserId: string | null;
 }
 
-const REACTIONS: { type: ReactionType; label: string; emoji: string }[] = [
-  { type: ReactionType.support, label: 'Support', emoji: '🤝' },
-  { type: ReactionType.care, label: 'Care', emoji: '🌿' },
-  { type: ReactionType.strength, label: 'Strength', emoji: '✦' },
+const reactionConfig = [
+  { type: ReactionType.support, emoji: '🤝', label: 'Support' },
+  { type: ReactionType.care, emoji: '💙', label: 'Care' },
+  { type: ReactionType.strength, emoji: '💪', label: 'Strength' },
 ];
 
-export default function PublicPostCard({ post, currentUserId }: PublicPostCardProps) {
+export default function PublicPostCard({ post }: PublicPostCardProps) {
+  const { identity } = useInternetIdentity();
+  const { data: myReaction, isLoading: reactionLoading } = useGetMyReaction(post.id);
   const addReaction = useAddReaction();
-  const { data: myReaction } = useMyReaction(post.id);
-  const isOwnPost = currentUserId && post.userId.toString() === currentUserId;
 
-  const handleReact = async (reactionType: ReactionType) => {
-    if (myReaction !== null && myReaction !== undefined) return;
+  const currentUserId = identity?.getPrincipal().toString();
+  const isOwner = currentUserId === post.userId.toString();
+  const hasReacted = myReaction !== null && myReaction !== undefined;
+
+  const createdAt = new Date(Number(post.createdAt / BigInt(1_000_000)));
+
+  const handleReaction = async (reactionType: ReactionType) => {
+    if (isOwner || hasReacted || addReaction.isPending) return;
     try {
       await addReaction.mutateAsync({ postId: post.id, reactionType });
-    } catch (err: unknown) {
-      const msg = (err as Error)?.message || '';
-      if (msg.includes('already reacted')) {
-        toast.error('You\'ve already responded to this post.');
-      } else if (msg.includes('private')) {
-        toast.error('This post is no longer public.');
-      } else if (msg.includes('own post')) {
-        toast.error('You cannot react to your own post.');
-      } else {
-        toast.error('Could not add your response.');
-      }
+    } catch {
+      // Silently handle — user may have already reacted
     }
   };
 
-  const formattedDate = new Date(Number(post.createdAt / BigInt(1_000_000))).toLocaleDateString('en-US', {
-    month: 'long',
-    day: 'numeric',
-  });
-
-  const authorDisplay = post.userId.toString().slice(0, 8) + '…';
-  const hasReacted = myReaction !== null && myReaction !== undefined;
-
   return (
-    <article className="veil-card p-6 space-y-4 animate-fade-in">
+    <div className="veil-card space-y-3">
       {/* Header */}
-      <div className="flex items-start justify-between gap-4">
-        <div className="flex items-center gap-3">
-          <EmotionBadge emotion={post.emotionType} />
-          <span className="text-xs text-muted-foreground font-sans">{formattedDate}</span>
-        </div>
-        <span className="text-xs text-muted-foreground font-mono">{authorDisplay}</span>
+      <div className="flex items-start justify-between gap-2">
+        <EmotionBadge emotion={post.emotionType as EmotionType} />
+        <span className="text-xs text-muted-foreground shrink-0">
+          {createdAt.toLocaleDateString()}
+        </span>
       </div>
 
       {/* Content */}
-      <p className="font-sans text-sm leading-relaxed text-foreground whitespace-pre-wrap">
-        {post.content}
-      </p>
+      <p className="text-sm text-foreground leading-relaxed whitespace-pre-wrap">{post.content}</p>
 
       {/* Reactions */}
-      {!isOwnPost && (
-        <div className="flex items-center gap-2 pt-2 border-t border-border/50">
-          <span className="text-xs text-muted-foreground font-sans mr-1">Respond:</span>
-          {REACTIONS.map((r) => {
-            const isSelected = myReaction === r.type;
-            return (
-              <Button
-                key={r.type}
-                variant="ghost"
-                size="sm"
-                onClick={() => handleReact(r.type)}
-                disabled={hasReacted || addReaction.isPending}
-                className={`text-xs font-sans rounded-lg h-8 gap-1.5 transition-all ${
-                  isSelected
-                    ? 'bg-secondary text-secondary-foreground border border-border'
-                    : 'text-muted-foreground hover:text-foreground'
-                }`}
-              >
-                {addReaction.isPending && !hasReacted ? (
-                  <Loader2 size={11} className="animate-spin" />
-                ) : (
-                  <span>{r.emoji}</span>
-                )}
-                {r.label}
-              </Button>
-            );
-          })}
-        </div>
-      )}
+      <div className="flex items-center gap-2 pt-1 flex-wrap">
+        <span className="text-xs text-muted-foreground mr-1">
+          {Number(post.reactionCount)} reaction{Number(post.reactionCount) !== 1 ? 's' : ''}
+        </span>
+        {reactionConfig.map(r => {
+          const isActive = myReaction === r.type;
+          const isDisabled = isOwner || hasReacted || addReaction.isPending || reactionLoading;
 
-      {/* Reaction count */}
-      {Number(post.reactionCount) > 0 && (
-        <p className="text-xs text-muted-foreground font-sans">
-          {Number(post.reactionCount)} {Number(post.reactionCount) === 1 ? 'response' : 'responses'}
-        </p>
-      )}
-    </article>
+          return (
+            <button
+              key={r.type}
+              onClick={() => handleReaction(r.type)}
+              disabled={isDisabled}
+              title={isOwner ? "Can't react to your own post" : hasReacted ? 'Already reacted' : r.label}
+              className={`
+                flex items-center gap-1 px-2.5 py-1 rounded-full border text-xs transition-all
+                ${isActive
+                  ? 'bg-primary/15 border-primary/40 text-primary font-medium'
+                  : isDisabled
+                  ? 'bg-muted/30 border-border text-muted-foreground cursor-not-allowed opacity-60'
+                  : 'bg-background border-border text-muted-foreground hover:border-primary/40 hover:text-foreground cursor-pointer'
+                }
+              `}
+            >
+              {addReaction.isPending && !isActive ? (
+                <Loader2 size={10} className="animate-spin" />
+              ) : (
+                <span>{r.emoji}</span>
+              )}
+              <span>{r.label}</span>
+            </button>
+          );
+        })}
+      </div>
+    </div>
   );
 }

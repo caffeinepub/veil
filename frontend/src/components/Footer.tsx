@@ -3,15 +3,13 @@ export default function Footer() {
   const appId = encodeURIComponent(window.location.hostname || 'veil-app');
 
   return (
-    <footer className="border-t border-border mt-auto">
-      <div className="max-w-4xl mx-auto px-6 py-8 flex flex-col sm:flex-row items-center justify-between gap-3">
-        <p className="text-xs text-muted-foreground font-sans">
-          © {year} Veil — A quiet space for honest moments.
-        </p>
-        <p className="text-xs text-muted-foreground font-sans">
+    <footer className="border-t border-border bg-background py-6 mt-auto">
+      <div className="max-w-5xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-2 text-sm text-muted-foreground">
+        <span>© {year} Veil — a safe space for honest expression</span>
+        <span>
           Built with{' '}
-          <span className="text-accent-foreground">♥</span>{' '}
-          using{' '}
+          <span className="text-accent" aria-label="love">♥</span>
+          {' '}using{' '}
           <a
             href={`https://caffeine.ai/?utm_source=Caffeine-footer&utm_medium=referral&utm_content=${appId}`}
             target="_blank"
@@ -20,7 +18,7 @@ export default function Footer() {
           >
             caffeine.ai
           </a>
-        </p>
+        </span>
       </div>
     </footer>
   );

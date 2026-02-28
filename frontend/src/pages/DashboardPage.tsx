@@ -1,143 +1,137 @@
 import { useEffect } from 'react';
 import { useNavigate } from '@tanstack/react-router';
 import { useInternetIdentity } from '../hooks/useInternetIdentity';
-import { useGetCallerUserProfile, useGetMySubscriptionStatus } from '../hooks/useQueries';
-import { EmotionType } from '../backend';
+import { useGetMyProfile, useGetMySubscriptionStatus } from '../hooks/useQueries';
+import { SubscriptionStatus } from '../backend';
+import { canCreatePost } from '../utils/subscriptionHelpers';
 import SubscriptionBanner from '../components/SubscriptionBanner';
-import { canCreatePost, getSubscriptionLabel } from '../utils/subscriptionHelpers';
-import { Skeleton } from '@/components/ui/skeleton';
+import { Loader2 } from 'lucide-react';
 
-const EMOTIONS = [
+const emotions = [
   {
-    type: EmotionType.confess,
+    key: 'confess',
     label: 'Confess',
+    emoji: '🤫',
     description: 'Something weighing on you',
-    colorClass: 'bg-emotion-confess border-emotion-confess text-emotion-confess',
-    hoverClass: 'hover:bg-emotion-confess/20',
+    color: 'bg-emotion-confess/10 hover:bg-emotion-confess/20 border-emotion-confess/30 text-emotion-confess',
   },
   {
-    type: EmotionType.broke,
+    key: 'broke',
     label: 'Broke',
-    description: 'When you\'re falling apart',
-    colorClass: 'bg-emotion-broke border-emotion-broke text-emotion-broke',
-    hoverClass: 'hover:bg-emotion-broke/20',
+    emoji: '💸',
+    description: 'Financial stress or struggle',
+    color: 'bg-emotion-broke/10 hover:bg-emotion-broke/20 border-emotion-broke/30 text-emotion-broke',
   },
   {
-    type: EmotionType.happy,
+    key: 'happy',
     label: 'Happy',
-    description: 'A moment worth keeping',
-    colorClass: 'bg-emotion-happy border-emotion-happy text-emotion-happy',
-    hoverClass: 'hover:bg-emotion-happy/20',
+    emoji: '🌸',
+    description: 'A moment of joy to share',
+    color: 'bg-emotion-happy/10 hover:bg-emotion-happy/20 border-emotion-happy/30 text-emotion-happy',
   },
 ];
 
 export default function DashboardPage() {
   const navigate = useNavigate();
-  const { identity } = useInternetIdentity();
+  const { identity, isInitializing } = useInternetIdentity();
+  const { data: profile, isFetched: profileFetched, isLoading: profileLoading } = useGetMyProfile();
+  const { data: subscriptionStatus, isLoading: subLoading } = useGetMySubscriptionStatus();
+
   const isAuthenticated = !!identity;
-  const { data: profile, isLoading: profileLoading, isFetched } = useGetCallerUserProfile();
-  const { data: subscriptionStatus } = useGetMySubscriptionStatus();
 
   useEffect(() => {
-    if (!isAuthenticated) {
+    if (!isInitializing && !isAuthenticated) {
       navigate({ to: '/login' });
-      return;
     }
-    if (isFetched && profile === null) {
+  }, [isInitializing, isAuthenticated, navigate]);
+
+  useEffect(() => {
+    if (isAuthenticated && profileFetched && !profileLoading && !profile) {
       navigate({ to: '/signup' });
     }
-  }, [isAuthenticated, profile, isFetched, navigate]);
+  }, [isAuthenticated, profile, profileFetched, profileLoading, navigate]);
 
-  if (!isAuthenticated || profileLoading || !isFetched) {
+  if (isInitializing || profileLoading || subLoading) {
     return (
-      <div className="max-w-2xl mx-auto px-6 py-20 space-y-8">
-        <Skeleton className="h-8 w-64 mx-auto rounded-xl" />
-        <div className="grid grid-cols-3 gap-4">
-          <Skeleton className="h-40 rounded-2xl" />
-          <Skeleton className="h-40 rounded-2xl" />
-          <Skeleton className="h-40 rounded-2xl" />
-        </div>
+      <div className="min-h-[60vh] flex items-center justify-center">
+        <Loader2 className="animate-spin text-muted-foreground" size={28} />
       </div>
     );
   }
 
-  if (!profile) return null;
+  if (!isAuthenticated || !profile) return null;
 
-  const canPost = canCreatePost(subscriptionStatus);
+  const isExpired = subscriptionStatus === SubscriptionStatus.expired;
+  const canPost = canCreatePost(subscriptionStatus ?? SubscriptionStatus.expired);
+
+  const handleEmotionClick = (emotionKey: string) => {
+    if (!canPost) return;
+    navigate({ to: '/create', search: { emotion: emotionKey } });
+  };
 
   return (
-    <div className="max-w-2xl mx-auto px-6 py-16 animate-fade-in">
-      {/* Subscription banner for expired users */}
-      {subscriptionStatus && !canPost && (
-        <div className="mb-10">
-          <SubscriptionBanner region={profile.region} />
-        </div>
-      )}
-
-      {/* Greeting */}
-      <div className="text-center mb-14">
-        <p className="text-sm text-muted-foreground font-sans mb-3 tracking-wide uppercase">
-          {getSubscriptionLabel(subscriptionStatus) && (
-            <span className="inline-flex items-center gap-1.5">
-              <span className={`w-1.5 h-1.5 rounded-full inline-block ${
-                subscriptionStatus === 'grace' ? 'bg-status-grace' :
-                subscriptionStatus === 'active' ? 'bg-status-grace' :
-                'bg-status-expired'
-              }`} />
-              {getSubscriptionLabel(subscriptionStatus)}
-            </span>
-          )}
-        </p>
-        <h1 className="font-serif text-4xl font-medium text-foreground leading-tight">
-          What are you feeling today?
+    <div className="max-w-2xl mx-auto px-4 py-10 space-y-8">
+      {/* Welcome */}
+      <div className="space-y-1">
+        <h1 className="font-serif text-2xl font-semibold text-foreground">
+          Welcome back, {profile.pseudonym}
         </h1>
-        <p className="mt-3 text-muted-foreground font-sans text-base">
-          This is your space, {profile.pseudonym}.
+        <p className="text-sm text-muted-foreground">
+          What are you feeling today?
         </p>
       </div>
 
+      {/* Subscription banner */}
+      {isExpired && (
+        <SubscriptionBanner region={profile.region} />
+      )}
+
       {/* Emotion buttons */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-12">
-        {EMOTIONS.map((emotion) => (
-          <button
-            key={emotion.type}
-            onClick={() => {
-              if (canPost) {
-                navigate({ to: '/post/new/$emotion', params: { emotion: emotion.type } });
-              }
-            }}
-            disabled={!canPost}
-            className={`
-              group relative flex flex-col items-center justify-center
-              p-8 rounded-2xl border-2 transition-all duration-200
-              ${emotion.colorClass}
-              ${canPost ? `${emotion.hoverClass} cursor-pointer` : 'opacity-50 cursor-not-allowed'}
-            `}
-          >
-            <span className="font-serif text-2xl font-medium mb-2">
-              {emotion.label}
-            </span>
-            <span className="text-xs font-sans opacity-70 text-center leading-relaxed">
-              {emotion.description}
-            </span>
-          </button>
-        ))}
+      <div className="space-y-3">
+        <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+          Choose your emotion
+        </p>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          {emotions.map(emotion => (
+            <button
+              key={emotion.key}
+              onClick={() => handleEmotionClick(emotion.key)}
+              disabled={!canPost}
+              className={`
+                relative flex flex-col items-center gap-2 p-5 rounded-xl border transition-all
+                ${canPost
+                  ? `${emotion.color} cursor-pointer`
+                  : 'bg-muted/30 border-border text-muted-foreground cursor-not-allowed opacity-60'
+                }
+              `}
+            >
+              <span className="text-3xl">{emotion.emoji}</span>
+              <span className="font-medium text-sm">{emotion.label}</span>
+              <span className="text-xs opacity-70 text-center">{emotion.description}</span>
+            </button>
+          ))}
+        </div>
+
+        {!canPost && (
+          <p className="text-sm text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/30 rounded-md px-3 py-2 text-center">
+            Your subscription has expired. Renew to create new posts.
+          </p>
+        )}
       </div>
 
       {/* Quick links */}
-      <div className="flex items-center justify-center gap-6 text-sm text-muted-foreground font-sans">
+      <div className="flex gap-3 pt-2">
         <button
-          onClick={() => navigate({ to: '/my-posts' })}
-          className="hover:text-foreground transition-colors underline underline-offset-4"
+          onClick={() => navigate({ to: '/posts' })}
+          className="text-sm text-muted-foreground hover:text-foreground underline underline-offset-2 transition-colors"
         >
-          View my posts
+          View my posts →
         </button>
-        <span className="text-border">·</span>
         <button
           onClick={() => navigate({ to: '/community' })}
-          className="hover:text-foreground transition-colors underline underline-offset-4"
+          className="text-sm text-muted-foreground hover:text-foreground underline underline-offset-2 transition-colors"
         >
-          Community feed
+          Community feed →
         </button>
       </div>
     </div>

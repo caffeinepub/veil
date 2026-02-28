@@ -1,6 +1,7 @@
-import { useAdminPublicPosts, useAdminDeletePost } from '../hooks/useQueries';
+import { useState } from 'react';
+import { useAdminGetAllPublicPosts, useAdminDeletePost } from '../hooks/useQueries';
+import { EmotionType, type Post } from '../backend';
 import EmotionBadge from './EmotionBadge';
-import { Button } from '@/components/ui/button';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -12,99 +13,100 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
-import { Skeleton } from '@/components/ui/skeleton';
-import { Loader2, Trash2, Wind } from 'lucide-react';
-import { toast } from 'sonner';
+import { Button } from '@/components/ui/button';
+import { Loader2, Trash2, FileText } from 'lucide-react';
 
 export default function AdminPublicPostsList() {
-  const { data: posts, isLoading } = useAdminPublicPosts();
+  const { data: posts, isLoading } = useAdminGetAllPublicPosts();
   const deletePost = useAdminDeletePost();
+  const [deleteErrors, setDeleteErrors] = useState<Record<string, string>>({});
 
-  const sortedPosts = posts
-    ? [...posts].sort((a, b) => Number(b.createdAt - a.createdAt))
-    : [];
+  const sortedPosts = [...(posts ?? [])].sort(
+    (a, b) => Number(b.createdAt - a.createdAt)
+  );
 
   const handleDelete = async (postId: string) => {
     try {
       await deletePost.mutateAsync(postId);
-      toast.success('Post removed.');
-    } catch {
-      toast.error('Could not remove post.');
+      setDeleteErrors(prev => { const n = { ...prev }; delete n[postId]; return n; });
+    } catch (err: unknown) {
+      setDeleteErrors(prev => ({
+        ...prev,
+        [postId]: err instanceof Error ? err.message : 'Failed to delete post.',
+      }));
     }
   };
 
   if (isLoading) {
     return (
-      <div className="space-y-3">
-        {[1, 2, 3].map((i) => <Skeleton key={i} className="h-32 rounded-2xl" />)}
+      <div className="flex items-center justify-center py-12">
+        <Loader2 className="animate-spin text-muted-foreground" size={24} />
       </div>
     );
   }
 
   if (sortedPosts.length === 0) {
     return (
-      <div className="text-center py-16">
-        <Wind size={28} className="text-muted-foreground/40 mx-auto mb-3" />
-        <p className="text-muted-foreground font-sans text-sm">No public posts yet.</p>
+      <div className="flex flex-col items-center justify-center py-12 gap-2 text-center">
+        <FileText size={32} className="text-muted-foreground/40" />
+        <p className="text-sm text-muted-foreground">No public posts yet.</p>
       </div>
     );
   }
 
   return (
     <div className="space-y-3">
-      {sortedPosts.map((post) => {
-        const date = new Date(Number(post.createdAt / BigInt(1_000_000))).toLocaleDateString('en-US', {
-          month: 'short', day: 'numeric', year: 'numeric',
-        });
-        return (
-          <article key={post.id} className="veil-card p-5 space-y-3">
-            <div className="flex items-start justify-between gap-4">
-              <div className="flex items-center gap-3">
-                <EmotionBadge emotion={post.emotionType} />
-                <span className="text-xs text-muted-foreground font-sans">{date}</span>
-                <span className="text-xs text-muted-foreground font-mono">
-                  {post.userId.toString().slice(0, 10)}…
-                </span>
-              </div>
-              <AlertDialog>
-                <AlertDialogTrigger asChild>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="text-xs font-sans text-muted-foreground hover:text-foreground gap-1.5 rounded-lg h-8"
-                  >
-                    <Trash2 size={12} />
-                    Remove
-                  </Button>
-                </AlertDialogTrigger>
-                <AlertDialogContent className="rounded-2xl">
-                  <AlertDialogHeader>
-                    <AlertDialogTitle className="font-serif text-xl">Remove this post?</AlertDialogTitle>
-                    <AlertDialogDescription className="font-sans text-sm">
-                      This action cannot be undone.
-                    </AlertDialogDescription>
-                  </AlertDialogHeader>
-                  <AlertDialogFooter>
-                    <AlertDialogCancel className="rounded-xl font-sans">Cancel</AlertDialogCancel>
-                    <AlertDialogAction
-                      onClick={() => handleDelete(post.id)}
-                      className="rounded-xl font-sans"
-                    >
-                      {deletePost.isPending ? <Loader2 size={14} className="animate-spin" /> : 'Remove'}
-                    </AlertDialogAction>
-                  </AlertDialogFooter>
-                </AlertDialogContent>
-              </AlertDialog>
+      <p className="text-sm text-muted-foreground">{sortedPosts.length} public post{sortedPosts.length !== 1 ? 's' : ''}</p>
+      {sortedPosts.map((post: Post) => (
+        <div key={post.id} className="veil-card space-y-2">
+          <div className="flex items-start justify-between gap-2">
+            <div className="flex items-center gap-2 flex-wrap">
+              <EmotionBadge emotion={post.emotionType as EmotionType} />
+              <span className="text-xs text-muted-foreground font-mono">
+                {post.userId.toString().slice(0, 12)}…
+              </span>
             </div>
-            <p className="text-sm font-sans text-foreground leading-relaxed line-clamp-3">
-              {post.content}
-            </p>
-            <p className="text-xs text-muted-foreground font-sans">
-              {Number(post.reactionCount)} responses
-            </p>
-          </article>
-        );
-      })}
+            <span className="text-xs text-muted-foreground shrink-0">
+              {new Date(Number(post.createdAt / BigInt(1_000_000))).toLocaleDateString()}
+            </span>
+          </div>
+
+          <p className="text-sm text-foreground leading-relaxed line-clamp-3">{post.content}</p>
+
+          <div className="flex items-center justify-between">
+            <span className="text-xs text-muted-foreground">
+              {Number(post.reactionCount)} reaction{Number(post.reactionCount) !== 1 ? 's' : ''}
+            </span>
+
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button size="sm" variant="ghost" disabled={deletePost.isPending} className="text-muted-foreground hover:text-foreground">
+                  <Trash2 size={13} className="mr-1" />
+                  Delete
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Delete this post?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    This action cannot be undone. The post will be permanently removed.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                  <AlertDialogAction onClick={() => handleDelete(post.id)}>
+                    Delete
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          </div>
+
+          {deleteErrors[post.id] && (
+            <p className="text-xs text-amber-700 dark:text-amber-400">{deleteErrors[post.id]}</p>
+          )}
+        </div>
+      ))}
     </div>
   );
 }

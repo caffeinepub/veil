@@ -1,136 +1,204 @@
 {
   "kind": "build_request",
-  "title": "Wire frontend hooks to complete backend — final integration pass",
+  "title": "Complete end-to-end app audit and fix — ensure all screens are functional and clickable",
   "projectName": "Veil",
-  "priority": "normal",
+  "priority": "high",
   "requirements": [
     {
-      "id": "REQ-62",
-      "text": "Update frontend/src/hooks/useQueries.ts to correctly call all backend functions — createPost, editPost, deletePost, setPostPrivacy, addReaction, getMyReaction, getMyPosts, getPublicPosts, getMyProfile, isAdmin, register, validateInviteCode, and getMySubscriptionStatus — using the actor from useActor. Ensure parameter shapes and return types exactly match the Candid interface generated from backend/main.mo.",
-      "target": "frontend",
+      "id": "REQ-104",
+      "text": "Verify and fix backend/main.mo so it compiles correctly and exposes all required public functions with exact signatures matching the frontend Candid interface: register, validateInviteCode, getMyProfile, getMyPosts, getPublicPosts, isAdmin, getMySubscriptionStatus, createPost, editPost, deletePost, setPostPrivacy, addReaction, getMyReaction, adminGetAllPublicPosts, adminGetUserPosts, adminDeletePost, adminSuspendUser, adminUnsuspendUser, adminGetAllUsers, addInviteCode, revokeInviteCode, setSubscriptionStatus. Pre-seed at least 5 invite codes. Use stable var with preupgrade/postupgrade pattern so data survives canister upgrades.",
+      "target": "backend",
       "source": {
         "messageIds": [
-          "msg-4"
+          "msg-7"
         ],
         "quotes": [
-          "yes, keep going."
+          "complete the app. I want to see the app UI and test it by clicking the buttons."
         ]
       },
       "acceptanceCriteria": [
-        "All query hooks (getMyProfile, getMyPosts, getPublicPosts, isAdmin, getMySubscriptionStatus) return data without errors when the actor is available.",
-        "All mutation hooks (createPost, editPost, deletePost, setPostPrivacy, addReaction, register) call the correct backend function with the correct argument types.",
-        "getMyReaction accepts a postId string and returns the optional ReactionType.",
-        "No TypeScript type errors are present in useQueries.ts.",
-        "Each mutation hook invalidates the relevant React Query cache keys on success so the UI reflects updated state without a manual refresh."
+        "backend/main.mo compiles without errors",
+        "All 22 required public functions are present with correct parameter and return types",
+        "At least 5 invite codes are pre-seeded in stable state",
+        "preupgrade/postupgrade hooks preserve all stable state across upgrades",
+        "Admin functions are protected by hardcoded admin Principal check"
       ]
     },
     {
-      "id": "REQ-63",
-      "text": "Ensure the SignupPage calls the register mutation from useQueries.ts with the correct (inviteCode, pseudonym, region) arguments, handles #ok and #err Result variants from the backend, and routes to the dashboard on success or displays the backend error message on failure.",
+      "id": "REQ-105",
+      "text": "Ensure useQueries.ts has complete, correctly-typed React Query hooks for every backend function consumed by the frontend: getMyProfile, getMyPosts, getPublicPosts, isAdmin, getMySubscriptionStatus, getMyReaction, createPost, editPost, deletePost, setPostPrivacy, addReaction, register, validateInviteCode, adminGetAllPublicPosts, adminGetUserPosts, adminDeletePost, adminSuspendUser, adminUnsuspendUser, adminGetAllUsers, addInviteCode, revokeInviteCode, setSubscriptionStatus. All parameter shapes and return types must exactly match the Candid interface generated from backend/main.mo. All mutation hooks must call queryClient.invalidateQueries with the correct cache keys on success.",
       "target": "frontend",
       "source": {
         "messageIds": [
-          "msg-4"
+          "msg-7"
+        ],
+        "quotes": [
+          "complete the app. I want to see the app UI and test it by clicking the buttons."
         ]
       },
       "acceptanceCriteria": [
-        "Submitting a valid invite code, pseudonym, and region creates a user and navigates to /dashboard.",
-        "Submitting an invalid or already-used invite code shows the backend error text inline without a page reload.",
-        "Submitting when capacity is reached (100 members) shows the appropriate error message."
+        "Every backend function has a corresponding query or mutation hook in useQueries.ts",
+        "No TypeScript type errors in useQueries.ts",
+        "Mutation hooks invalidate relevant query cache keys ('myPosts', 'publicPosts', 'myProfile', 'mySubscriptionStatus', 'adminUsers', 'adminPosts', 'inviteCodes') on success",
+        "Actor is obtained from useActor hook inside every hook"
       ]
     },
     {
-      "id": "REQ-64",
-      "text": "Ensure the PostCreationPage calls the createPost mutation with the correct (emotionType, content) arguments, handles the Result returned by the backend, and navigates to the My Posts page on success or shows the error inline on failure.",
+      "id": "REQ-106",
+      "text": "Audit and fix the LoginPage: it must call the login function from useInternetIdentity on button click, then check getMyProfile after authentication, redirect to /dashboard if a profile exists, or redirect to /signup if no profile is found. Unauthenticated users visiting any protected route (/dashboard, /posts, /community, /admin) must be redirected to /login. The logout button in Header must call logout from useInternetIdentity and redirect to /login.",
       "target": "frontend",
       "source": {
         "messageIds": [
-          "msg-4"
+          "msg-7"
+        ],
+        "quotes": [
+          "I want to see the app UI and test it by clicking the buttons."
         ]
       },
       "acceptanceCriteria": [
-        "A successful createPost call navigates the user to /my-posts.",
-        "A backend rejection (expired subscription, word count, suspended) is displayed as an inline error on the form.",
-        "The post button remains disabled and shows the word-count prompt when Confess/Happy content is fewer than 24 words."
+        "LoginPage renders a visible login button that triggers Internet Identity flow",
+        "After successful login, user is redirected to /dashboard if profile exists or /signup if not",
+        "Visiting /dashboard, /posts, /community, or /admin while unauthenticated redirects to /login",
+        "Header logout button calls logout() and redirects to /login"
       ]
     },
     {
-      "id": "REQ-65",
-      "text": "Ensure PostCard calls the editPost, deletePost, and setPostPrivacy mutations with correct arguments, handles Result variants, and invalidates the 'myPosts' and 'publicPosts' query keys on success so the card list updates immediately.",
+      "id": "REQ-107",
+      "text": "Audit and fix the SignupPage: it must read the invite code from URL params (if present) via urlParams.ts, pre-fill the invite code input, call the register mutation from useQueries.ts with (inviteCode, pseudonym, region) arguments, correctly unwrap #ok and #err Result variants from the backend, route to /dashboard on success, and display the backend error text inline (not in a modal) on failure. The region selector must offer exactly 'India' and 'Global' options.",
       "target": "frontend",
       "source": {
         "messageIds": [
-          "msg-4"
+          "msg-7"
+        ],
+        "quotes": [
+          "I want to see the app UI and test it by clicking the buttons."
         ]
       },
       "acceptanceCriteria": [
-        "Editing a post with reactionCount = 0 updates the card content without a page reload.",
-        "Attempting to edit a post with reactionCount > 0 shows the backend error inline.",
-        "Toggling a post public shows the confirmation dialog, calls setPostPrivacy(postId, false), and updates the card's status badge on success.",
-        "Toggling a post private immediately calls setPostPrivacy(postId, true) and updates the badge.",
-        "Deleting a post removes it from the list without a page reload."
+        "Invite code field is pre-filled from URL query param or sessionStorage if available",
+        "Region selector shows exactly two options: India and Global",
+        "Submitting with a valid invite code and pseudonym calls register mutation with correct arguments",
+        "On #ok result, user is redirected to /dashboard",
+        "On #err result, the error text is shown inline below the form (no modal)"
       ]
     },
     {
-      "id": "REQ-66",
-      "text": "Ensure PublicPostCard calls the addReaction mutation and getMyReaction query with correct arguments. Display the user's existing reaction if getMyReaction returns a value. Disable reaction buttons for the post owner and for posts on which the user has already reacted.",
+      "id": "REQ-108",
+      "text": "Audit and fix the DashboardPage: it must call getMyProfile and getMySubscriptionStatus (or derive status from profile), pass the effective subscription status to SubscriptionBanner, and block navigation to /create if the user's effective status is #expired. The three emotion buttons (Confess, Broke, Happy) must each navigate to /create with the chosen emotion passed as a query parameter. No red UI elements; use the muted, supportive SubscriptionBanner when status is #expired.",
       "target": "frontend",
       "source": {
         "messageIds": [
-          "msg-4"
+          "msg-7"
+        ],
+        "quotes": [
+          "I want to see the app UI and test it by clicking the buttons."
         ]
       },
       "acceptanceCriteria": [
-        "Reacting to a post calls addReaction(postId, reactionType) and invalidates the publicPosts query key.",
-        "The user's existing reaction is highlighted/shown when getMyReaction returns a non-null value.",
-        "The post owner's reaction buttons are disabled or hidden.",
-        "A duplicate reaction attempt shows the backend error message inline without crashing the component."
+        "Dashboard loads and displays the user's pseudonym in the top bar",
+        "Clicking Confess navigates to /create?emotion=confess (or equivalent route param)",
+        "Clicking Broke navigates to /create?emotion=broke",
+        "Clicking Happy navigates to /create?emotion=happy",
+        "When subscription status is #expired, SubscriptionBanner is shown and emotion buttons do not navigate to /create",
+        "No red color used anywhere on the page"
       ]
     },
     {
-      "id": "REQ-67",
-      "text": "Ensure all admin functions (adminGetAllPublicPosts, adminGetUserPosts, adminDeletePost, adminSuspendUser, adminUnsuspendUser, adminGetAllUsers, addInviteCode, revokeInviteCode, setSubscriptionStatus) are exposed as query or mutation hooks in useQueries.ts and correctly consumed by the admin dashboard components (AdminPublicPostsList, AdminUserManagement, AdminInviteCodes, AdminUserPostHistory).",
+      "id": "REQ-109",
+      "text": "Audit and fix the PostCreationPage: it must read the emotion type from route/query params, call the createPost mutation with (emotionType, content), enforce the 24-word minimum client-side for #confess and #happy (disabling the submit button if below threshold), handle the Result from the backend, navigate to /posts on success, and show any backend error inline on failure. The subscription-expired gate must block form submission with an inline message.",
       "target": "frontend",
       "source": {
         "messageIds": [
-          "msg-4"
+          "msg-7"
+        ],
+        "quotes": [
+          "I want to see the app UI and test it by clicking the buttons."
         ]
       },
       "acceptanceCriteria": [
-        "AdminPublicPostsList fetches via adminGetAllPublicPosts and the delete button calls adminDeletePost, refreshing the list on success.",
-        "AdminUserManagement fetches via adminGetAllUsers and suspend/unsuspend buttons call adminSuspendUser/adminUnsuspendUser, updating the list on success.",
-        "AdminInviteCodes fetches active codes, add calls addInviteCode, and revoke calls revokeInviteCode, all with cache invalidation.",
-        "AdminUserPostHistory fetches via adminGetUserPosts with a Principal argument and displays results.",
-        "All admin hooks check isAdmin and redirect non-admins before rendering sensitive data."
+        "Emotion type is correctly read from URL/route params",
+        "Live word counter updates as user types",
+        "Submit button is disabled when #confess or #happy word count is below 24",
+        "Submitting a valid post calls createPost mutation and navigates to /posts on success",
+        "Backend error is displayed inline below the form on failure",
+        "Expired subscription shows inline blocking message and prevents form submission"
       ]
     },
     {
-      "id": "REQ-68",
-      "text": "Ensure the DashboardPage and PostCreationPage read the effective subscription status from the getMySubscriptionStatus query (or getMyProfile) and correctly pass it to the SubscriptionBanner and subscription-gating logic in subscriptionHelpers.ts, so expired users see the calm banner and cannot submit posts or go public.",
+      "id": "REQ-110",
+      "text": "Audit and fix the MyPostsPage and PostCard: PostCard must call editPost with (postId, newContent), deletePost with (postId), and setPostPrivacy with (postId, isPrivate) using mutations from useQueries.ts. On success each mutation must invalidate both the 'myPosts' and 'publicPosts' React Query cache keys so the list updates without a manual refresh. The 'Go Public' confirmation dialog must show the exact text 'This post will be visible to all Veil members.' The Edit button must only appear when post.editable is true.",
       "target": "frontend",
       "source": {
         "messageIds": [
-          "msg-4"
+          "msg-7"
+        ],
+        "quotes": [
+          "I want to see the app UI and test it by clicking the buttons."
         ]
       },
       "acceptanceCriteria": [
-        "Users with #expired subscription see the SubscriptionBanner on the dashboard and post creation page.",
-        "The post creation form submit button is blocked with an inline message for expired users.",
-        "The 'Go Public' button on PostCard is blocked with an inline message for expired users.",
-        "Users with #grace or #active subscription do not see the subscription banner and can post and go public normally."
+        "MyPostsPage renders the user's posts sorted newest-first",
+        "Edit button is only visible when post.editable === true",
+        "Clicking Edit allows inline content editing and saving via editPost mutation",
+        "Clicking Delete removes the post immediately after mutation success",
+        "'Go Public' opens a confirmation dialog with exactly the text 'This post will be visible to all Veil members.'",
+        "'Make Private' toggles without a confirmation dialog",
+        "Both 'myPosts' and 'publicPosts' query caches are invalidated on mutation success"
+      ]
+    },
+    {
+      "id": "REQ-111",
+      "text": "Audit and fix the CommunityFeedPage and PublicPostCard: PublicPostCard must call getMyReaction(postId) to fetch the user's existing reaction and display it highlighted. The addReaction mutation must be called with (postId, reactionType). Reaction buttons (Support, Care, Strength) must be disabled for the post owner and for any post the user has already reacted to. Posts must be sorted newest-first consistently. No comments, no reply buttons, no follower counts, no popularity indicators.",
+      "target": "frontend",
+      "source": {
+        "messageIds": [
+          "msg-7"
+        ],
+        "quotes": [
+          "I want to see the app UI and test it by clicking the buttons."
+        ]
+      },
+      "acceptanceCriteria": [
+        "CommunityFeedPage renders all public posts sorted newest-first",
+        "Each post card shows emotion type label, poster's pseudonym, content, reaction count, and three reaction buttons",
+        "If the user has already reacted, their reaction button is visually highlighted and all three buttons are disabled",
+        "Reaction buttons are disabled for posts owned by the current user",
+        "Clicking a reaction button calls addReaction(postId, reactionType) and updates the displayed reaction count",
+        "No comments section, reply button, follower count, or popularity metric is shown"
+      ]
+    },
+    {
+      "id": "REQ-112",
+      "text": "Audit and fix the AdminPage and all AdminDashboard sub-components. AdminPublicPostsList must call adminGetAllPublicPosts query and adminDeletePost mutation. AdminUserManagement must call adminGetAllUsers query and adminSuspendUser, adminUnsuspendUser, setSubscriptionStatus mutations. AdminInviteCodes must call addInviteCode and revokeInviteCode mutations and list all codes with their used/unused status. AdminUserPostHistory must call adminGetUserPosts query by principal. All hooks must be correctly wired in useQueries.ts. The AdminPage must redirect non-admin users away from /admin.",
+      "target": "frontend",
+      "source": {
+        "messageIds": [
+          "msg-7"
+        ],
+        "quotes": [
+          "I want to see the app UI and test it by clicking the buttons."
+        ]
+      },
+      "acceptanceCriteria": [
+        "Non-admin users navigating to /admin are redirected away",
+        "AdminPublicPostsList loads and displays all public posts with a working Delete button per post",
+        "AdminUserManagement lists all users with suspend/unsuspend and subscription status controls that work",
+        "AdminInviteCodes lists all codes (used and unused), supports adding new codes, and revoking unused codes",
+        "AdminUserPostHistory allows searching by principal and displays matching posts",
+        "All admin actions reflect immediately in the UI after mutation success"
       ]
     }
   ],
   "constraints": [
-    "Do not modify files under frontend/src/hooks/useActor.ts, frontend/src/hooks/useInternetIdentity.ts, frontend/src/main.tsx, or frontend/src/components/ui.",
-    "All backend function signatures in useQueries.ts must exactly match the Candid interface generated from backend/main.mo — no shape mismatches.",
-    "Do not alter the backend/main.mo actor unless a signature fix is strictly required to resolve a type mismatch with the frontend."
+    "Do not modify any files under frontend/src/hooks/useInternetIdentity.ts, frontend/src/hooks/useActor.ts, frontend/src/main.tsx, or frontend/src/components/ui",
+    "All Motoko logic must remain in a single actor in backend/main.mo",
+    "No red UI elements anywhere in the frontend"
   ],
   "nonGoals": [
-    "Adding new backend features not already implemented in main.mo.",
-    "Changing the visual design or layout of any existing screen.",
-    "Implementing real-time updates or WebSocket-based notifications.",
-    "Adding email, SMS, or push notification capabilities."
+    "Adding new features not already specced (DMs, comments, follower system, feed ranking)",
+    "Changing the visual design system or color palette",
+    "Adding email or real-name fields to any user-facing form",
+    "Real-time / WebSocket functionality"
   ],
   "imageRequirements": {
     "required": [],
