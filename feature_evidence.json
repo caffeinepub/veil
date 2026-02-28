@@ -1,30 +1,4 @@
 {
   "kind": "feature_evidence_report",
-  "features": [
-    {
-      "featureId": "feature-wire-all-frontend-pages-and-hooks-to-the-now-complete-backend-update-frontend-src-hooks-usequeries-ts-to-call-createpost-editpost-deletepost-setpostprivacy-addreaction-getmyreaction-getmyposts-getpublicposts-getmyprofile-and-isadmin-using-the-actor-from-useactor-ensure-mutation-hooks-invalidate-the-correct-query-keys-on-success-so-ui-stays-in-sync-without-manual-refresh",
-      "featureTitle": "Wire all frontend pages and hooks to the now-complete backend. Update `frontend/src/hooks/useQueries.ts` to call createPost, editPost, deletePost, setPostPrivacy, addReaction, getMyReaction, getMyPosts, getPublicPosts, getMyProfile, and isAdmin using the actor from useActor. Ensure mutation hooks invalidate the correct query keys on success so UI stays in sync without manual refresh.",
-      "files": [
-        "frontend/src/components/AdminUserManagement.tsx",
-        "frontend/src/components/PublicPostCard.tsx",
-        "frontend/src/hooks/useQueries.ts",
-        "frontend/src/pages/DashboardPage.tsx",
-        "frontend/src/pages/MyPostsPage.tsx",
-        "frontend/src/pages/PostCreationPage.tsx"
-      ],
-      "components": [
-        "authorization@4.0.0",
-        "invite-links@3.0.0",
-        "core-infrastructure@1.0.2",
-        "shadcn-ui@1.0.0",
-        "build-template-react@1.0.0",
-        "initial-app@1.0.0",
-        "github-export-icp-cli@1.0.0"
-      ],
-      "testIds": [
-        "REQ-37"
-      ],
-      "confidence": "high"
-    }
-  ]
+  "features": []
 }

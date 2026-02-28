@@ -1,109 +1,91 @@
 {
   "kind": "coverage_report",
   "version": "1.0",
-  "generatedAt": "2026-02-28T16:01:52.867Z",
+  "generatedAt": "2026-02-28T21:09:17.568Z",
   "sources": {
     "buildRequest": true,
     "implementationPlan": true
   },
   "requirements": {
-    "total": 8,
-    "implemented": 1,
+    "total": 7,
+    "implemented": 0,
     "items": [
       {
-        "id": "REQ-30",
-        "summary": "Implement post creation in the backend. Expose `createPost(emotionType: EmotionType, content: Text): async Result<Post, Text>`. Reject if caller is not registered, is suspended, or has effective subscription status of #expired. Enforce server-side word count: Confess and Happy require minimum 24 words; Broke has no minimum. Store post with isPrivate = true, reactionCount = 0, editable = true, createdAt = Time.now(). Generate a unique post id using a counter or hash.",
-        "status": "unknown",
-        "plannedFiles": [],
+        "id": "REQ-62",
+        "summary": "Update frontend/src/hooks/useQueries.ts to correctly call all backend functions — createPost, editPost, deletePost, setPostPrivacy, addReaction, getMyReaction, getMyPosts, getPublicPosts, getMyProfile, isAdmin, register, validateInviteCode, and getMySubscriptionStatus — using the actor from useActor. Ensure parameter shapes and return types exactly match the Candid interface generated from backend/main.mo.",
+        "status": "missing",
+        "plannedFiles": [
+          "frontend/src/hooks/useQueries.ts"
+        ],
         "matchedFiles": []
       },
       {
-        "id": "REQ-31",
-        "summary": "Implement post editing in the backend. Expose `editPost(postId: Text, newContent: Text): async Result<Post, Text>`. Allow edit only if caller is the post owner and editable = true (reactionCount = 0). Apply the same word-count rules as post creation. If reactionCount > 0, return a clear error and do not modify the post.",
-        "status": "unknown",
-        "plannedFiles": [],
+        "id": "REQ-63",
+        "summary": "Ensure the SignupPage calls the register mutation from useQueries.ts with the correct (inviteCode, pseudonym, region) arguments, handles #ok and #err Result variants from the backend, and routes to the dashboard on success or displays the backend error message on failure.",
+        "status": "missing",
+        "plannedFiles": [
+          "frontend/src/pages/SignupPage.tsx"
+        ],
         "matchedFiles": []
       },
       {
-        "id": "REQ-32",
-        "summary": "Implement privacy toggle in the backend. Expose `setPostPrivacy(postId: Text, isPrivate: Bool): async Result<Post, Text>`. When going public (isPrivate = false), validate caller is owner, effective subscription is not #expired, and user is not suspended. When making private (isPrivate = true), validate caller is owner only — no subscription check needed. Private posts are immediately excluded from all community feed queries. Existing reactionCount is preserved when toggling private.",
-        "status": "unknown",
-        "plannedFiles": [],
+        "id": "REQ-64",
+        "summary": "Ensure the PostCreationPage calls the createPost mutation with the correct (emotionType, content) arguments, handles the Result returned by the backend, and navigates to the My Posts page on success or shows the error inline on failure.",
+        "status": "missing",
+        "plannedFiles": [
+          "frontend/src/pages/PostCreationPage.tsx"
+        ],
         "matchedFiles": []
       },
       {
-        "id": "REQ-33",
-        "summary": "Implement the reactions system in the backend. Expose `addReaction(postId: Text, reactionType: ReactionType): async Result<Reaction, Text>` where ReactionType is variant { #support; #care; #strength }. Only allow reactions on public posts (isPrivate = false). Reject if caller is the post owner, is suspended, or is not registered. Enforce one reaction per user per post — return an error if a reaction already exists. On successful reaction: increment post.reactionCount and set post.editable = false. Expose `getMyReaction(postId: Text): async ?ReactionType` for the caller.",
-        "status": "unknown",
-        "plannedFiles": [],
+        "id": "REQ-65",
+        "summary": "Ensure PostCard calls the editPost, deletePost, and setPostPrivacy mutations with correct arguments, handles Result variants, and invalidates the 'myPosts' and 'publicPosts' query keys on success so the card list updates immediately.",
+        "status": "missing",
+        "plannedFiles": [
+          "frontend/src/components/PostCard.tsx"
+        ],
         "matchedFiles": []
       },
       {
-        "id": "REQ-34",
-        "summary": "Implement post deletion in the backend. Expose `deletePost(postId: Text): async Result<(), Text>` allowing post owner to delete their post at any time. Remove all associated reactions from stable state on deletion. No notifications triggered. Expose `adminDeletePost(postId: Text): async Result<(), Text>` protected by admin Principal check that can delete any post regardless of ownership, also removing associated reactions.",
-        "status": "unknown",
-        "plannedFiles": [],
+        "id": "REQ-66",
+        "summary": "Ensure PublicPostCard calls the addReaction mutation and getMyReaction query with correct arguments. Display the user's existing reaction if getMyReaction returns a value. Disable reaction buttons for the post owner and for posts on which the user has already reacted.",
+        "status": "missing",
+        "plannedFiles": [
+          "frontend/src/components/PublicPostCard.tsx"
+        ],
         "matchedFiles": []
       },
       {
-        "id": "REQ-35",
-        "summary": "Implement admin moderation functions in the backend. Protect all with a hardcoded admin Principal constant. Expose: `adminGetAllPublicPosts(): async [Post]` (chronological order), `adminGetUserPosts(userId: Principal): async [Post]` (all posts by user), `adminSuspendUser(userId: Principal): async Result<(), Text>`, `adminUnsuspendUser(userId: Principal): async Result<(), Text>`, `adminGetAllUsers(): async [User]`. Enforce throughout: suspended users cannot create posts, react, or go public.",
-        "status": "unknown",
-        "plannedFiles": [],
-        "matchedFiles": []
-      },
-      {
-        "id": "REQ-36",
-        "summary": "Expose all query and update functions required by the frontend. At minimum: `getMyProfile(): async Result<User, Text>`, `getMyPosts(): async [Post]`, `getPublicPosts(): async [Post]`, `isAdmin(): async Bool`. Ensure all function signatures exactly match what is expected by `frontend/src/hooks/useQueries.ts` and the auto-generated Candid interface. Do not break any existing frontend data-fetching contracts.",
-        "status": "unknown",
-        "plannedFiles": [],
-        "matchedFiles": []
-      },
-      {
-        "id": "REQ-37",
-        "summary": "Wire all frontend pages and hooks to the now-complete backend. Update `frontend/src/hooks/useQueries.ts` to call createPost, editPost, deletePost, setPostPrivacy, addReaction, getMyReaction, getMyPosts, getPublicPosts, getMyProfile, and isAdmin using the actor from useActor. Ensure mutation hooks invalidate the correct query keys on success so UI stays in sync without manual refresh.",
-        "status": "implemented",
+        "id": "REQ-67",
+        "summary": "Ensure all admin functions (adminGetAllPublicPosts, adminGetUserPosts, adminDeletePost, adminSuspendUser, adminUnsuspendUser, adminGetAllUsers, addInviteCode, revokeInviteCode, setSubscriptionStatus) are exposed as query or mutation hooks in useQueries.ts and correctly consumed by the admin dashboard components (AdminPublicPostsList, AdminUserManagement, AdminInviteCodes, AdminUserPostHistory).",
+        "status": "missing",
         "plannedFiles": [
           "frontend/src/hooks/useQueries.ts",
+          "frontend/src/components/AdminPublicPostsList.tsx",
+          "frontend/src/components/AdminUserManagement.tsx",
+          "frontend/src/components/AdminInviteCodes.tsx",
+          "frontend/src/components/AdminUserPostHistory.tsx"
+        ],
+        "matchedFiles": []
+      },
+      {
+        "id": "REQ-68",
+        "summary": "Ensure the DashboardPage and PostCreationPage read the effective subscription status from the getMySubscriptionStatus query (or getMyProfile) and correctly pass it to the SubscriptionBanner and subscription-gating logic in subscriptionHelpers.ts, so expired users see the calm banner and cannot submit posts or go public.",
+        "status": "missing",
+        "plannedFiles": [
+          "frontend/src/pages/DashboardPage.tsx",
           "frontend/src/pages/PostCreationPage.tsx",
           "frontend/src/components/PostCard.tsx",
-          "frontend/src/pages/MyPostsPage.tsx",
-          "frontend/src/components/PublicPostCard.tsx",
-          "frontend/src/pages/CommunityFeedPage.tsx",
-          "frontend/src/pages/DashboardPage.tsx",
-          "frontend/src/components/Header.tsx",
-          "frontend/src/components/AdminDashboard.tsx",
-          "frontend/src/components/AdminPublicPostsList.tsx",
-          "frontend/src/components/AdminUserPostHistory.tsx",
-          "frontend/src/components/AdminUserManagement.tsx"
+          "frontend/src/pages/MyPostsPage.tsx"
         ],
-        "matchedFiles": [
-          "frontend/src/hooks/useQueries.ts",
-          "frontend/src/pages/PostCreationPage.tsx",
-          "frontend/src/pages/MyPostsPage.tsx",
-          "frontend/src/components/PublicPostCard.tsx",
-          "frontend/src/pages/DashboardPage.tsx",
-          "frontend/src/components/AdminUserManagement.tsx"
-        ]
+        "matchedFiles": []
       }
     ]
   },
   "changedFiles": [
-    "backend/main.mo",
     "build-request.json",
     "feature_evidence.json",
-    "frontend-file-summaries.txt",
     "frontend-implementation-plan.json",
-    "frontend/src/backend.d.ts",
-    "frontend/src/backend.ts",
-    "frontend/src/components/AdminUserManagement.tsx",
-    "frontend/src/components/PublicPostCard.tsx",
-    "frontend/src/declarations/backend.did.d.ts",
-    "frontend/src/declarations/backend.did.js",
-    "frontend/src/hooks/useQueries.ts",
-    "frontend/src/pages/DashboardPage.tsx",
-    "frontend/src/pages/MyPostsPage.tsx",
-    "frontend/src/pages/PostCreationPage.tsx",
     "project_state.json",
     "scratch/component-selection.json",
     "spec.md",

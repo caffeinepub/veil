@@ -1,6 +1,6 @@
 {
   "schemaVersion": "1.0.0",
-  "projectStateVersion": 7,
+  "projectStateVersion": 15,
   "summary": "Veil is a private, invite-only emotional sharing platform capped at 100 members. It is pseudonymous, subscription-based, and human-moderated. Members share posts in three emotional states (Confess, Broke, Happy). Posts are private by default with user-controlled visibility. No DMs, comments, follower system, or feed ranking. Built with React frontend and Node.js/Express/MongoDB backend.",
   "architectural_notes": [
     "Stack: React (functional components) frontend, Node.js/Express backend, MongoDB, JWT authentication",
@@ -81,6 +81,14 @@
       "title": "Wire all frontend pages and hooks to the now-complete backend. Update `frontend/src/hooks/useQueries.ts` to call createPost, editPost, deletePost, setPostPrivacy, addReaction, getMyReaction, getMyPosts, getPublicPosts, getMyProfile, and isAdmin using the actor from useActor. Ensure mutation hooks invalidate the correct query keys on success so UI stays in sync without manual refresh.",
       "reqIds": [
         "REQ-37"
+      ],
+      "version": 1
+    },
+    {
+      "id": "feature-update-frontend-src-hooks-usequeries-ts-to-correctly-call-all-backend-functions-createpost-editpost-deletepost-setpostprivacy-addreaction-getmyreaction-getmyposts-getpublicposts-getmyprofile-and-isadmin-using-the-actor-from-useactor-ensure-all-mutation-hooks-invalidate-the-correct-react-query-cache-keys-on-success-so-the-ui-stays-in-sync-without-manual-page-refresh",
+      "title": "Update frontend/src/hooks/useQueries.ts to correctly call all backend functions — createPost, editPost, deletePost, setPostPrivacy, addReaction, getMyReaction, getMyPosts, getPublicPosts, getMyProfile, and isAdmin — using the actor from useActor. Ensure all mutation hooks invalidate the correct React Query cache keys on success so the UI stays in sync without manual page refresh.",
+      "reqIds": [
+        "REQ-39"
       ],
       "version": 1
     }
@@ -349,6 +357,246 @@
       "summary": "Expose all query and update functions required by the frontend. At minimum: `getMyProfile(): async Result<User, Text>`, `getMyPosts(): async [Post]`, `getPublicPosts(): async [Post]`, `isAdmin(): async Bool`. Ensure all function signatures exactly match what is expected by `frontend/src/hooks/useQueries.ts` and the auto-generated Candid interface. Do not break any existing frontend data-fetching contracts.",
       "reqIds": [
         "REQ-36"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "AR-36",
+      "summary": "Implement the complete Motoko backend actor in backend/main.mo with all stable data models (Users, Posts, Reactions, InviteCodes), invite code system, user registration, subscription status logic with 15-day grace period, post creation with word-count enforcement, post editing with editability lock, privacy toggle, reactions system, post deletion, and all admin moderation functions. Protect admin functions with a hardcoded admin Principal constant. Expose all public query and update functions required by the frontend: getMyProfile, getMyPosts, getPublicPosts, isAdmin, createPost, editPost, deletePost, setPostPrivacy, addReaction, getMyReaction, register, validateInviteCode, getMySubscriptionStatus, adminGetAllPublicPosts, adminGetUserPosts, adminDeletePost, adminSuspendUser, adminUnsuspendUser, adminGetAllUsers, addInviteCode, revokeInviteCode. Ensure all function signatures exactly match what is consumed by frontend/src/hooks/useQueries.ts.",
+      "reqIds": [
+        "REQ-38"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "AR-37",
+      "summary": "Implement the complete Motoko backend actor in backend/main.mo with all stable data models: Users (id: Principal, pseudonym: Text, region: variant { #India; #Global }, subscriptionStatus: variant { #grace; #active; #expired }, subscriptionStartDate: Int, inviteCode: Text, createdAt: Int, suspended: Bool), Posts (id: Text, userId: Principal, emotionType: variant { #confess; #broke; #happy }, content: Text, isPrivate: Bool defaulting to true, reactionCount: Nat defaulting to 0, editable: Bool defaulting to true, createdAt: Int), Reactions (id: Text, postId: Text, userId: Principal, reactionType: variant { #support; #care; #strength }, createdAt: Int), InviteCodes (code: Text, used: Bool, usedBy: ?Principal). Use stable HashMap or TrieMap for all collections so data survives canister upgrades.",
+      "reqIds": [
+        "REQ-40"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "AR-38",
+      "summary": "Implement the invite code system in backend/main.mo. Pre-seed at least 5 admin-defined invite codes in stable state. Expose `validateInviteCode(code: Text): async Bool`. On registration, mark the code as used and record the caller Principal. Block registration when total user count reaches 100. Expose admin-only `addInviteCode(code: Text): async Result<(), Text>` and `revokeInviteCode(code: Text): async Result<(), Text>` — revoking only works on unused codes.",
+      "reqIds": [
+        "REQ-41"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "AR-39",
+      "summary": "Implement user registration in backend/main.mo. Expose `register(inviteCode: Text, pseudonym: Text, region: { #India; #Global }): async Result<User, Text>`. Validate invite code validity and capacity cap (100 users). Create user with caller's Principal as id, subscriptionStatus = #grace, subscriptionStartDate = Time.now(), suspended = false. Return the created User record on success or a descriptive error Text on failure. No email or real name stored.",
+      "reqIds": [
+        "REQ-42"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "AR-40",
+      "summary": "Implement subscription status logic in backend/main.mo. Add a private helper `getEffectiveStatus(user: User): SubscriptionStatus` that returns #grace if Time.now() - user.subscriptionStartDate < 15 days and stored status is #grace; returns #active if stored status is #active; otherwise returns #expired. Expose `getMySubscriptionStatus(): async Result<SubscriptionStatus, Text>` for the authenticated caller. Expose admin-only `setSubscriptionStatus(userId: Principal, status: SubscriptionStatus): async Result<(), Text>` to manually override status.",
+      "reqIds": [
+        "REQ-43"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "AR-41",
+      "summary": "Implement post creation in backend/main.mo. Expose `createPost(emotionType: EmotionType, content: Text): async Result<Post, Text>`. Reject if caller is not registered, is suspended, or has effective subscription status #expired. Enforce server-side word count: #confess and #happy require minimum 24 words; #broke has no minimum. Store post with isPrivate = true, reactionCount = 0, editable = true, createdAt = Time.now(). Generate a unique post id using a monotonic counter.",
+      "reqIds": [
+        "REQ-44"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "AR-42",
+      "summary": "Implement post editing in backend/main.mo. Expose `editPost(postId: Text, newContent: Text): async Result<Post, Text>`. Allow edit only if caller is the post owner and editable = true (reactionCount = 0). Apply the same word-count rules as post creation (24-word minimum for #confess and #happy). If reactionCount > 0, return a clear error and do not modify the post.",
+      "reqIds": [
+        "REQ-45"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "AR-43",
+      "summary": "Implement privacy toggle in backend/main.mo. Expose `setPostPrivacy(postId: Text, isPrivate: Bool): async Result<Post, Text>`. When going public (isPrivate = false), validate caller is owner, effective subscription is not #expired, and user is not suspended. When making private (isPrivate = true), validate caller is owner only — no subscription check. Private posts are immediately excluded from all community feed queries. Existing reactionCount is preserved when toggling private.",
+      "reqIds": [
+        "REQ-46"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "AR-44",
+      "summary": "Implement the reactions system in backend/main.mo. Expose `addReaction(postId: Text, reactionType: ReactionType): async Result<Reaction, Text>` where ReactionType is variant { #support; #care; #strength }. Only allow reactions on public posts (isPrivate = false). Reject if caller is the post owner, is suspended, or is not registered. Enforce one reaction per user per post — return an error if a reaction already exists. On successful reaction: increment post.reactionCount and set post.editable = false. Expose `getMyReaction(postId: Text): async ?ReactionType` for the caller to check their existing reaction.",
+      "reqIds": [
+        "REQ-47"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "AR-45",
+      "summary": "Implement post deletion in backend/main.mo. Expose `deletePost(postId: Text): async Result<(), Text>` allowing the post owner to delete their post at any time. Remove all associated reactions from stable state on deletion. No notifications triggered. Expose `adminDeletePost(postId: Text): async Result<(), Text>` protected by admin Principal check, which can delete any post regardless of ownership and also removes associated reactions.",
+      "reqIds": [
+        "REQ-48"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "AR-46",
+      "summary": "Implement admin moderation functions in backend/main.mo. Hardcode an admin Principal constant. Expose: `adminGetAllPublicPosts(): async [Post]` (sorted chronologically), `adminGetUserPosts(userId: Principal): async [Post]` (all posts by user), `adminSuspendUser(userId: Principal): async Result<(), Text>`, `adminUnsuspendUser(userId: Principal): async Result<(), Text>`, `adminGetAllUsers(): async [User]`. Enforce throughout all relevant functions: suspended users cannot create posts, react, or go public.",
+      "reqIds": [
+        "REQ-49"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "AR-47",
+      "summary": "Expose all query and update functions required by the existing frontend hooks in frontend/src/hooks/useQueries.ts. At minimum expose: `getMyProfile(): async Result<User, Text>`, `getMyPosts(): async [Post]`, `getPublicPosts(): async [Post]`, `isAdmin(): async Bool`. Ensure all function signatures (parameter types, return types) exactly match what is consumed by the frontend hooks and the auto-generated Candid interface. Do not break any existing frontend data-fetching contracts.",
+      "reqIds": [
+        "REQ-50"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "AR-48",
+      "summary": "Implement the complete Motoko backend actor in backend/main.mo with all stable data models: Users (id: Principal, pseudonym: Text, region: variant { #India; #Global }, subscriptionStatus: variant { #grace; #active; #expired }, subscriptionStartDate: Int, inviteCode: Text, createdAt: Int, suspended: Bool), Posts (id: Text, userId: Principal, emotionType: variant { #confess; #broke; #happy }, content: Text, isPrivate: Bool defaulting to true, reactionCount: Nat defaulting to 0, editable: Bool defaulting to true, createdAt: Int), Reactions (id: Text, postId: Text, userId: Principal, reactionType: variant { #support; #care; #strength }, createdAt: Int), InviteCodes (code: Text, used: Bool, usedBy: ?Principal). Use stable var with HashMap or TrieMap backed by stable arrays (preupgrade/postupgrade pattern) for all collections so data survives canister upgrades.",
+      "reqIds": [
+        "REQ-51"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "AR-49",
+      "summary": "Implement the invite code system in backend/main.mo. Pre-seed at least 5 admin-defined invite codes in stable state. Expose `validateInviteCode(code: Text): async Bool`. On registration, mark the code as used and record the caller Principal. Block registration when total user count reaches 100. Expose admin-only `addInviteCode(code: Text): async Result<(), Text>` and `revokeInviteCode(code: Text): async Result<(), Text>` — revoking only works on unused codes.",
+      "reqIds": [
+        "REQ-52"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "AR-50",
+      "summary": "Implement user registration in backend/main.mo. Expose `register(inviteCode: Text, pseudonym: Text, region: { #India; #Global }): async Result<User, Text>`. Validate invite code validity and capacity cap (100 users). Create user with caller's Principal as id, subscriptionStatus = #grace, subscriptionStartDate = Time.now(), suspended = false. Return the created User record on success or a descriptive error Text on failure. No email or real name stored.",
+      "reqIds": [
+        "REQ-53"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "AR-51",
+      "summary": "Implement subscription status logic in backend/main.mo. Add a private helper `getEffectiveStatus(user: User): SubscriptionStatus` that returns #grace if Time.now() - user.subscriptionStartDate < 15 days and stored status is #grace; returns #active if stored status is #active; otherwise returns #expired. Expose `getMySubscriptionStatus(): async Result<SubscriptionStatus, Text>` for the authenticated caller. Expose admin-only `setSubscriptionStatus(userId: Principal, status: SubscriptionStatus): async Result<(), Text>` to manually override status.",
+      "reqIds": [
+        "REQ-54"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "AR-52",
+      "summary": "Implement post creation in backend/main.mo. Expose `createPost(emotionType: EmotionType, content: Text): async Result<Post, Text>`. Reject if caller is not registered, is suspended, or has effective subscription status #expired. Enforce server-side word count: #confess and #happy require minimum 24 words; #broke has no minimum. Store post with isPrivate = true, reactionCount = 0, editable = true, createdAt = Time.now(). Generate a unique post id using a monotonic counter.",
+      "reqIds": [
+        "REQ-55"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "AR-53",
+      "summary": "Implement post editing in backend/main.mo. Expose `editPost(postId: Text, newContent: Text): async Result<Post, Text>`. Allow edit only if caller is the post owner and editable = true (reactionCount = 0). Apply the same word-count rules as post creation (24-word minimum for #confess and #happy). If reactionCount > 0, return a clear error and do not modify the post.",
+      "reqIds": [
+        "REQ-56"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "AR-54",
+      "summary": "Implement privacy toggle in backend/main.mo. Expose `setPostPrivacy(postId: Text, isPrivate: Bool): async Result<Post, Text>`. When going public (isPrivate = false), validate caller is owner, effective subscription is not #expired, and user is not suspended. When making private (isPrivate = true), validate caller is owner only — no subscription check needed. Private posts are immediately excluded from all community feed queries. Existing reactionCount is preserved when toggling private.",
+      "reqIds": [
+        "REQ-57"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "AR-55",
+      "summary": "Implement the reactions system in backend/main.mo. Expose `addReaction(postId: Text, reactionType: ReactionType): async Result<Reaction, Text>` where ReactionType is variant { #support; #care; #strength }. Only allow reactions on public posts (isPrivate = false). Reject if caller is the post owner, is suspended, or is not registered. Enforce one reaction per user per post — return an error if a reaction already exists. On successful reaction: increment post.reactionCount and set post.editable = false. Expose `getMyReaction(postId: Text): async ?ReactionType` for the caller to check their existing reaction.",
+      "reqIds": [
+        "REQ-58"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "AR-56",
+      "summary": "Implement post deletion in backend/main.mo. Expose `deletePost(postId: Text): async Result<(), Text>` allowing the post owner to delete their post at any time. Remove all associated reactions from stable state on deletion. No notifications triggered. Expose `adminDeletePost(postId: Text): async Result<(), Text>` protected by admin Principal check, which can delete any post regardless of ownership and also removes associated reactions.",
+      "reqIds": [
+        "REQ-59"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "AR-57",
+      "summary": "Implement admin moderation functions in backend/main.mo. Hardcode an admin Principal constant. Expose: `adminGetAllPublicPosts(): async [Post]` (sorted chronologically), `adminGetUserPosts(userId: Principal): async [Post]` (all posts by that user), `adminSuspendUser(userId: Principal): async Result<(), Text>`, `adminUnsuspendUser(userId: Principal): async Result<(), Text>`, `adminGetAllUsers(): async [User]`. Enforce throughout all relevant functions: suspended users cannot create posts, react, or go public.",
+      "reqIds": [
+        "REQ-60"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "AR-58",
+      "summary": "Expose all query and update functions required by the existing frontend hooks in frontend/src/hooks/useQueries.ts. At minimum expose: `getMyProfile(): async Result<User, Text>`, `getMyPosts(): async [Post]`, `getPublicPosts(): async [Post]`, `isAdmin(): async Bool`. Ensure all function signatures (parameter types, return types) exactly match what is consumed by the frontend hooks and the auto-generated Candid interface. Do not break any existing frontend data-fetching contracts.",
+      "reqIds": [
+        "REQ-61"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "AR-59",
+      "summary": "Update frontend/src/hooks/useQueries.ts to correctly call all backend functions — createPost, editPost, deletePost, setPostPrivacy, addReaction, getMyReaction, getMyPosts, getPublicPosts, getMyProfile, isAdmin, register, validateInviteCode, and getMySubscriptionStatus — using the actor from useActor. Ensure parameter shapes and return types exactly match the Candid interface generated from backend/main.mo.",
+      "reqIds": [
+        "REQ-62"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "AR-60",
+      "summary": "Ensure the SignupPage calls the register mutation from useQueries.ts with the correct (inviteCode, pseudonym, region) arguments, handles #ok and #err Result variants from the backend, and routes to the dashboard on success or displays the backend error message on failure.",
+      "reqIds": [
+        "REQ-63"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "AR-61",
+      "summary": "Ensure the PostCreationPage calls the createPost mutation with the correct (emotionType, content) arguments, handles the Result returned by the backend, and navigates to the My Posts page on success or shows the error inline on failure.",
+      "reqIds": [
+        "REQ-64"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "AR-62",
+      "summary": "Ensure PostCard calls the editPost, deletePost, and setPostPrivacy mutations with correct arguments, handles Result variants, and invalidates the 'myPosts' and 'publicPosts' query keys on success so the card list updates immediately.",
+      "reqIds": [
+        "REQ-65"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "AR-63",
+      "summary": "Ensure PublicPostCard calls the addReaction mutation and getMyReaction query with correct arguments. Display the user's existing reaction if getMyReaction returns a value. Disable reaction buttons for the post owner and for posts on which the user has already reacted.",
+      "reqIds": [
+        "REQ-66"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "AR-64",
+      "summary": "Ensure all admin functions (adminGetAllPublicPosts, adminGetUserPosts, adminDeletePost, adminSuspendUser, adminUnsuspendUser, adminGetAllUsers, addInviteCode, revokeInviteCode, setSubscriptionStatus) are exposed as query or mutation hooks in useQueries.ts and correctly consumed by the admin dashboard components (AdminPublicPostsList, AdminUserManagement, AdminInviteCodes, AdminUserPostHistory).",
+      "reqIds": [
+        "REQ-67"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "AR-65",
+      "summary": "Ensure the DashboardPage and PostCreationPage read the effective subscription status from the getMySubscriptionStatus query (or getMyProfile) and correctly pass it to the SubscriptionBanner and subscription-gating logic in subscriptionHelpers.ts, so expired users see the calm banner and cannot submit posts or go public.",
+      "reqIds": [
+        "REQ-68"
       ],
       "status": "pending"
     }

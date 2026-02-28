@@ -55,7 +55,7 @@ export function useIsAdmin() {
     queryFn: async () => {
       if (!actor) return false;
       try {
-        return await actor.isCallerAdmin();
+        return await actor.isAdmin();
       } catch {
         return false;
       }
@@ -156,6 +156,9 @@ export function useMyPosts() {
   });
 }
 
+// Alias for useMyPosts to match naming convention in implementation plan
+export const useGetMyPosts = useMyPosts;
+
 export function useEditPost() {
   const { actor } = useActor();
   const queryClient = useQueryClient();
@@ -221,6 +224,9 @@ export function usePublicPosts() {
     enabled: !!actor && !isFetching,
   });
 }
+
+// Alias for usePublicPosts to match naming convention in implementation plan
+export const useGetPublicPosts = usePublicPosts;
 
 // ─── Reactions ────────────────────────────────────────────────────────────────
 
