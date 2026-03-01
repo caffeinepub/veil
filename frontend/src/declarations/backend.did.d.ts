@@ -10,9 +10,23 @@ import type { ActorMethod } from '@icp-sdk/core/agent';
 import type { IDL } from '@icp-sdk/core/candid';
 import type { Principal } from '@icp-sdk/core/principal';
 
+export interface Comment {
+  'id' : string,
+  'content' : string,
+  'createdAt' : Time,
+  'author' : Principal,
+  'postId' : string,
+}
 export type EmotionType = { 'confess' : null } |
   { 'happy' : null } |
   { 'broke' : null };
+export interface Flag {
+  'id' : string,
+  'createdAt' : Time,
+  'reporter' : Principal,
+  'reason' : string,
+  'postId' : string,
+}
 export interface InviteCode {
   'created' : Time,
   'code' : string,
@@ -22,11 +36,9 @@ export interface Post {
   'id' : string,
   'emotionType' : EmotionType,
   'content' : string,
-  'reactionCount' : bigint,
-  'userId' : Principal,
   'createdAt' : Time,
+  'author' : Principal,
   'isPrivate' : boolean,
-  'editable' : boolean,
 }
 export interface RSVP {
   'name' : string,
@@ -36,8 +48,8 @@ export interface RSVP {
 }
 export interface Reaction {
   'id' : string,
-  'userId' : Principal,
   'createdAt' : Time,
+  'author' : Principal,
   'reactionType' : ReactionType,
   'postId' : string,
 }
@@ -47,6 +59,8 @@ export type ReactionType = { 'support' : null } |
 export type Region = { 'India' : null } |
   { 'Global' : null };
 export type Result = { 'ok' : User } |
+  { 'err' : string };
+export type Result_1 = { 'ok' : string } |
   { 'err' : string };
 export type SubscriptionStatus = { 'active' : null } |
   { 'expired' : null } |
@@ -58,53 +72,59 @@ export interface User {
   'pseudonym' : string,
   'createdAt' : Time,
   'subscriptionStatus' : SubscriptionStatus,
-  'subscriptionStartDate' : Time,
-  'inviteCode' : string,
   'suspended' : boolean,
 }
-export interface UserProfile { 'region' : Region, 'pseudonym' : string }
+export interface UserProfile {
+  'region' : Region,
+  'pseudonym' : string,
+  'subscriptionStatus' : SubscriptionStatus,
+  'suspended' : boolean,
+}
 export type UserRole = { 'admin' : null } |
   { 'user' : null } |
   { 'guest' : null };
 export interface _SERVICE {
   '_initializeAccessControlWithSecret' : ActorMethod<[string], undefined>,
-  'addInviteCode' : ActorMethod<[string], undefined>,
+  'addComment' : ActorMethod<[string, string], string>,
   'addReaction' : ActorMethod<[string, ReactionType], string>,
+  'adminClearESPFlag' : ActorMethod<[Principal], undefined>,
   'adminDeletePost' : ActorMethod<[string], undefined>,
-  'adminGetAllPublicPosts' : ActorMethod<[], Array<Post>>,
+  'adminGetAllPosts' : ActorMethod<[], Array<Post>>,
   'adminGetAllUsers' : ActorMethod<[], Array<User>>,
+  'adminGetESPFlaggedUsers' : ActorMethod<[], Array<Principal>>,
+  'adminGetFlaggedPosts' : ActorMethod<[], Array<Flag>>,
+  'adminGetSeatCount' : ActorMethod<[], bigint>,
   'adminGetUserPosts' : ActorMethod<[Principal], Array<Post>>,
-  'adminRegister' : ActorMethod<[string, Region], Result>,
+  'adminSetSubscriptionStatus' : ActorMethod<
+    [Principal, SubscriptionStatus],
+    undefined
+  >,
   'adminSuspendUser' : ActorMethod<[Principal], undefined>,
   'adminUnsuspendUser' : ActorMethod<[Principal], undefined>,
   'assignCallerUserRole' : ActorMethod<[Principal, UserRole], undefined>,
-  'createPost' : ActorMethod<[EmotionType, string], string>,
-  'deletePost' : ActorMethod<[string], undefined>,
-  'editPost' : ActorMethod<[string, string], undefined>,
+  'checkLoginStatus' : ActorMethod<
+    [],
+    { 'existingUser' : null } |
+      { 'anonymous' : null } |
+      { 'newUser' : null }
+  >,
+  'createPost' : ActorMethod<[EmotionType, string, boolean], Result_1>,
+  'flagPost' : ActorMethod<[string, string], string>,
   'generateInviteCode' : ActorMethod<[], string>,
   'getAllRSVPs' : ActorMethod<[], Array<RSVP>>,
   'getCallerUserProfile' : ActorMethod<[], [] | [UserProfile]>,
   'getCallerUserRole' : ActorMethod<[], UserRole>,
+  'getCommentsForPost' : ActorMethod<[string], Array<Comment>>,
+  'getESPStatus' : ActorMethod<[], boolean>,
   'getInviteCodes' : ActorMethod<[], Array<InviteCode>>,
   'getMyPosts' : ActorMethod<[], Array<Post>>,
-  'getMyProfile' : ActorMethod<[], [] | [User]>,
-  'getMyReaction' : ActorMethod<[string], [] | [ReactionType]>,
-  'getMySubscriptionStatus' : ActorMethod<[], SubscriptionStatus>,
   'getPublicPosts' : ActorMethod<[], Array<Post>>,
-  'getSubscriptionStatus' : ActorMethod<[Principal], SubscriptionStatus>,
+  'getReactionsForPost' : ActorMethod<[string], Array<Reaction>>,
   'getUserProfile' : ActorMethod<[Principal], [] | [UserProfile]>,
-  'getUserReactionOnPost' : ActorMethod<[string], [] | [Reaction]>,
-  'initializeAdmin' : ActorMethod<[], undefined>,
-  'isAdmin' : ActorMethod<[], boolean>,
   'isCallerAdmin' : ActorMethod<[], boolean>,
-  'register' : ActorMethod<[string, Region], Result>,
+  'register' : ActorMethod<[string, Region, string], Result>,
   'revokeInviteCode' : ActorMethod<[string], undefined>,
   'saveCallerUserProfile' : ActorMethod<[UserProfile], undefined>,
-  'setPostPrivacy' : ActorMethod<[string, boolean], undefined>,
-  'setSubscriptionStatus' : ActorMethod<
-    [Principal, SubscriptionStatus],
-    undefined
-  >,
   'submitRSVP' : ActorMethod<[string, boolean, string], undefined>,
   'validateInviteCode' : ActorMethod<[string], boolean>,
 }

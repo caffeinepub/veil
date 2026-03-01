@@ -11,18 +11,21 @@ import Runtime "mo:core/Runtime";
 import MixinAuthorization "authorization/MixinAuthorization";
 import AccessControl "authorization/access-control";
 import InviteLinksModule "invite-links/invite-links-module";
+import Migration "migration";
 
-
-
+(with migration = Migration.run)
 actor {
   let accessControlState = AccessControl.initState();
   let inviteState = InviteLinksModule.initState();
   include MixinAuthorization(accessControlState);
 
   let users = Map.empty<Principal, User>();
-  let posts = Map.empty<Text, RawPost>();
+  let posts = Map.empty<Text, Post>();
   let reactions = Map.empty<Text, Reaction>();
+  let comments = Map.empty<Text, Comment>();
+  let flags = Map.empty<Text, Flag>();
   let inviteCodes = Map.empty<Text, InviteCode>();
+  let espFlaggedUsers = Map.empty<Principal, Bool>();
 
   public type Region = {
     #India;
@@ -52,39 +55,32 @@ actor {
     pseudonym : Text;
     region : Region;
     subscriptionStatus : SubscriptionStatus;
-    subscriptionStartDate : Time.Time;
-    inviteCode : Text;
     createdAt : Time.Time;
     suspended : Bool;
   };
 
-  public type RawPost = {
-    id : Text;
-    userId : Principal;
-    emotionType : EmotionType;
-    content : Text;
-    isPrivate : Bool;
-    reactionCount : Nat;
-    editable : Bool;
-    createdAt : Time.Time;
-  };
-
   public type Post = {
     id : Text;
-    userId : Principal;
+    author : Principal;
     emotionType : EmotionType;
     content : Text;
     isPrivate : Bool;
-    reactionCount : Nat;
-    editable : Bool;
     createdAt : Time.Time;
   };
 
   public type Reaction = {
     id : Text;
     postId : Text;
-    userId : Principal;
+    author : Principal;
     reactionType : ReactionType;
+    createdAt : Time.Time;
+  };
+
+  public type Comment = {
+    id : Text;
+    postId : Text;
+    author : Principal;
+    content : Text;
     createdAt : Time.Time;
   };
 
@@ -92,11 +88,23 @@ actor {
     code : Text;
     created : Time.Time;
     used : Bool;
+    creator : Principal;
+    usageCount : Nat;
+  };
+
+  public type Flag = {
+    id : Text;
+    postId : Text;
+    reporter : Principal;
+    reason : Text;
+    createdAt : Time.Time;
   };
 
   public type UserProfile = {
     pseudonym : Text;
     region : Region;
+    subscriptionStatus : SubscriptionStatus;
+    suspended : Bool;
   };
 
   public type Result<Ok, Err> = {
@@ -105,66 +113,22 @@ actor {
   };
 
   let MAX_USERS : Nat = 100;
+  let SEVEN_DAYS_NS : Int = 7 * 24 * 60 * 60 * 1_000_000_000;
+  let BROKE_THRESHOLD : Nat = 3;
 
-  func seedDefaultInviteCodes() {
-    let defaultCodes = [
-      "VEIL-001",
-      "VEIL-002",
-      "VEIL-003",
-      "VEIL-004",
-      "VEIL-005",
-    ];
-    for (code in defaultCodes.values()) {
-      if (not inviteCodes.containsKey(code)) {
-        let ic : InviteCode = {
-          code;
-          created = Time.now();
-          used = false;
-        };
-        inviteCodes.add(code, ic);
-      };
+  func generateUuid() : async Text {
+    let blob = await Random.blob();
+    let bytes = blob.toArray();
+    var result = "";
+    let hex = "0123456789abcdef";
+    let hexChars = hex.toArray();
+    for (b in bytes.vals()) {
+      let hi = b.toNat() / 16;
+      let lo = b.toNat() % 16;
+      result := result # Text.fromChar(hexChars[hi]) # Text.fromChar(hexChars[lo]);
     };
+    result;
   };
-
-  func effectiveSubscriptionStatus(user : User) : SubscriptionStatus {
-    let fifteenDaysNs : Int = 15 * 24 * 60 * 60 * 1_000_000_000;
-    let elapsed : Int = Time.now() - user.subscriptionStartDate;
-    if (elapsed <= fifteenDaysNs) {
-      return #grace;
-    };
-    user.subscriptionStatus;
-  };
-
-  func hasMinimumWordCount(content : Text, minWords : Nat) : Bool {
-    let words = content.split(#char(' ')).toArray();
-    let nonEmpty = words.filter(func(w) { w != "" });
-    nonEmpty.size() >= minWords;
-  };
-
-  func toPost(rawPost : RawPost) : Post {
-    {
-      id = rawPost.id;
-      userId = rawPost.userId;
-      emotionType = rawPost.emotionType;
-      content = rawPost.content;
-      isPrivate = rawPost.isPrivate;
-      reactionCount = rawPost.reactionCount;
-      editable = rawPost.editable;
-      createdAt = rawPost.createdAt;
-    };
-  };
-
-  func comparePosts(a : Post, b : Post) : Order.Order {
-    if (a.createdAt < b.createdAt) {
-      #less;
-    } else if (a.createdAt > b.createdAt) {
-      #greater;
-    } else { #equal };
-  };
-
-  // ---------------------------------------------------------------------------
-  // Invite-links module wrappers
-  // ---------------------------------------------------------------------------
 
   public shared ({ caller }) func generateInviteCode() : async Text {
     if (caller.isAnonymous()) {
@@ -180,6 +144,8 @@ actor {
       code;
       created = Time.now();
       used = false;
+      creator = caller;
+      usageCount = 0;
     };
     inviteCodes.add(code, ic);
     code;
@@ -209,68 +175,45 @@ actor {
     InviteLinksModule.getInviteCodes(inviteState);
   };
 
-  // ---------------------------------------------------------------------------
-  // Invite code management (application-level)
-  // ---------------------------------------------------------------------------
-
-  public query ({ caller }) func validateInviteCode(code : Text) : async Bool {
+  public query func validateInviteCode(code : Text) : async Bool {
     switch (inviteCodes.get(code)) {
       case (?ic) { not ic.used };
       case (null) { false };
     };
   };
 
-  public shared ({ caller }) func addInviteCode(code : Text) : async () {
-    if (caller.isAnonymous()) {
-      Runtime.trap("Anonymous principals cannot add invite codes");
-    };
-    if (not AccessControl.isAdmin(accessControlState, caller)) {
-      Runtime.trap("Unauthorized: Only admins can perform this action");
-    };
-    let ic : InviteCode = {
-      code;
-      created = Time.now();
-      used = false;
-    };
-    inviteCodes.add(code, ic);
-  };
-
-  public shared ({ caller }) func revokeInviteCode(code : Text) : async () {
+  public shared ({ caller }) func revokeInviteCode(_code : Text) : async () {
     if (caller.isAnonymous()) {
       Runtime.trap("Anonymous principals cannot revoke invite codes");
     };
     if (not AccessControl.isAdmin(accessControlState, caller)) {
       Runtime.trap("Unauthorized: Only admins can perform this action");
     };
-    switch (inviteCodes.get(code)) {
-      case (?ic) {
-        if (ic.used) {
-          Runtime.trap("Cannot revoke an already-used invite code");
-        };
-        inviteCodes.remove(code);
-      };
-      case (null) {
-        Runtime.trap("Invite code does not exist");
-      };
-    };
   };
-
-  // ---------------------------------------------------------------------------
-  // Registration
-  // ---------------------------------------------------------------------------
 
   public shared ({ caller }) func register(
     pseudonym : Text,
-    region : Region
+    region : Region,
+    inviteCode : Text
   ) : async Result<User, Text> {
     if (caller.isAnonymous()) {
       return #err("Anonymous principals cannot register");
     };
-    if (isPrincipalRegistered(caller)) {
-      return #err("Already registered");
-    };
     if (users.size() >= MAX_USERS) {
       return #err("User capacity reached (max 100 users)");
+    };
+    if (users.get(caller) != null) {
+      return #err("User already registered");
+    };
+    switch (inviteCodes.get(inviteCode)) {
+      case (?ic) {
+        if (ic.used) {
+          return #err("Invite code already used");
+        };
+      };
+      case (null) {
+        return #err("Invalid invite code");
+      };
     };
 
     let now = Time.now();
@@ -279,63 +222,66 @@ actor {
       pseudonym;
       region;
       subscriptionStatus = #grace;
-      subscriptionStartDate = now;
-      inviteCode = "open-registration";
       createdAt = now;
       suspended = false;
     };
 
     users.add(caller, user);
 
-    let admin = getAdminPrincipal();
-    AccessControl.assignRole(accessControlState, admin, caller, #user);
+    switch (inviteCodes.get(inviteCode)) {
+      case (?ic) {
+        let updatedIC : InviteCode = {
+          code = inviteCode;
+          created = ic.created;
+          used = true;
+          creator = ic.creator;
+          usageCount = ic.usageCount + 1;
+        };
+        inviteCodes.add(inviteCode, updatedIC);
+      };
+      case (null) {};
+    };
 
     #ok(user);
   };
 
-  public shared ({ caller }) func adminRegister(
-    pseudonym : Text,
-    region : Region
-  ) : async Result<User, Text> {
+  func requireRegisteredUser(caller : Principal) {
+    if (caller.isAnonymous()) {
+      Runtime.trap("Anonymous principals are not allowed");
+    };
+    switch (users.get(caller)) {
+      case (null) {
+        Runtime.trap("Unauthorized: Only registered users can perform this action");
+      };
+      case (?user) {
+        if (user.suspended) {
+          Runtime.trap("Your account has been suspended");
+        };
+      };
+    };
+  };
+
+  func requireAdmin(caller : Principal) {
+    if (caller.isAnonymous()) {
+      Runtime.trap("Anonymous principals are not allowed");
+    };
     if (not AccessControl.isAdmin(accessControlState, caller)) {
       Runtime.trap("Unauthorized: Only admins can perform this action");
     };
-    if (users.size() >= MAX_USERS) {
-      return #err("User capacity reached (max 100 users)");
-    };
-
-    let now = Time.now();
-    let user : User = {
-      id = caller;
-      pseudonym;
-      region;
-      subscriptionStatus = #grace;
-      subscriptionStartDate = now;
-      inviteCode = "ADMIN_BYPASS";
-      createdAt = now;
-      suspended = false;
-    };
-
-    users.add(caller, user);
-    AccessControl.assignRole(accessControlState, caller, caller, #user);
-
-    #ok(user);
   };
-
-  // ---------------------------------------------------------------------------
-  // User profile (required by frontend contract)
-  // ---------------------------------------------------------------------------
 
   public query ({ caller }) func getCallerUserProfile() : async ?UserProfile {
     if (caller.isAnonymous()) {
       Runtime.trap("Anonymous principals cannot get user profiles");
     };
-    if (not AccessControl.hasPermission(accessControlState, caller, #user)) {
-      Runtime.trap("Unauthorized: Only registered users can perform this action");
-    };
     switch (users.get(caller)) {
       case (?user) {
-        ?{ pseudonym = user.pseudonym; region = user.region };
+        ?{
+          pseudonym = user.pseudonym;
+          region = user.region;
+          subscriptionStatus = user.subscriptionStatus;
+          suspended = user.suspended;
+        };
       };
       case (null) { null };
     };
@@ -345,380 +291,179 @@ actor {
     if (caller.isAnonymous()) {
       Runtime.trap("Anonymous principals cannot save user profiles");
     };
-    if (not AccessControl.hasPermission(accessControlState, caller, #user)) {
-      Runtime.trap("Unauthorized: Only registered users can perform this action");
-    };
     switch (users.get(caller)) {
+      case (null) {
+        Runtime.trap("Unauthorized: Only registered users can save profiles");
+      };
       case (?user) {
+        if (user.suspended) {
+          Runtime.trap("Your account has been suspended");
+        };
         let updated : User = {
           id = user.id;
           pseudonym = profile.pseudonym;
           region = profile.region;
           subscriptionStatus = user.subscriptionStatus;
-          subscriptionStartDate = user.subscriptionStartDate;
-          inviteCode = user.inviteCode;
           createdAt = user.createdAt;
           suspended = user.suspended;
         };
         users.add(caller, updated);
       };
-      case (null) {
-        Runtime.trap("User record not found");
-      };
     };
   };
 
-  public query ({ caller }) func getUserProfile(target : Principal) : async ?UserProfile {
-    if (target.isAnonymous()) {
-      Runtime.trap("Anonymous principals cannot have user profiles");
+  public query ({ caller }) func getUserProfile(user : Principal) : async ?UserProfile {
+    if (caller.isAnonymous()) {
+      Runtime.trap("Anonymous principals cannot get user profiles");
     };
-    if (caller != target and not AccessControl.isAdmin(accessControlState, caller)) {
+    if (caller != user and not AccessControl.isAdmin(accessControlState, caller)) {
       Runtime.trap("Unauthorized: Can only view your own profile");
     };
-    switch (users.get(target)) {
-      case (?user) {
-        ?{ pseudonym = user.pseudonym; region = user.region };
+    switch (users.get(user)) {
+      case (?u) {
+        ?{
+          pseudonym = u.pseudonym;
+          region = u.region;
+          subscriptionStatus = u.subscriptionStatus;
+          suspended = u.suspended;
+        };
       };
       case (null) { null };
     };
   };
 
-  // ---------------------------------------------------------------------------
-  // Profile / subscription helpers
-  // ---------------------------------------------------------------------------
-
-  public query ({ caller }) func getMyProfile() : async ?User {
-    if (caller.isAnonymous()) {
-      Runtime.trap("Anonymous principals cannot have profiles");
-    };
-    if (not AccessControl.hasPermission(accessControlState, caller, #user)) {
-      Runtime.trap("Unauthorized: Only registered users can perform this action");
-    };
-    users.get(caller);
-  };
-
-  public query ({ caller }) func getMyPosts() : async [Post] {
-    if (caller.isAnonymous()) {
-      Runtime.trap("Anonymous principals cannot have posts");
-    };
-    if (not AccessControl.hasPermission(accessControlState, caller, #user)) {
-      Runtime.trap("Unauthorized: Only registered users can perform this action");
-    };
-    posts.values()
-      .filter(func(p : RawPost) : Bool { p.userId == caller })
-      .map<RawPost, Post>(toPost)
-      .toArray()
-      .sort<Post>(comparePosts);
-  };
-
-  public query func getPublicPosts() : async [Post] {
-    posts.values()
-      .filter(func(p : RawPost) : Bool { not p.isPrivate })
-      .map<RawPost, Post>(toPost)
-      .toArray()
-      .sort<Post>(comparePosts);
-  };
-
-  public query ({ caller }) func isAdmin() : async Bool {
-    if (caller.isAnonymous()) {
-      return false;
-    };
-    AccessControl.isAdmin(accessControlState, caller);
-  };
-
-  public query ({ caller }) func getSubscriptionStatus(userId : Principal) : async SubscriptionStatus {
-    if (caller.isAnonymous()) {
-      Runtime.trap("Anonymous principals cannot query subscription statuses");
-    };
-    if (userId.isAnonymous()) {
-      Runtime.trap("Anonymous principals cannot have subscription statuses");
-    };
-    if (caller != userId and not AccessControl.isAdmin(accessControlState, caller)) {
-      Runtime.trap("Unauthorized: Can only view your own subscription status");
-    };
-    switch (users.get(userId)) {
-      case (?user) { effectiveSubscriptionStatus(user) };
-      case (null) { #expired };
-    };
-  };
-
-  public query ({ caller }) func getMySubscriptionStatus() : async SubscriptionStatus {
-    if (caller.isAnonymous()) {
-      Runtime.trap("Anonymous principals cannot have subscription statuses");
-    };
-    if (not AccessControl.hasPermission(accessControlState, caller, #user)) {
-      Runtime.trap("Unauthorized: Only registered users can perform this action");
-    };
-    switch (users.get(caller)) {
-      case (?user) { effectiveSubscriptionStatus(user) };
-      case (null) { #expired };
-    };
-  };
-
-  public shared ({ caller }) func setSubscriptionStatus(userId : Principal, status : SubscriptionStatus) : async () {
-    if (caller.isAnonymous()) {
-      Runtime.trap("Anonymous principals cannot set subscription statuses");
-    };
-    if (userId.isAnonymous()) {
-      Runtime.trap("Anonymous principals cannot have subscription statuses");
-    };
-    if (not AccessControl.isAdmin(accessControlState, caller)) {
-      Runtime.trap("Unauthorized: Only admins can perform this action");
-    };
-    switch (users.get(userId)) {
-      case (?user) {
-        let updated : User = {
-          id = user.id;
-          pseudonym = user.pseudonym;
-          region = user.region;
-          subscriptionStatus = status;
-          subscriptionStartDate = user.subscriptionStartDate;
-          inviteCode = user.inviteCode;
-          createdAt = user.createdAt;
-          suspended = user.suspended;
+  func countWords(text : Text) : Nat {
+    var count = 0;
+    var inWord = false;
+    for (c in text.chars()) {
+      if (c == ' ' or c == '\n' or c == '\t') {
+        inWord := false;
+      } else {
+        if (not inWord) {
+          count += 1;
+          inWord := true;
         };
-        users.add(userId, updated);
-      };
-      case (null) {
-        Runtime.trap("User does not exist");
       };
     };
+    count;
   };
 
-  // ---------------------------------------------------------------------------
-  // Posts
-  // ---------------------------------------------------------------------------
+  func countBrokePostsLast7Days(author : Principal) : Nat {
+    let now = Time.now();
+    var count = 0;
+    for (post in posts.values()) {
+      if (post.author == author) {
+        switch (post.emotionType) {
+          case (#broke) {
+            if (now - post.createdAt <= SEVEN_DAYS_NS) {
+              count += 1;
+            };
+          };
+          case (_) {};
+        };
+      };
+    };
+    count;
+  };
 
-  public shared ({ caller }) func createPost(emotionType : EmotionType, content : Text) : async Text {
+  public shared ({ caller }) func createPost(
+    emotionType : EmotionType,
+    content : Text,
+    isPrivate : Bool
+  ) : async Result<Text, Text> {
     if (caller.isAnonymous()) {
       Runtime.trap("Anonymous principals cannot create posts");
     };
-    if (not AccessControl.hasPermission(accessControlState, caller, #user)) {
-      Runtime.trap("Unauthorized: Only registered users can perform this action");
-    };
+    requireRegisteredUser(caller);
 
-    switch (users.get(caller)) {
-      case (?user) {
-        if (user.suspended) {
-          Runtime.trap("Suspended users cannot create posts");
-        };
-        let status = effectiveSubscriptionStatus(user);
-        if (status == #expired) {
-          Runtime.trap("Subscription expired: cannot create posts");
-        };
-        if (emotionType != #broke and not hasMinimumWordCount(content, 24)) {
-          Runtime.trap("Content must have at least 24 words for this emotion type");
-        };
-      };
-      case (null) {
-        Runtime.trap("User record not found");
-      };
+    if (countWords(content) < 24) {
+      return #err("Post must contain at least 24 words");
     };
 
     let postId = await generateUuid();
-    let post : RawPost = {
+    let post : Post = {
       id = postId;
-      userId = caller;
+      author = caller;
       emotionType;
       content;
-      isPrivate = true;
-      reactionCount = 0;
-      editable = true;
+      isPrivate;
       createdAt = Time.now();
     };
 
     posts.add(postId, post);
-    postId;
-  };
 
-  func generateUuid() : async Text {
-    let blob = await Random.blob();
-    let bytes = blob.toArray();
-    var result = "";
-    let hex = "0123456789abcdef";
-    let hexChars = hex.toArray();
-    for (b in bytes.vals()) {
-      let hi = b.toNat() / 16;
-      let lo = b.toNat() % 16;
-      result := result # Text.fromChar(hexChars[hi]) # Text.fromChar(hexChars[lo]);
+    switch (emotionType) {
+      case (#broke) {
+        let brokeCount = countBrokePostsLast7Days(caller);
+        if (brokeCount > BROKE_THRESHOLD) {
+          espFlaggedUsers.add(caller, true);
+          return #ok(postId);
+        };
+      };
+      case (_) {};
     };
-    result;
+
+    #ok(postId);
   };
 
-  public shared ({ caller }) func editPost(postId : Text, newContent : Text) : async () {
+  public query ({ caller }) func getESPStatus() : async Bool {
     if (caller.isAnonymous()) {
-      Runtime.trap("Anonymous principals cannot edit posts");
+      Runtime.trap("Anonymous principals cannot check ESP status");
     };
-    if (not AccessControl.hasPermission(accessControlState, caller, #user)) {
-      Runtime.trap("Unauthorized: Only registered users can perform this action");
-    };
-
-    switch (posts.get(postId)) {
-      case (?post) {
-        if (post.userId != caller) {
-          Runtime.trap("Cannot edit posts you do not own");
-        };
-        if (not post.editable) {
-          Runtime.trap("Post is no longer editable (has reactions)");
-        };
-        if (post.emotionType != #broke and not hasMinimumWordCount(newContent, 24)) {
-          Runtime.trap("Content must have at least 24 words for this emotion type");
-        };
-
-        let updated : RawPost = {
-          id = post.id;
-          userId = post.userId;
-          emotionType = post.emotionType;
-          content = newContent;
-          isPrivate = post.isPrivate;
-          reactionCount = post.reactionCount;
-          editable = post.editable;
-          createdAt = post.createdAt;
-        };
-        posts.add(postId, updated);
-      };
-      case (null) {
-        Runtime.trap("Post does not exist");
-      };
+    switch (espFlaggedUsers.get(caller)) {
+      case (?flagged) { flagged };
+      case (null) { false };
     };
   };
 
-  public shared ({ caller }) func setPostPrivacy(postId : Text, isPrivate : Bool) : async () {
+  public query ({ caller }) func getPublicPosts() : async [Post] {
     if (caller.isAnonymous()) {
-      Runtime.trap("Anonymous principals cannot set post privacy");
+      Runtime.trap("Anonymous principals cannot view posts");
     };
-    if (not AccessControl.hasPermission(accessControlState, caller, #user)) {
-      Runtime.trap("Unauthorized: Only registered users can perform this action");
-    };
-
-    switch (posts.get(postId)) {
-      case (?post) {
-        if (post.userId != caller) {
-          Runtime.trap("Cannot update privacy for posts you do not own");
-        };
-
-        if (not isPrivate) {
-          switch (users.get(caller)) {
-            case (?user) {
-              if (user.suspended) {
-                Runtime.trap("Suspended users cannot make posts public");
-              };
-              let status = effectiveSubscriptionStatus(user);
-              if (status == #expired) {
-                Runtime.trap("Subscription expired: cannot make posts public");
-              };
-            };
-            case (null) {
-              Runtime.trap("User record not found");
-            };
-          };
-        };
-
-        let updated : RawPost = {
-          id = post.id;
-          userId = post.userId;
-          emotionType = post.emotionType;
-          content = post.content;
-          isPrivate;
-          reactionCount = post.reactionCount;
-          editable = post.editable;
-          createdAt = post.createdAt;
-        };
-        posts.add(postId, updated);
-      };
-      case (null) {
-        Runtime.trap("Post does not exist");
-      };
-    };
+    requireRegisteredUser(caller);
+    posts.values().filter(func(p : Post) : Bool {
+      not p.isPrivate;
+    }).toArray();
   };
 
-  public shared ({ caller }) func deletePost(postId : Text) : async () {
+  public query ({ caller }) func getMyPosts() : async [Post] {
     if (caller.isAnonymous()) {
-      Runtime.trap("Anonymous principals cannot delete posts");
+      Runtime.trap("Anonymous principals cannot view posts");
     };
-    if (not AccessControl.hasPermission(accessControlState, caller, #user)) {
-      Runtime.trap("Unauthorized: Only registered users can perform this action");
-    };
-
-    switch (posts.get(postId)) {
-      case (?post) {
-        if (post.userId != caller) {
-          Runtime.trap("Cannot delete posts you do not own");
-        };
-
-        let toRemove = reactions.filter(func(_ : Text, r : Reaction) : Bool {
-          r.postId == postId;
-        });
-        for ((rid, _) in toRemove.entries()) {
-          reactions.remove(rid);
-        };
-
-        posts.remove(postId);
-      };
-      case (null) {
-        Runtime.trap("Post does not exist");
-      };
-    };
+    requireRegisteredUser(caller);
+    posts.values().filter(func(p : Post) : Bool {
+      p.author == caller;
+    }).toArray();
   };
-
-  // ---------------------------------------------------------------------------
-  // Reactions
-  // ---------------------------------------------------------------------------
 
   public shared ({ caller }) func addReaction(postId : Text, reactionType : ReactionType) : async Text {
     if (caller.isAnonymous()) {
       Runtime.trap("Anonymous principals cannot add reactions");
     };
-    if (not AccessControl.hasPermission(accessControlState, caller, #user)) {
-      Runtime.trap("Unauthorized: Only registered users can perform this action");
-    };
-
-    switch (users.get(caller)) {
-      case (?user) {
-        if (user.suspended) {
-          Runtime.trap("Suspended users cannot react to posts");
-        };
-      };
-      case (null) {
-        Runtime.trap("User record not found");
-      };
-    };
+    requireRegisteredUser(caller);
 
     switch (posts.get(postId)) {
       case (?post) {
         if (post.isPrivate) {
-          Runtime.trap("Cannot react to private posts");
+          Runtime.trap("Cannot react to a private post");
         };
-        if (post.userId == caller) {
+        if (post.author == caller) {
           Runtime.trap("Cannot react to your own post");
         };
-        if (hasUserReactedToPost(caller, postId)) {
-          Runtime.trap("You have already reacted to this post");
+        if (hasUserReactedWithType(caller, postId, reactionType)) {
+          Runtime.trap("You have already applied this reaction to this post");
         };
 
         let reactionId = await generateUuid();
         let reaction : Reaction = {
           id = reactionId;
           postId;
-          userId = caller;
+          author = caller;
           reactionType;
           createdAt = Time.now();
         };
 
         reactions.add(reactionId, reaction);
-
-        let updatedPost : RawPost = {
-          id = post.id;
-          userId = post.userId;
-          emotionType = post.emotionType;
-          content = post.content;
-          isPrivate = post.isPrivate;
-          reactionCount = post.reactionCount + 1;
-          editable = false;
-          createdAt = post.createdAt;
-        };
-        posts.add(postId, updatedPost);
-
         reactionId;
       };
       case (null) {
@@ -727,187 +472,237 @@ actor {
     };
   };
 
-  func hasUserReactedToPost(userId : Principal, postId : Text) : Bool {
+  func hasUserReactedWithType(userId : Principal, postId : Text, reactionType : ReactionType) : Bool {
     reactions.values().any(func(r : Reaction) : Bool {
-      r.postId == postId and r.userId == userId;
+      r.postId == postId and r.author == userId and r.reactionType == reactionType;
     });
   };
 
-  public query ({ caller }) func getMyReaction(postId : Text) : async ?ReactionType {
+  public query ({ caller }) func getReactionsForPost(postId : Text) : async [Reaction] {
     if (caller.isAnonymous()) {
-      Runtime.trap("Anonymous principals cannot have reactions");
+      Runtime.trap("Anonymous principals cannot view reactions");
     };
-    if (not AccessControl.hasPermission(accessControlState, caller, #user)) {
-      Runtime.trap("Unauthorized: Only registered users can perform this action");
-    };
-    switch (
-      reactions.values().find(func(r : Reaction) : Bool {
-        r.postId == postId and r.userId == caller;
-      })
-    ) {
-      case (?r) { ?r.reactionType };
-      case (null) { null };
+    requireRegisteredUser(caller);
+    switch (posts.get(postId)) {
+      case (?post) {
+        if (post.isPrivate) {
+          Runtime.trap("Cannot view reactions on a private post");
+        };
+        reactions.values().filter(func(r : Reaction) : Bool {
+          r.postId == postId;
+        }).toArray();
+      };
+      case (null) {
+        Runtime.trap("Post does not exist");
+      };
     };
   };
 
-  public query ({ caller }) func getUserReactionOnPost(postId : Text) : async ?Reaction {
+  public shared ({ caller }) func addComment(postId : Text, content : Text) : async Text {
     if (caller.isAnonymous()) {
-      Runtime.trap("Anonymous principals cannot have reactions");
+      Runtime.trap("Anonymous principals cannot add comments");
     };
-    if (not AccessControl.hasPermission(accessControlState, caller, #user)) {
-      Runtime.trap("Unauthorized: Only registered users can perform this action");
+    requireRegisteredUser(caller);
+
+    switch (posts.get(postId)) {
+      case (?post) {
+        if (post.isPrivate) {
+          Runtime.trap("Cannot comment on a private post");
+        };
+        let commentId = await generateUuid();
+        let comment : Comment = {
+          id = commentId;
+          postId;
+          author = caller;
+          content;
+          createdAt = Time.now();
+        };
+        comments.add(commentId, comment);
+        commentId;
+      };
+      case (null) {
+        Runtime.trap("Post does not exist");
+      };
     };
-    reactions.values().find(func(r : Reaction) : Bool {
-      r.postId == postId and r.userId == caller;
-    });
   };
 
-  // ---------------------------------------------------------------------------
-  // Admin functions
-  // ---------------------------------------------------------------------------
-
-  public query ({ caller }) func adminGetAllPublicPosts() : async [Post] {
+  public query ({ caller }) func getCommentsForPost(postId : Text) : async [Comment] {
     if (caller.isAnonymous()) {
-      Runtime.trap("Anonymous principals cannot get posts");
+      Runtime.trap("Anonymous principals cannot view comments");
     };
-    if (not AccessControl.isAdmin(accessControlState, caller)) {
-      Runtime.trap("Unauthorized: Only admins can perform this action");
+    requireRegisteredUser(caller);
+    switch (posts.get(postId)) {
+      case (?post) {
+        if (post.isPrivate) {
+          Runtime.trap("Cannot view comments on a private post");
+        };
+        comments.values().filter(func(c : Comment) : Bool {
+          c.postId == postId;
+        }).toArray();
+      };
+      case (null) {
+        Runtime.trap("Post does not exist");
+      };
     };
-    posts.values()
-      .filter(func(p : RawPost) : Bool { not p.isPrivate })
-      .map<RawPost, Post>(toPost)
-      .toArray()
-      .sort<Post>(comparePosts);
   };
 
-  public query ({ caller }) func adminGetUserPosts(userId : Principal) : async [Post] {
+  public shared ({ caller }) func flagPost(postId : Text, reason : Text) : async Text {
     if (caller.isAnonymous()) {
-      Runtime.trap("Anonymous principals cannot get posts");
+      Runtime.trap("Anonymous principals cannot flag posts");
     };
-    if (userId.isAnonymous()) {
-      Runtime.trap("Anonymous principals cannot have posts");
+    requireRegisteredUser(caller);
+
+    switch (posts.get(postId)) {
+      case (?_) {
+        let flagId = await generateUuid();
+        let flag : Flag = {
+          id = flagId;
+          postId;
+          reporter = caller;
+          reason;
+          createdAt = Time.now();
+        };
+        flags.add(flagId, flag);
+        flagId;
+      };
+      case (null) {
+        Runtime.trap("Post does not exist");
+      };
     };
-    if (not AccessControl.isAdmin(accessControlState, caller)) {
-      Runtime.trap("Unauthorized: Only admins can perform this action");
-    };
-    posts.values()
-      .filter(func(p : RawPost) : Bool { p.userId == userId })
-      .map<RawPost, Post>(toPost)
-      .toArray()
-      .sort<Post>(comparePosts);
+  };
+
+  public query ({ caller }) func adminGetFlaggedPosts() : async [Flag] {
+    requireAdmin(caller);
+    flags.values().toArray();
+  };
+
+  public query ({ caller }) func adminGetAllPosts() : async [Post] {
+    requireAdmin(caller);
+    posts.values().toArray();
   };
 
   public shared ({ caller }) func adminDeletePost(postId : Text) : async () {
-    if (caller.isAnonymous()) {
-      Runtime.trap("Anonymous principals cannot delete posts");
-    };
-    if (not AccessControl.isAdmin(accessControlState, caller)) {
-      Runtime.trap("Unauthorized: Only admins can perform this action");
-    };
-
-    let toRemove = reactions.filter(func(_ : Text, r : Reaction) : Bool {
-      r.postId == postId;
-    });
-    for ((rid, _) in toRemove.entries()) {
-      reactions.remove(rid);
-    };
-
-    posts.remove(postId);
-  };
-
-  public shared ({ caller }) func adminSuspendUser(userId : Principal) : async () {
-    if (caller.isAnonymous()) {
-      Runtime.trap("Anonymous principals cannot suspend users");
-    };
-    if (userId.isAnonymous()) {
-      Runtime.trap("Anonymous principals cannot be suspended");
-    };
-    if (not AccessControl.isAdmin(accessControlState, caller)) {
-      Runtime.trap("Unauthorized: Only admins can perform this action");
-    };
-    switch (users.get(userId)) {
-      case (?user) {
-        let updated : User = {
-          id = user.id;
-          pseudonym = user.pseudonym;
-          region = user.region;
-          subscriptionStatus = user.subscriptionStatus;
-          subscriptionStartDate = user.subscriptionStartDate;
-          inviteCode = user.inviteCode;
-          createdAt = user.createdAt;
-          suspended = true;
+    requireAdmin(caller);
+    switch (posts.get(postId)) {
+      case (null) { Runtime.trap("Post does not exist") };
+      case (?_) {
+        posts.remove(postId);
+        let commentIds = comments.values()
+          .filter(func(c : Comment) : Bool { c.postId == postId })
+          .map(func(c : Comment) : Text { c.id })
+          .toArray();
+        for (cid in commentIds.vals()) {
+          comments.remove(cid);
         };
-        users.add(userId, updated);
-      };
-      case (null) {
-        Runtime.trap("User does not exist");
-      };
-    };
-  };
-
-  public shared ({ caller }) func adminUnsuspendUser(userId : Principal) : async () {
-    if (caller.isAnonymous()) {
-      Runtime.trap("Anonymous principals cannot unsuspend users");
-    };
-    if (userId.isAnonymous()) {
-      Runtime.trap("Anonymous principals cannot be suspended");
-    };
-    if (not AccessControl.isAdmin(accessControlState, caller)) {
-      Runtime.trap("Unauthorized: Only admins can perform this action");
-    };
-    switch (users.get(userId)) {
-      case (?user) {
-        let updated : User = {
-          id = user.id;
-          pseudonym = user.pseudonym;
-          region = user.region;
-          subscriptionStatus = user.subscriptionStatus;
-          subscriptionStartDate = user.subscriptionStartDate;
-          inviteCode = user.inviteCode;
-          createdAt = user.createdAt;
-          suspended = false;
+        let reactionIds = reactions.values()
+          .filter(func(r : Reaction) : Bool { r.postId == postId })
+          .map(func(r : Reaction) : Text { r.id })
+          .toArray();
+        for (rid in reactionIds.vals()) {
+          reactions.remove(rid);
         };
-        users.add(userId, updated);
-      };
-      case (null) {
-        Runtime.trap("User does not exist");
       };
     };
   };
 
   public query ({ caller }) func adminGetAllUsers() : async [User] {
+    requireAdmin(caller);
+    users.values().toArray();
+  };
+
+  public shared ({ caller }) func adminSuspendUser(userId : Principal) : async () {
+    requireAdmin(caller);
+    switch (users.get(userId)) {
+      case (null) { Runtime.trap("User does not exist") };
+      case (?user) {
+        let updated : User = {
+          id = user.id;
+          pseudonym = user.pseudonym;
+          region = user.region;
+          subscriptionStatus = user.subscriptionStatus;
+          createdAt = user.createdAt;
+          suspended = true;
+        };
+        users.add(userId, updated);
+      };
+    };
+  };
+
+  public shared ({ caller }) func adminUnsuspendUser(userId : Principal) : async () {
+    requireAdmin(caller);
+    switch (users.get(userId)) {
+      case (null) { Runtime.trap("User does not exist") };
+      case (?user) {
+        let updated : User = {
+          id = user.id;
+          pseudonym = user.pseudonym;
+          region = user.region;
+          subscriptionStatus = user.subscriptionStatus;
+          createdAt = user.createdAt;
+          suspended = false;
+        };
+        users.add(userId, updated);
+      };
+    };
+  };
+
+  public shared ({ caller }) func adminSetSubscriptionStatus(
+    userId : Principal,
+    status : SubscriptionStatus
+  ) : async () {
+    requireAdmin(caller);
+    switch (users.get(userId)) {
+      case (null) { Runtime.trap("User does not exist") };
+      case (?user) {
+        let updated : User = {
+          id = user.id;
+          pseudonym = user.pseudonym;
+          region = user.region;
+          subscriptionStatus = status;
+          createdAt = user.createdAt;
+          suspended = user.suspended;
+        };
+        users.add(userId, updated);
+      };
+    };
+  };
+
+  public query ({ caller }) func adminGetUserPosts(userId : Principal) : async [Post] {
+    requireAdmin(caller);
+    posts.values().filter(func(p : Post) : Bool {
+      p.author == userId;
+    }).toArray();
+  };
+
+  public query ({ caller }) func adminGetSeatCount() : async Nat {
+    requireAdmin(caller);
+    users.size();
+  };
+
+  public query ({ caller }) func adminGetESPFlaggedUsers() : async [Principal] {
+    requireAdmin(caller);
+    espFlaggedUsers.keys().filter(func(p : Principal) : Bool {
+      switch (espFlaggedUsers.get(p)) {
+        case (?flagged) { flagged };
+        case (null) { false };
+      };
+    }).toArray();
+  };
+
+  public shared ({ caller }) func adminClearESPFlag(userId : Principal) : async () {
+    requireAdmin(caller);
+    espFlaggedUsers.add(userId, false);
+  };
+
+  public query ({ caller }) func checkLoginStatus() : async { #newUser; #existingUser; #anonymous } {
     if (caller.isAnonymous()) {
-      Runtime.trap("Anonymous principals cannot get users");
+      return #anonymous;
     };
-    if (not AccessControl.isAdmin(accessControlState, caller)) {
-      Runtime.trap("Unauthorized: Only admins can perform this action");
-    };
-    users.values()
-      .filter(func(u : User) : Bool { not u.id.isAnonymous() })
-      .toArray();
-  };
-
-  // Kept for interface compatibility; always traps — admin is fixed at deploy time.
-  public shared ({ caller }) func initializeAdmin() : async () {
-    Runtime.trap("Fixed admin principal cannot be initialized at runtime");
-  };
-
-  // ---------------------------------------------------------------------------
-  // Internal helpers
-  // ---------------------------------------------------------------------------
-
-  func getAdminPrincipal() : Principal {
-    let adminPrincipalText = "rociw-xjdyx-6m42s-ocjv2-d62ps-j25ql-7qann-npfh6-tuukv-53biq-agent";
-    Principal.fromText(adminPrincipalText);
-  };
-
-  func isPrincipalRegistered(caller : Principal) : Bool {
     switch (users.get(caller)) {
-      case (?_) { true };
-      case (null) { false };
+      case (?_) { #existingUser };
+      case (null) { #newUser };
     };
   };
 
-  system func preupgrade() { seedDefaultInviteCodes() };
+  system func preupgrade() {};
 };
-

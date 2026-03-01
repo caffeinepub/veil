@@ -7,31 +7,20 @@ export interface None {
     __kind__: "None";
 }
 export type Option<T> = Some<T> | None;
-export interface Reaction {
+export type Time = bigint;
+export interface Flag {
     id: string;
-    userId: Principal;
     createdAt: Time;
-    reactionType: ReactionType;
+    reporter: Principal;
+    reason: string;
     postId: string;
 }
-export interface RSVP {
-    name: string;
-    inviteCode: string;
-    timestamp: Time;
-    attending: boolean;
-}
-export type Time = bigint;
-export type Result = {
-    __kind__: "ok";
-    ok: User;
-} | {
-    __kind__: "err";
-    err: string;
-};
-export interface InviteCode {
-    created: Time;
-    code: string;
-    used: boolean;
+export interface Comment {
+    id: string;
+    content: string;
+    createdAt: Time;
+    author: Principal;
+    postId: string;
 }
 export interface User {
     id: Principal;
@@ -39,23 +28,53 @@ export interface User {
     pseudonym: string;
     createdAt: Time;
     subscriptionStatus: SubscriptionStatus;
-    subscriptionStartDate: Time;
-    inviteCode: string;
     suspended: boolean;
 }
+export type Result_1 = {
+    __kind__: "ok";
+    ok: string;
+} | {
+    __kind__: "err";
+    err: string;
+};
+export interface RSVP {
+    name: string;
+    inviteCode: string;
+    timestamp: Time;
+    attending: boolean;
+}
+export interface InviteCode {
+    created: Time;
+    code: string;
+    used: boolean;
+}
+export type Result = {
+    __kind__: "ok";
+    ok: User;
+} | {
+    __kind__: "err";
+    err: string;
+};
 export interface Post {
     id: string;
     emotionType: EmotionType;
     content: string;
-    reactionCount: bigint;
-    userId: Principal;
     createdAt: Time;
+    author: Principal;
     isPrivate: boolean;
-    editable: boolean;
 }
 export interface UserProfile {
     region: Region;
     pseudonym: string;
+    subscriptionStatus: SubscriptionStatus;
+    suspended: boolean;
+}
+export interface Reaction {
+    id: string;
+    createdAt: Time;
+    author: Principal;
+    reactionType: ReactionType;
+    postId: string;
 }
 export enum EmotionType {
     confess = "confess",
@@ -81,41 +100,44 @@ export enum UserRole {
     user = "user",
     guest = "guest"
 }
+export enum Variant_existingUser_anonymous_newUser {
+    existingUser = "existingUser",
+    anonymous = "anonymous",
+    newUser = "newUser"
+}
 export interface backendInterface {
-    addInviteCode(code: string): Promise<void>;
+    addComment(postId: string, content: string): Promise<string>;
     addReaction(postId: string, reactionType: ReactionType): Promise<string>;
+    adminClearESPFlag(userId: Principal): Promise<void>;
     adminDeletePost(postId: string): Promise<void>;
-    adminGetAllPublicPosts(): Promise<Array<Post>>;
+    adminGetAllPosts(): Promise<Array<Post>>;
     adminGetAllUsers(): Promise<Array<User>>;
+    adminGetESPFlaggedUsers(): Promise<Array<Principal>>;
+    adminGetFlaggedPosts(): Promise<Array<Flag>>;
+    adminGetSeatCount(): Promise<bigint>;
     adminGetUserPosts(userId: Principal): Promise<Array<Post>>;
-    adminRegister(pseudonym: string, region: Region): Promise<Result>;
+    adminSetSubscriptionStatus(userId: Principal, status: SubscriptionStatus): Promise<void>;
     adminSuspendUser(userId: Principal): Promise<void>;
     adminUnsuspendUser(userId: Principal): Promise<void>;
     assignCallerUserRole(user: Principal, role: UserRole): Promise<void>;
-    createPost(emotionType: EmotionType, content: string): Promise<string>;
-    deletePost(postId: string): Promise<void>;
-    editPost(postId: string, newContent: string): Promise<void>;
+    checkLoginStatus(): Promise<Variant_existingUser_anonymous_newUser>;
+    createPost(emotionType: EmotionType, content: string, isPrivate: boolean): Promise<Result_1>;
+    flagPost(postId: string, reason: string): Promise<string>;
     generateInviteCode(): Promise<string>;
     getAllRSVPs(): Promise<Array<RSVP>>;
     getCallerUserProfile(): Promise<UserProfile | null>;
     getCallerUserRole(): Promise<UserRole>;
+    getCommentsForPost(postId: string): Promise<Array<Comment>>;
+    getESPStatus(): Promise<boolean>;
     getInviteCodes(): Promise<Array<InviteCode>>;
     getMyPosts(): Promise<Array<Post>>;
-    getMyProfile(): Promise<User | null>;
-    getMyReaction(postId: string): Promise<ReactionType | null>;
-    getMySubscriptionStatus(): Promise<SubscriptionStatus>;
     getPublicPosts(): Promise<Array<Post>>;
-    getSubscriptionStatus(userId: Principal): Promise<SubscriptionStatus>;
-    getUserProfile(target: Principal): Promise<UserProfile | null>;
-    getUserReactionOnPost(postId: string): Promise<Reaction | null>;
-    initializeAdmin(): Promise<void>;
-    isAdmin(): Promise<boolean>;
+    getReactionsForPost(postId: string): Promise<Array<Reaction>>;
+    getUserProfile(user: Principal): Promise<UserProfile | null>;
     isCallerAdmin(): Promise<boolean>;
-    register(pseudonym: string, region: Region): Promise<Result>;
-    revokeInviteCode(code: string): Promise<void>;
+    register(pseudonym: string, region: Region, inviteCode: string): Promise<Result>;
+    revokeInviteCode(_code: string): Promise<void>;
     saveCallerUserProfile(profile: UserProfile): Promise<void>;
-    setPostPrivacy(postId: string, isPrivate: boolean): Promise<void>;
-    setSubscriptionStatus(userId: Principal, status: SubscriptionStatus): Promise<void>;
     submitRSVP(name: string, attending: boolean, inviteCode: string): Promise<void>;
     validateInviteCode(code: string): Promise<boolean>;
 }

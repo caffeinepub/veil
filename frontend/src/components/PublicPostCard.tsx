@@ -1,8 +1,25 @@
+import { useState } from 'react';
 import { EmotionType, ReactionType, type Post } from '../backend';
-import { useGetMyReaction, useAddReaction } from '../hooks/useQueries';
+import {
+  useGetMyReaction,
+  useAddReaction,
+  useGetCommentsForPost,
+  useAddComment,
+  useFlagPost,
+} from '../hooks/useQueries';
 import { useInternetIdentity } from '../hooks/useInternetIdentity';
 import EmotionBadge from './EmotionBadge';
-import { Loader2 } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Textarea } from '@/components/ui/textarea';
+import { Loader2, Flag, MessageCircle, ChevronDown, ChevronUp } from 'lucide-react';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from '@/components/ui/dialog';
 
 interface PublicPostCardProps {
   post: Post;
@@ -19,8 +36,21 @@ export default function PublicPostCard({ post }: PublicPostCardProps) {
   const { data: myReaction, isLoading: reactionLoading } = useGetMyReaction(post.id);
   const addReaction = useAddReaction();
 
+  const { data: comments, isLoading: commentsLoading } = useGetCommentsForPost(post.id);
+  const addComment = useAddComment();
+  const flagPost = useFlagPost();
+
+  const [showComments, setShowComments] = useState(false);
+  const [commentText, setCommentText] = useState('');
+  const [commentError, setCommentError] = useState<string | null>(null);
+
+  const [showFlagDialog, setShowFlagDialog] = useState(false);
+  const [flagReason, setFlagReason] = useState('');
+  const [flagError, setFlagError] = useState<string | null>(null);
+  const [flagged, setFlagged] = useState(false);
+
   const currentUserId = identity?.getPrincipal().toString();
-  const isOwner = currentUserId === post.userId.toString();
+  const isOwner = currentUserId === post.author.toString();
   const hasReacted = myReaction !== null && myReaction !== undefined;
 
   const createdAt = new Date(Number(post.createdAt / BigInt(1_000_000)));
@@ -33,6 +63,38 @@ export default function PublicPostCard({ post }: PublicPostCardProps) {
       // Silently handle — user may have already reacted
     }
   };
+
+  const handleCommentSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setCommentError(null);
+    if (!commentText.trim()) return;
+    try {
+      await addComment.mutateAsync({ postId: post.id, content: commentText.trim() });
+      setCommentText('');
+    } catch (err: unknown) {
+      setCommentError(err instanceof Error ? err.message : 'Failed to add comment.');
+    }
+  };
+
+  const handleFlag = async () => {
+    setFlagError(null);
+    if (!flagReason.trim()) {
+      setFlagError('Please provide a reason.');
+      return;
+    }
+    try {
+      await flagPost.mutateAsync({ postId: post.id, reason: flagReason.trim() });
+      setFlagged(true);
+      setShowFlagDialog(false);
+      setFlagReason('');
+    } catch (err: unknown) {
+      setFlagError(err instanceof Error ? err.message : 'Failed to flag post.');
+    }
+  };
+
+  const sortedComments = [...(comments ?? [])].sort(
+    (a, b) => Number(a.createdAt - b.createdAt)
+  );
 
   return (
     <div className="veil-card space-y-3">
@@ -47,11 +109,9 @@ export default function PublicPostCard({ post }: PublicPostCardProps) {
       {/* Content */}
       <p className="text-sm text-foreground leading-relaxed whitespace-pre-wrap">{post.content}</p>
 
-      {/* Reactions */}
+      {/* Witnessing reactions */}
       <div className="flex items-center gap-2 pt-1 flex-wrap">
-        <span className="text-xs text-muted-foreground mr-1">
-          {Number(post.reactionCount)} reaction{Number(post.reactionCount) !== 1 ? 's' : ''}
-        </span>
+        <span className="text-xs text-muted-foreground mr-1 italic">Witness:</span>
         {reactionConfig.map(r => {
           const isActive = myReaction === r.type;
           const isDisabled = isOwner || hasReacted || addReaction.isPending || reactionLoading;
@@ -61,7 +121,13 @@ export default function PublicPostCard({ post }: PublicPostCardProps) {
               key={r.type}
               onClick={() => handleReaction(r.type)}
               disabled={isDisabled}
-              title={isOwner ? "Can't react to your own post" : hasReacted ? 'Already reacted' : r.label}
+              title={
+                isOwner
+                  ? "You cannot witness your own post"
+                  : hasReacted
+                  ? "You've already offered your witness"
+                  : r.label
+              }
               className={`
                 flex items-center gap-1 px-2.5 py-1 rounded-full border text-xs transition-all
                 ${isActive
@@ -82,6 +148,131 @@ export default function PublicPostCard({ post }: PublicPostCardProps) {
           );
         })}
       </div>
+
+      {/* Comment & Flag actions */}
+      <div className="flex items-center gap-2 pt-1 border-t border-border/50">
+        <button
+          onClick={() => setShowComments(v => !v)}
+          className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
+        >
+          <MessageCircle size={13} />
+          <span>
+            {commentsLoading ? '…' : `${sortedComments.length} comment${sortedComments.length !== 1 ? 's' : ''}`}
+          </span>
+          {showComments ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
+        </button>
+
+        <div className="ml-auto">
+          {flagged ? (
+            <span className="text-xs text-muted-foreground italic">Flagged for review</span>
+          ) : (
+            <button
+              onClick={() => setShowFlagDialog(true)}
+              disabled={isOwner}
+              className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+              title={isOwner ? "You cannot flag your own post" : "Flag this post"}
+            >
+              <Flag size={12} />
+              <span>Flag</span>
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* Comments section */}
+      {showComments && (
+        <div className="space-y-3 pt-1">
+          {/* Existing comments */}
+          {commentsLoading ? (
+            <div className="flex justify-center py-3">
+              <Loader2 size={16} className="animate-spin text-muted-foreground" />
+            </div>
+          ) : sortedComments.length === 0 ? (
+            <p className="text-xs text-muted-foreground italic text-center py-2">
+              No comments yet. Be the first to respond.
+            </p>
+          ) : (
+            <div className="space-y-2">
+              {sortedComments.map(comment => (
+                <div key={comment.id} className="bg-muted/30 rounded-lg px-3 py-2 space-y-0.5">
+                  <p className="text-xs text-foreground leading-relaxed">{comment.content}</p>
+                  <p className="text-xs text-muted-foreground">
+                    {new Date(Number(comment.createdAt / BigInt(1_000_000))).toLocaleDateString()}
+                  </p>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Add comment */}
+          <form onSubmit={handleCommentSubmit} className="space-y-2">
+            <Textarea
+              placeholder="Write a response…"
+              value={commentText}
+              onChange={e => setCommentText(e.target.value)}
+              rows={2}
+              className="resize-none text-sm bg-background"
+              disabled={addComment.isPending}
+            />
+            {commentError && (
+              <p className="text-xs text-amber-700 dark:text-amber-400">{commentError}</p>
+            )}
+            <div className="flex justify-end">
+              <Button
+                type="submit"
+                size="sm"
+                disabled={addComment.isPending || !commentText.trim()}
+              >
+                {addComment.isPending ? (
+                  <Loader2 size={13} className="animate-spin mr-1" />
+                ) : null}
+                Respond
+              </Button>
+            </div>
+          </form>
+        </div>
+      )}
+
+      {/* Flag dialog */}
+      <Dialog open={showFlagDialog} onOpenChange={setShowFlagDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Flag this post</DialogTitle>
+            <DialogDescription>
+              Let us know why this post needs review. Your report is confidential.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3 py-2">
+            <Textarea
+              placeholder="Describe your concern…"
+              value={flagReason}
+              onChange={e => setFlagReason(e.target.value)}
+              rows={3}
+              className="resize-none text-sm"
+              disabled={flagPost.isPending}
+            />
+            {flagError && (
+              <p className="text-xs text-amber-700 dark:text-amber-400">{flagError}</p>
+            )}
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => { setShowFlagDialog(false); setFlagReason(''); setFlagError(null); }}
+              disabled={flagPost.isPending}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleFlag}
+              disabled={flagPost.isPending || !flagReason.trim()}
+            >
+              {flagPost.isPending ? <Loader2 size={13} className="animate-spin mr-1" /> : null}
+              Submit Report
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

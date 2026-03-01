@@ -1,78 +1,213 @@
 {
   "kind": "build_request",
-  "title": "Fix signup flow to guard against invalid/anonymous principal before account creation",
+  "title": "VEIL – Private Emotional Infrastructure App (MVP)",
+  "projectName": "VEIL",
   "priority": "high",
   "requirements": [
     {
       "id": "REQ-1",
-      "text": "In SignupPage.tsx, before calling the backend createUser() function, add a guard that checks whether the authenticated identity/principal is available and is not anonymous. If the principal is missing or anonymous, display an error message ('Authentication required. Please log in before creating an account.') and abort the account creation flow entirely.",
-      "target": "frontend",
+      "text": "Implement invite-only user registration on the backend. Store invite codes in stable state. Enforce a maximum of 100 registered users (seat counter). Registration requires a valid unused invite code, a pseudonym, and a region. On success, mark the invite code as used and create the user record keyed by their authenticated principal.",
+      "target": "backend",
       "source": {
         "messageIds": [
-          "msg-4"
+          "msg-20"
         ],
         "quotes": [
-          "Account creation happens ONLY after a valid principal exists",
-          "if (!principal || principal.isAnonymous()) { showError(\"Authentication required\"); return; }",
-          "Only call backend createUser() after identity initialization succeeds."
+          "User Registration (Invite-only)",
+          "Seat counter (Max 100 users)"
         ]
       },
       "acceptanceCriteria": [
-        "Clicking 'Create Account' while unauthenticated or with an anonymous principal shows an error message and does NOT call the backend createUser().",
-        "If the principal is valid and non-anonymous, the signup flow proceeds normally and createUser() is called.",
-        "No 'RTS error: blob_of_principal: invalid principal' error occurs when attempting account creation."
+        "Registration fails with a clear error if no valid invite code is provided",
+        "Registration fails once 100 users exist",
+        "Invite codes are marked used and cannot be reused",
+        "User record is stored with principal, pseudonym, region, and createdAt"
       ]
     },
     {
       "id": "REQ-2",
-      "text": "In SignupPage.tsx, ensure the Create Account button is disabled (and visually reflects this) when the authenticated identity has not yet fully initialized or when the principal is anonymous. The button should only become enabled once a valid non-anonymous principal is confirmed to be available.",
-      "target": "frontend",
+      "text": "Implement Internet Identity-based login and session management. On login, validate the authenticated principal is not anonymous, check whether a user profile exists, and route to either the dashboard (existing user) or signup (new user). Guard all protected backend calls so anonymous principals are rejected.",
+      "target": "both",
       "source": {
         "messageIds": [
-          "msg-4"
+          "msg-20"
         ],
         "quotes": [
-          "User authentication completes before account creation.",
-          "A valid authenticated principal is obtained first.",
-          "Prevent anonymous or null principals."
+          "Login / Authentication"
         ]
       },
       "acceptanceCriteria": [
-        "The Create Account button is disabled until identity initialization completes and a valid non-anonymous principal is available.",
-        "Once authenticated with a valid principal, the button becomes enabled and functional."
+        "Anonymous principals cannot reach any authenticated routes",
+        "Existing users land on the dashboard after login",
+        "New users are routed to the signup/registration page",
+        "Session is restored automatically on page reload"
       ]
     },
     {
       "id": "REQ-3",
-      "text": "In the backend main.mo createUser() function, add a guard at the entry point to validate that caller is not the anonymous principal (Principal.isAnonymous(caller)). If caller is anonymous, return an error variant instead of attempting to convert the principal to blob or create the user record.",
+      "text": "Implement emotional post creation with three emotion lanes: Happy, Confess, and Broke. Each post must have a visibility toggle (Public / Private). Posts require a minimum of 24 words. Store posts with fields: postId, authorPrincipal, emotionType, content, visibility, createdAt. Block post creation for unauthenticated or anonymous users.",
       "target": "backend",
       "source": {
         "messageIds": [
-          "msg-4"
+          "msg-20"
         ],
         "quotes": [
-          "Validate the principal before converting it to blob.",
-          "Add a guard condition to stop execution if the principal is invalid."
+          "Create Emotional Posts (Happy / Confess / Broke)",
+          "Public & Private Toggle"
         ]
       },
       "acceptanceCriteria": [
-        "Calling createUser() with an anonymous principal returns an error result instead of causing an RTS trap.",
-        "No 'blob_of_principal: invalid principal' RTS error is thrown from the backend."
+        "Posts with fewer than 24 words are rejected",
+        "Posts are stored with the correct emotion type (Happy / Confess / Broke)",
+        "Visibility can be set to Public or Private at creation time",
+        "Anonymous principals cannot create posts"
+      ]
+    },
+    {
+      "id": "REQ-4",
+      "text": "Implement witnessing-based reactions on public posts. Supported reaction types: Support, Care, Strength. Reactions are non-metric — display them as witnessing gestures, not counts. A user cannot react to their own post. Each user can only apply each reaction type once per post.",
+      "target": "both",
+      "source": {
+        "messageIds": [
+          "msg-20"
+        ],
+        "quotes": [
+          "Reactions (Non-metric, witnessing-based)"
+        ]
+      },
+      "acceptanceCriteria": [
+        "Reaction buttons show Support, Care, and Strength as witnessing actions",
+        "Post owners cannot react to their own posts",
+        "Duplicate reactions from the same user on the same post are rejected",
+        "Reactions are not displayed as a raw numeric count"
+      ]
+    },
+    {
+      "id": "REQ-5",
+      "text": "Implement commenting on public posts only. Comments are tied to a postId and authorPrincipal. Private posts must not allow or display comments. Store comments with commentId, postId, authorPrincipal, content, and createdAt.",
+      "target": "both",
+      "source": {
+        "messageIds": [
+          "msg-20"
+        ],
+        "quotes": [
+          "Commenting (Public posts only)"
+        ]
+      },
+      "acceptanceCriteria": [
+        "Comments can only be submitted on public posts",
+        "Private posts have no visible comment section",
+        "Comments are stored and displayed in chronological order"
+      ]
+    },
+    {
+      "id": "REQ-6",
+      "text": "Implement a flagging system allowing authenticated users to flag any post for review. Store flags with flagId, postId, reporterPrincipal, reason, and createdAt. Flagged posts should be surfaced in the admin dashboard for review.",
+      "target": "both",
+      "source": {
+        "messageIds": [
+          "msg-20"
+        ],
+        "quotes": [
+          "Flagging system"
+        ]
+      },
+      "acceptanceCriteria": [
+        "Any authenticated user can flag a post",
+        "A user cannot flag the same post more than once",
+        "Flagged posts appear in the admin dashboard with flag count and reasons"
+      ]
+    },
+    {
+      "id": "REQ-7",
+      "text": "Implement an admin dashboard accessible only to designated admin principals. The dashboard must include: (1) a list of all public posts with delete capability, (2) member management with suspend/unsuspend and subscription status controls, (3) invite code management (create, revoke, copy), (4) per-user post history with delete capability, (5) flagged posts review queue, (6) current seat count display.",
+      "target": "both",
+      "source": {
+        "messageIds": [
+          "msg-20"
+        ],
+        "quotes": [
+          "Admin Dashboard"
+        ]
+      },
+      "acceptanceCriteria": [
+        "Non-admin users are redirected away from the admin page",
+        "Admin can delete any post",
+        "Admin can suspend or unsuspend any user",
+        "Admin can create and revoke invite codes",
+        "Seat counter is visible showing current users vs max 100",
+        "Flagged posts are listed with flag details"
+      ]
+    },
+    {
+      "id": "REQ-8",
+      "text": "Implement Emotional Stability Protocol (ESP) logic. If a user posts in the 'Broke' lane more than 3 times within a 7-day window, automatically flag their account for admin review and display a supportive, non-alarmist message to the user suggesting they take a pause. The protocol must not expose metrics to the user — only surface the supportive message.",
+      "target": "both",
+      "source": {
+        "messageIds": [
+          "msg-20"
+        ],
+        "quotes": [
+          "Emotional Stability Protocol logic"
+        ]
+      },
+      "acceptanceCriteria": [
+        "Posting in Broke more than 3 times in 7 days triggers the protocol",
+        "A calm, supportive message is shown to the user when triggered",
+        "The user's account is flagged for admin review in the dashboard",
+        "No raw counts or metrics are shown to the user"
+      ]
+    },
+    {
+      "id": "REQ-9",
+      "text": "Build all frontend pages and UI flows for VEIL: Welcome/Landing screen, Login screen (Internet Identity), Signup/Registration screen (invite code + pseudonym + region), Dashboard with emotion-lane navigation buttons (Happy / Confess / Broke), Post Creation page with visibility toggle and word-count validation, My Posts page, Community Feed page (public posts only), and Admin Dashboard page. Apply a calm, minimal visual theme: muted neutral palette, clean typography, no gamification visuals, no bright notification colors, no follower counts, no metric displays.",
+      "target": "frontend",
+      "source": {
+        "messageIds": [
+          "msg-20"
+        ],
+        "quotes": [
+          "Clean minimal UI",
+          "Calm neutral color palette",
+          "No bright notification colors",
+          "No gamification visuals"
+        ]
+      },
+      "acceptanceCriteria": [
+        "All listed pages are reachable via defined routes",
+        "Unauthenticated users are redirected to the login/welcome screen",
+        "Emotion lane buttons (Happy / Confess / Broke) are present on the dashboard",
+        "Post creation enforces 24-word minimum with live feedback",
+        "Public/private toggle is visible and functional on post creation",
+        "No numeric follower counts, like counts, or gamification elements are present",
+        "Color palette is calm, muted, and neutral throughout"
       ]
     }
   ],
   "constraints": [
-    "Do not modify files under frontend/src/hooks/useInternetIdentity.ts or frontend/src/hooks/useActor.ts.",
-    "Do not modify files under frontend/src/components/ui.",
-    "Do not modify frontend/src/main.tsx."
+    "All backend logic must remain in a single Motoko actor (backend/main.mo)",
+    "Authentication must use Internet Identity — no JWT or bcrypt (those are incompatible with this platform)",
+    "No PostgreSQL, MongoDB, or external databases — all state lives in Motoko stable variables",
+    "No Next.js, Node.js, or Express — frontend is React + TypeScript + Tailwind, backend is Motoko",
+    "Do not edit files under frontend/src/hooks/useInternetIdentity.ts, frontend/src/hooks/useActor.ts, frontend/src/main.tsx, or frontend/src/components/ui",
+    "Maximum 100 registered users must be enforced in the backend seat counter",
+    "Anonymous principals must be rejected by all authenticated backend functions"
   ],
   "nonGoals": [
-    "Changing the overall authentication mechanism or switching away from Internet Identity.",
-    "Redesigning the signup UI beyond adding the principal validation guard and button state.",
-    "Adding new user-facing features unrelated to the principal validation fix."
+    "Real-time features or WebSockets",
+    "Email notifications or SMS",
+    "External hosting configuration (Vercel, Railway, Supabase)",
+    "Third-party auth providers (JWT, bcrypt, Auth0)",
+    "Mobile app or React Native version",
+    "Paid subscription or Stripe integration in this MVP",
+    "Media uploads (images, audio)",
+    "Direct messaging between users"
   ],
   "imageRequirements": {
-    "required": [],
+    "required": [
+      "Minimal abstract logo mark for VEIL — a thin translucent veil or gauze texture forming a subtle 'V' silhouette on a dark muted background (veil-logo.dim_256x256.png)",
+      "Calm dark textured background with very subtle noise grain and muted warm-grey tones, suitable as a full-page app backdrop (veil-bg.dim_1440x900.png)"
+    ],
     "edits": []
   }
 }

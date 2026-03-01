@@ -116,11 +116,7 @@ export default function AdminUserPostHistory() {
 
                   <p className="text-sm text-foreground leading-relaxed line-clamp-3">{post.content}</p>
 
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs text-muted-foreground">
-                      {Number(post.reactionCount)} reaction{Number(post.reactionCount) !== 1 ? 's' : ''}
-                    </span>
-
+                  <div className="flex items-center justify-end">
                     <AlertDialog>
                       <AlertDialogTrigger asChild>
                         <Button size="sm" variant="ghost" disabled={deletePost.isPending} className="text-muted-foreground hover:text-foreground">

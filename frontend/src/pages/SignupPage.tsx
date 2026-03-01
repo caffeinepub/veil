@@ -27,9 +27,17 @@ export default function SignupPage() {
 
   const [pseudonym, setPseudonym] = useState('');
   const [region, setRegion] = useState<Region>(Region.Global);
+  const [inviteCode, setInviteCode] = useState('');
   const [error, setError] = useState<string | null>(null);
 
   const isAuthenticated = isValidPrincipal(identity);
+
+  // Pre-fill invite code from URL params
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const codeFromUrl = params.get('code') || params.get('invite');
+    if (codeFromUrl) setInviteCode(codeFromUrl);
+  }, []);
 
   // Only redirect after initialization is complete and we know the user is not authenticated
   useEffect(() => {
@@ -65,8 +73,13 @@ export default function SignupPage() {
       return;
     }
 
+    if (!inviteCode.trim()) {
+      setError('An invite code is required to join Veil.');
+      return;
+    }
+
     try {
-      await register.mutateAsync({ pseudonym: pseudonym.trim(), region });
+      await register.mutateAsync({ pseudonym: pseudonym.trim(), region, inviteCode: inviteCode.trim() });
       navigate({ to: '/dashboard' });
     } catch (err: any) {
       setError(err?.message || 'Registration failed. Please try again.');
@@ -90,7 +103,7 @@ export default function SignupPage() {
     return null;
   }
 
-  const isButtonDisabled = register.isPending || !pseudonym.trim() || !isAuthenticated || isInitializing;
+  const isButtonDisabled = register.isPending || !pseudonym.trim() || !inviteCode.trim() || !isAuthenticated || isInitializing;
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-background px-4">
@@ -99,13 +112,32 @@ export default function SignupPage() {
         <div className="text-center space-y-2">
           <h1 className="text-3xl font-serif font-bold text-foreground">Create your veil</h1>
           <p className="text-muted-foreground text-sm">
-            Choose a pseudonym to keep your identity private.
+            You need an invite code to join. Choose a pseudonym to keep your identity private.
           </p>
         </div>
 
         {/* Form card */}
         <div className="bg-card border border-border rounded-2xl p-8 shadow-soft">
           <form onSubmit={handleRegister} className="space-y-6">
+            {/* Invite Code */}
+            <div className="space-y-2">
+              <Label htmlFor="inviteCode" className="text-sm font-medium text-foreground">
+                Invite Code
+              </Label>
+              <Input
+                id="inviteCode"
+                type="text"
+                placeholder="Enter your invite code"
+                value={inviteCode}
+                onChange={(e) => setInviteCode(e.target.value)}
+                disabled={register.isPending}
+                className="bg-background font-mono"
+              />
+              <p className="text-xs text-muted-foreground">
+                Veil is invite-only. You need a valid code to register.
+              </p>
+            </div>
+
             {/* Pseudonym */}
             <div className="space-y-2">
               <Label htmlFor="pseudonym" className="text-sm font-medium text-foreground">

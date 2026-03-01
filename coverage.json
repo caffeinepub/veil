@@ -1,52 +1,165 @@
 {
   "kind": "coverage_report",
   "version": "1.0",
-  "generatedAt": "2026-03-01T21:57:01.189Z",
+  "generatedAt": "2026-03-01T22:32:20.328Z",
   "sources": {
     "buildRequest": true,
     "implementationPlan": true
   },
   "requirements": {
-    "total": 3,
-    "implemented": 2,
+    "total": 9,
+    "implemented": 6,
     "items": [
       {
         "id": "REQ-1",
-        "summary": "In SignupPage.tsx, before calling the backend createUser() function, add a guard that checks whether the authenticated identity/principal is available and is not anonymous. If the principal is missing or anonymous, display an error message ('Authentication required. Please log in before creating an account.') and abort the account creation flow entirely.",
-        "status": "implemented",
-        "plannedFiles": [
-          "frontend/src/pages/SignupPage.tsx"
-        ],
-        "matchedFiles": [
-          "frontend/src/pages/SignupPage.tsx"
-        ]
-      },
-      {
-        "id": "REQ-2",
-        "summary": "In SignupPage.tsx, ensure the Create Account button is disabled (and visually reflects this) when the authenticated identity has not yet fully initialized or when the principal is anonymous. The button should only become enabled once a valid non-anonymous principal is confirmed to be available.",
-        "status": "implemented",
-        "plannedFiles": [
-          "frontend/src/pages/SignupPage.tsx"
-        ],
-        "matchedFiles": [
-          "frontend/src/pages/SignupPage.tsx"
-        ]
-      },
-      {
-        "id": "REQ-3",
-        "summary": "In the backend main.mo createUser() function, add a guard at the entry point to validate that caller is not the anonymous principal (Principal.isAnonymous(caller)). If caller is anonymous, return an error variant instead of attempting to convert the principal to blob or create the user record.",
+        "summary": "Implement invite-only user registration on the backend. Store invite codes in stable state. Enforce a maximum of 100 registered users (seat counter). Registration requires a valid unused invite code, a pseudonym, and a region. On success, mark the invite code as used and create the user record keyed by their authenticated principal.",
         "status": "unknown",
         "plannedFiles": [],
         "matchedFiles": []
+      },
+      {
+        "id": "REQ-2",
+        "summary": "Implement Internet Identity-based login and session management. On login, validate the authenticated principal is not anonymous, check whether a user profile exists, and route to either the dashboard (existing user) or signup (new user). Guard all protected backend calls so anonymous principals are rejected.",
+        "status": "missing",
+        "plannedFiles": [
+          "frontend/src/pages/LoginPage.tsx",
+          "frontend/src/App.tsx"
+        ],
+        "matchedFiles": []
+      },
+      {
+        "id": "REQ-3",
+        "summary": "Implement emotional post creation with three emotion lanes: Happy, Confess, and Broke. Each post must have a visibility toggle (Public / Private). Posts require a minimum of 24 words. Store posts with fields: postId, authorPrincipal, emotionType, content, visibility, createdAt. Block post creation for unauthenticated or anonymous users.",
+        "status": "unknown",
+        "plannedFiles": [],
+        "matchedFiles": []
+      },
+      {
+        "id": "REQ-4",
+        "summary": "Implement witnessing-based reactions on public posts. Supported reaction types: Support, Care, Strength. Reactions are non-metric — display them as witnessing gestures, not counts. A user cannot react to their own post. Each user can only apply each reaction type once per post.",
+        "status": "implemented",
+        "plannedFiles": [
+          "frontend/src/components/PublicPostCard.tsx",
+          "frontend/src/hooks/useQueries.ts"
+        ],
+        "matchedFiles": [
+          "frontend/src/components/PublicPostCard.tsx",
+          "frontend/src/hooks/useQueries.ts"
+        ]
+      },
+      {
+        "id": "REQ-5",
+        "summary": "Implement commenting on public posts only. Comments are tied to a postId and authorPrincipal. Private posts must not allow or display comments. Store comments with commentId, postId, authorPrincipal, content, and createdAt.",
+        "status": "implemented",
+        "plannedFiles": [
+          "frontend/src/components/PublicPostCard.tsx",
+          "frontend/src/hooks/useQueries.ts",
+          "frontend/src/components/PostCard.tsx"
+        ],
+        "matchedFiles": [
+          "frontend/src/components/PublicPostCard.tsx",
+          "frontend/src/hooks/useQueries.ts",
+          "frontend/src/components/PostCard.tsx"
+        ]
+      },
+      {
+        "id": "REQ-6",
+        "summary": "Implement a flagging system allowing authenticated users to flag any post for review. Store flags with flagId, postId, reporterPrincipal, reason, and createdAt. Flagged posts should be surfaced in the admin dashboard for review.",
+        "status": "implemented",
+        "plannedFiles": [
+          "frontend/src/components/PublicPostCard.tsx",
+          "frontend/src/hooks/useQueries.ts",
+          "frontend/src/components/AdminDashboard.tsx",
+          "frontend/src/hooks/useQueries.ts"
+        ],
+        "matchedFiles": [
+          "frontend/src/components/PublicPostCard.tsx",
+          "frontend/src/hooks/useQueries.ts",
+          "frontend/src/components/AdminDashboard.tsx",
+          "frontend/src/hooks/useQueries.ts"
+        ]
+      },
+      {
+        "id": "REQ-7",
+        "summary": "Implement an admin dashboard accessible only to designated admin principals. The dashboard must include: (1) a list of all public posts with delete capability, (2) member management with suspend/unsuspend and subscription status controls, (3) invite code management (create, revoke, copy), (4) per-user post history with delete capability, (5) flagged posts review queue, (6) current seat count display.",
+        "status": "implemented",
+        "plannedFiles": [
+          "frontend/src/components/AdminDashboard.tsx",
+          "frontend/src/hooks/useQueries.ts",
+          "frontend/src/pages/AdminPage.tsx"
+        ],
+        "matchedFiles": [
+          "frontend/src/components/AdminDashboard.tsx",
+          "frontend/src/hooks/useQueries.ts"
+        ]
+      },
+      {
+        "id": "REQ-8",
+        "summary": "Implement Emotional Stability Protocol (ESP) logic. If a user posts in the 'Broke' lane more than 3 times within a 7-day window, automatically flag their account for admin review and display a supportive, non-alarmist message to the user suggesting they take a pause. The protocol must not expose metrics to the user — only surface the supportive message.",
+        "status": "implemented",
+        "plannedFiles": [
+          "frontend/src/pages/PostCreationPage.tsx",
+          "frontend/src/hooks/useQueries.ts",
+          "frontend/src/components/AdminDashboard.tsx",
+          "frontend/src/hooks/useQueries.ts"
+        ],
+        "matchedFiles": [
+          "frontend/src/pages/PostCreationPage.tsx",
+          "frontend/src/hooks/useQueries.ts",
+          "frontend/src/components/AdminDashboard.tsx",
+          "frontend/src/hooks/useQueries.ts"
+        ]
+      },
+      {
+        "id": "REQ-9",
+        "summary": "Build all frontend pages and UI flows for VEIL: Welcome/Landing screen, Login screen (Internet Identity), Signup/Registration screen (invite code + pseudonym + region), Dashboard with emotion-lane navigation buttons (Happy / Confess / Broke), Post Creation page with visibility toggle and word-count validation, My Posts page, Community Feed page (public posts only), and Admin Dashboard page. Apply a calm, minimal visual theme: muted neutral palette, clean typography, no gamification visuals, no bright notification colors, no follower counts, no metric displays.",
+        "status": "implemented",
+        "plannedFiles": [
+          "frontend/src/index.css",
+          "frontend/tailwind.config.js",
+          "frontend/src/pages/DashboardPage.tsx",
+          "frontend/src/pages/PostCreationPage.tsx",
+          "frontend/src/pages/MyPostsPage.tsx",
+          "frontend/src/pages/CommunityFeedPage.tsx",
+          "frontend/src/components/Header.tsx",
+          "frontend/src/components/Layout.tsx",
+          "frontend/src/pages/LoginPage.tsx",
+          "frontend/src/pages/SignupPage.tsx",
+          "frontend/src/components/EmotionBadge.tsx",
+          "frontend/src/components/PostCard.tsx",
+          "frontend/src/components/PublicPostCard.tsx"
+        ],
+        "matchedFiles": [
+          "frontend/src/pages/PostCreationPage.tsx",
+          "frontend/src/pages/SignupPage.tsx",
+          "frontend/src/components/PostCard.tsx",
+          "frontend/src/components/PublicPostCard.tsx"
+        ]
       }
     ]
   },
   "changedFiles": [
     "backend/main.mo",
+    "backend/migration.mo",
     "build-request.json",
     "feature_evidence.json",
     "frontend-file-summaries.txt",
     "frontend-implementation-plan.json",
+    "frontend/public/assets/generated/veil-bg.dim_1440x900.png",
+    "frontend/public/assets/generated/veil-logo.dim_256x256.png",
+    "frontend/src/backend.d.ts",
+    "frontend/src/backend.ts",
+    "frontend/src/components/AdminDashboard.tsx",
+    "frontend/src/components/AdminFlaggedPosts.tsx",
+    "frontend/src/components/AdminPublicPostsList.tsx",
+    "frontend/src/components/AdminUserManagement.tsx",
+    "frontend/src/components/AdminUserPostHistory.tsx",
+    "frontend/src/components/PostCard.tsx",
+    "frontend/src/components/PublicPostCard.tsx",
+    "frontend/src/declarations/backend.did.d.ts",
+    "frontend/src/declarations/backend.did.js",
+    "frontend/src/hooks/useQueries.ts",
+    "frontend/src/pages/PostCreationPage.tsx",
     "frontend/src/pages/SignupPage.tsx",
     "project_state.json",
     "scratch/component-selection.json",

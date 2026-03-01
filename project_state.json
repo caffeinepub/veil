@@ -1,37 +1,144 @@
 {
   "schemaVersion": "1.0.0",
   "projectStateVersion": 3,
-  "summary": "App with user authentication and account creation flow. Fixing signup flow to ensure valid principal exists before account creation.",
+  "summary": "VEIL is a private, invite-only emotional reflection platform (MVP). Users can register (invite-only, max 100 seats), login, and create emotional posts in lanes (Happy/Confess/Broke) with public/private toggle. Features include witnessing-based reactions, commenting on public posts, a flagging system, admin dashboard, and Emotional Stability Protocol logic. Built with Next.js frontend, Node.js/Express or Next.js API routes, JWT auth, bcrypt, and PostgreSQL.",
   "architectural_notes": [
-    "Account creation must only occur after a valid, non-anonymous principal is obtained from authentication",
-    "Guard condition required: validate principal before calling backend createUser() or converting to blob"
+    "Frontend: Next.js (React), calm minimal UI, no gamification visuals, no bright notification colors",
+    "Backend: Node.js/Express or Next.js API routes, RESTful, JWT auth, bcrypt password hashing",
+    "Database: PostgreSQL (preferred) or MongoDB; indexed on userId, postType, visibility, createdAt",
+    "Hosting: Vercel (frontend), Railway/Render/Supabase (backend + DB)",
+    "Identity/auth: principal validation must occur before any backend call to prevent blob_of_principal errors",
+    "Authentication flow: Initialize identity → validate principal → then create user/session → then allow posting"
   ],
   "known_issues": [
-    "RTS error: blob_of_principal: invalid principal — triggered when Create Account button is clicked before authentication completes"
+    "Repeated build failures observed; AI struggled with large monolithic build requests — may need incremental approach"
   ],
-  "isFixRequest": true,
+  "isFixRequest": false,
+  "imageRequirements": "## Required Images\n- Minimal abstract logo mark for VEIL — a thin translucent veil or gauze texture forming a subtle 'V' silhouette on a dark muted background (veil-logo.dim_256x256.png)\n- Calm dark textured background with very subtle noise grain and muted warm-grey tones, suitable as a full-page app backdrop (veil-bg.dim_1440x900.png)",
   "existing_features": [
     {
-      "id": "feature-in-signuppage-tsx-before-calling-the-backend-createuser-function-add-a-guard-that-checks-whether-the-authenticated-identity-principal-is-available-and-is-not-anonymous-if-the-principal-is-missing-or-anonymous-display-an-error-message-authentication-required-please-log-in-before-creating-an-account-and-abort-the-account-creation-flow-entirely",
-      "title": "In SignupPage.tsx, before calling the backend createUser() function, add a guard that checks whether the authenticated identity/principal is available and is not anonymous. If the principal is missing or anonymous, display an error message ('Authentication required. Please log in before creating an account.') and abort the account creation flow entirely.",
+      "id": "feature-implement-witnessing-based-reactions-on-public-posts-supported-reaction-types-support-care-strength-reactions-are-non-metric-display-them-as-witnessing-gestures-not-counts-a-user-cannot-react-to-their-own-post-each-user-can-only-apply-each-reaction-type-once-per-post",
+      "title": "Implement witnessing-based reactions on public posts. Supported reaction types: Support, Care, Strength. Reactions are non-metric — display them as witnessing gestures, not counts. A user cannot react to their own post. Each user can only apply each reaction type once per post.",
       "reqIds": [
-        "REQ-1"
+        "REQ-4"
       ],
       "version": 1
     },
     {
-      "id": "feature-in-signuppage-tsx-ensure-the-create-account-button-is-disabled-and-visually-reflects-this-when-the-authenticated-identity-has-not-yet-fully-initialized-or-when-the-principal-is-anonymous-the-button-should-only-become-enabled-once-a-valid-non-anonymous-principal-is-confirmed-to-be-available",
-      "title": "In SignupPage.tsx, ensure the Create Account button is disabled (and visually reflects this) when the authenticated identity has not yet fully initialized or when the principal is anonymous. The button should only become enabled once a valid non-anonymous principal is confirmed to be available.",
+      "id": "feature-implement-commenting-on-public-posts-only-comments-are-tied-to-a-postid-and-authorprincipal-private-posts-must-not-allow-or-display-comments-store-comments-with-commentid-postid-authorprincipal-content-and-createdat",
+      "title": "Implement commenting on public posts only. Comments are tied to a postId and authorPrincipal. Private posts must not allow or display comments. Store comments with commentId, postId, authorPrincipal, content, and createdAt.",
       "reqIds": [
-        "REQ-2"
+        "REQ-5"
+      ],
+      "version": 1
+    },
+    {
+      "id": "feature-implement-a-flagging-system-allowing-authenticated-users-to-flag-any-post-for-review-store-flags-with-flagid-postid-reporterprincipal-reason-and-createdat-flagged-posts-should-be-surfaced-in-the-admin-dashboard-for-review",
+      "title": "Implement a flagging system allowing authenticated users to flag any post for review. Store flags with flagId, postId, reporterPrincipal, reason, and createdAt. Flagged posts should be surfaced in the admin dashboard for review.",
+      "reqIds": [
+        "REQ-6"
+      ],
+      "version": 1
+    },
+    {
+      "id": "feature-implement-an-admin-dashboard-accessible-only-to-designated-admin-principals-the-dashboard-must-include-1-a-list-of-all-public-posts-with-delete-capability-2-member-management-with-suspend-unsuspend-and-subscription-status-controls-3-invite-code-management-create-revoke-copy-4-per-user-post-history-with-delete-capability-5-flagged-posts-review-queue-6-current-seat-count-display",
+      "title": "Implement an admin dashboard accessible only to designated admin principals. The dashboard must include: (1) a list of all public posts with delete capability, (2) member management with suspend/unsuspend and subscription status controls, (3) invite code management (create, revoke, copy), (4) per-user post history with delete capability, (5) flagged posts review queue, (6) current seat count display.",
+      "reqIds": [
+        "REQ-7"
+      ],
+      "version": 1
+    },
+    {
+      "id": "feature-implement-emotional-stability-protocol-esp-logic-if-a-user-posts-in-the-broke-lane-more-than-3-times-within-a-7-day-window-automatically-flag-their-account-for-admin-review-and-display-a-supportive-non-alarmist-message-to-the-user-suggesting-they-take-a-pause-the-protocol-must-not-expose-metrics-to-the-user-only-surface-the-supportive-message",
+      "title": "Implement Emotional Stability Protocol (ESP) logic. If a user posts in the 'Broke' lane more than 3 times within a 7-day window, automatically flag their account for admin review and display a supportive, non-alarmist message to the user suggesting they take a pause. The protocol must not expose metrics to the user — only surface the supportive message.",
+      "reqIds": [
+        "REQ-8"
+      ],
+      "version": 1
+    },
+    {
+      "id": "feature-build-all-frontend-pages-and-ui-flows-for-veil-welcome-landing-screen-login-screen-internet-identity-signup-registration-screen-invite-code-pseudonym-region-dashboard-with-emotion-lane-navigation-buttons-happy-confess-broke-post-creation-page-with-visibility-toggle-and-word-count-validation-my-posts-page-community-feed-page-public-posts-only-and-admin-dashboard-page-apply-a-calm-minimal-visual-theme-muted-neutral-palette-clean-typography-no-gamification-visuals-no-bright-notification-colors-no-follower-counts-no-metric-displays",
+      "title": "Build all frontend pages and UI flows for VEIL: Welcome/Landing screen, Login screen (Internet Identity), Signup/Registration screen (invite code + pseudonym + region), Dashboard with emotion-lane navigation buttons (Happy / Confess / Broke), Post Creation page with visibility toggle and word-count validation, My Posts page, Community Feed page (public posts only), and Admin Dashboard page. Apply a calm, minimal visual theme: muted neutral palette, clean typography, no gamification visuals, no bright notification colors, no follower counts, no metric displays.",
+      "reqIds": [
+        "REQ-9"
       ],
       "version": 1
     }
   ],
   "new_feature_requests": [
     {
+      "id": "AR-1",
+      "summary": "User Registration (invite-only, max 100 seats)",
+      "reqIds": [],
+      "status": "pending"
+    },
+    {
+      "id": "AR-2",
+      "summary": "Login / Authentication with JWT and bcrypt",
+      "reqIds": [],
+      "status": "pending"
+    },
+    {
       "id": "AR-3",
-      "summary": "In the backend main.mo createUser() function, add a guard at the entry point to validate that caller is not the anonymous principal (Principal.isAnonymous(caller)). If caller is anonymous, return an error variant instead of attempting to convert the principal to blob or create the user record.",
+      "summary": "Create Emotional Posts with lanes (Happy/Confess/Broke) and public/private toggle",
+      "reqIds": [],
+      "status": "pending"
+    },
+    {
+      "id": "AR-4",
+      "summary": "Witnessing-based reactions (non-metric)",
+      "reqIds": [],
+      "status": "pending"
+    },
+    {
+      "id": "AR-5",
+      "summary": "Commenting on public posts only",
+      "reqIds": [],
+      "status": "pending"
+    },
+    {
+      "id": "AR-6",
+      "summary": "Flagging system for posts",
+      "reqIds": [],
+      "status": "pending"
+    },
+    {
+      "id": "AR-7",
+      "summary": "Admin Dashboard",
+      "reqIds": [],
+      "status": "pending"
+    },
+    {
+      "id": "AR-8",
+      "summary": "Emotional Stability Protocol logic",
+      "reqIds": [],
+      "status": "pending"
+    },
+    {
+      "id": "AR-9",
+      "summary": "Seat counter enforcing max 100 users",
+      "reqIds": [],
+      "status": "pending"
+    },
+    {
+      "id": "AR-10",
+      "summary": "Implement invite-only user registration on the backend. Store invite codes in stable state. Enforce a maximum of 100 registered users (seat counter). Registration requires a valid unused invite code, a pseudonym, and a region. On success, mark the invite code as used and create the user record keyed by their authenticated principal.",
+      "reqIds": [
+        "REQ-1"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "AR-11",
+      "summary": "Implement Internet Identity-based login and session management. On login, validate the authenticated principal is not anonymous, check whether a user profile exists, and route to either the dashboard (existing user) or signup (new user). Guard all protected backend calls so anonymous principals are rejected.",
+      "reqIds": [
+        "REQ-2"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "AR-12",
+      "summary": "Implement emotional post creation with three emotion lanes: Happy, Confess, and Broke. Each post must have a visibility toggle (Public / Private). Posts require a minimum of 24 words. Store posts with fields: postId, authorPrincipal, emotionType, content, visibility, createdAt. Block post creation for unauthenticated or anonymous users.",
       "reqIds": [
         "REQ-3"
       ],
@@ -39,7 +146,7 @@
     }
   ],
   "gameProjectType": "none",
-  "projectName": "Fix signup flow to guard against invalid/anonymous principal before account creation",
+  "projectName": "VEIL",
   "clarification_mode": "instant",
   "clarification_rounds": 0
 }

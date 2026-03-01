@@ -2,10 +2,11 @@
   "kind": "feature_evidence_report",
   "features": [
     {
-      "featureId": "feature-in-signuppage-tsx-before-calling-the-backend-createuser-function-add-a-guard-that-checks-whether-the-authenticated-identity-principal-is-available-and-is-not-anonymous-if-the-principal-is-missing-or-anonymous-display-an-error-message-authentication-required-please-log-in-before-creating-an-account-and-abort-the-account-creation-flow-entirely",
-      "featureTitle": "In SignupPage.tsx, before calling the backend createUser() function, add a guard that checks whether the authenticated identity/principal is available and is not anonymous. If the principal is missing or anonymous, display an error message ('Authentication required. Please log in before creating an account.') and abort the account creation flow entirely.",
+      "featureId": "feature-implement-witnessing-based-reactions-on-public-posts-supported-reaction-types-support-care-strength-reactions-are-non-metric-display-them-as-witnessing-gestures-not-counts-a-user-cannot-react-to-their-own-post-each-user-can-only-apply-each-reaction-type-once-per-post",
+      "featureTitle": "Implement witnessing-based reactions on public posts. Supported reaction types: Support, Care, Strength. Reactions are non-metric — display them as witnessing gestures, not counts. A user cannot react to their own post. Each user can only apply each reaction type once per post.",
       "files": [
-        "frontend/src/pages/SignupPage.tsx"
+        "frontend/src/components/PublicPostCard.tsx",
+        "frontend/src/hooks/useQueries.ts"
       ],
       "components": [
         "authorization@4.0.0",
@@ -17,14 +18,104 @@
         "github-export-icp-cli@1.0.0"
       ],
       "testIds": [
-        "REQ-1"
+        "REQ-4"
       ],
       "confidence": "high"
     },
     {
-      "featureId": "feature-in-signuppage-tsx-ensure-the-create-account-button-is-disabled-and-visually-reflects-this-when-the-authenticated-identity-has-not-yet-fully-initialized-or-when-the-principal-is-anonymous-the-button-should-only-become-enabled-once-a-valid-non-anonymous-principal-is-confirmed-to-be-available",
-      "featureTitle": "In SignupPage.tsx, ensure the Create Account button is disabled (and visually reflects this) when the authenticated identity has not yet fully initialized or when the principal is anonymous. The button should only become enabled once a valid non-anonymous principal is confirmed to be available.",
+      "featureId": "feature-implement-commenting-on-public-posts-only-comments-are-tied-to-a-postid-and-authorprincipal-private-posts-must-not-allow-or-display-comments-store-comments-with-commentid-postid-authorprincipal-content-and-createdat",
+      "featureTitle": "Implement commenting on public posts only. Comments are tied to a postId and authorPrincipal. Private posts must not allow or display comments. Store comments with commentId, postId, authorPrincipal, content, and createdAt.",
       "files": [
+        "frontend/src/components/PostCard.tsx",
+        "frontend/src/components/PublicPostCard.tsx",
+        "frontend/src/hooks/useQueries.ts"
+      ],
+      "components": [
+        "authorization@4.0.0",
+        "invite-links@3.0.0",
+        "core-infrastructure@1.0.2",
+        "shadcn-ui@1.0.0",
+        "build-template-react@1.0.0",
+        "initial-app@1.0.0",
+        "github-export-icp-cli@1.0.0"
+      ],
+      "testIds": [
+        "REQ-5"
+      ],
+      "confidence": "high"
+    },
+    {
+      "featureId": "feature-implement-a-flagging-system-allowing-authenticated-users-to-flag-any-post-for-review-store-flags-with-flagid-postid-reporterprincipal-reason-and-createdat-flagged-posts-should-be-surfaced-in-the-admin-dashboard-for-review",
+      "featureTitle": "Implement a flagging system allowing authenticated users to flag any post for review. Store flags with flagId, postId, reporterPrincipal, reason, and createdAt. Flagged posts should be surfaced in the admin dashboard for review.",
+      "files": [
+        "frontend/src/components/AdminDashboard.tsx",
+        "frontend/src/components/PublicPostCard.tsx",
+        "frontend/src/hooks/useQueries.ts"
+      ],
+      "components": [
+        "authorization@4.0.0",
+        "invite-links@3.0.0",
+        "core-infrastructure@1.0.2",
+        "shadcn-ui@1.0.0",
+        "build-template-react@1.0.0",
+        "initial-app@1.0.0",
+        "github-export-icp-cli@1.0.0"
+      ],
+      "testIds": [
+        "REQ-6"
+      ],
+      "confidence": "high"
+    },
+    {
+      "featureId": "feature-implement-an-admin-dashboard-accessible-only-to-designated-admin-principals-the-dashboard-must-include-1-a-list-of-all-public-posts-with-delete-capability-2-member-management-with-suspend-unsuspend-and-subscription-status-controls-3-invite-code-management-create-revoke-copy-4-per-user-post-history-with-delete-capability-5-flagged-posts-review-queue-6-current-seat-count-display",
+      "featureTitle": "Implement an admin dashboard accessible only to designated admin principals. The dashboard must include: (1) a list of all public posts with delete capability, (2) member management with suspend/unsuspend and subscription status controls, (3) invite code management (create, revoke, copy), (4) per-user post history with delete capability, (5) flagged posts review queue, (6) current seat count display.",
+      "files": [
+        "frontend/src/components/AdminDashboard.tsx",
+        "frontend/src/hooks/useQueries.ts"
+      ],
+      "components": [
+        "authorization@4.0.0",
+        "invite-links@3.0.0",
+        "core-infrastructure@1.0.2",
+        "shadcn-ui@1.0.0",
+        "build-template-react@1.0.0",
+        "initial-app@1.0.0",
+        "github-export-icp-cli@1.0.0"
+      ],
+      "testIds": [
+        "REQ-7"
+      ],
+      "confidence": "high"
+    },
+    {
+      "featureId": "feature-implement-emotional-stability-protocol-esp-logic-if-a-user-posts-in-the-broke-lane-more-than-3-times-within-a-7-day-window-automatically-flag-their-account-for-admin-review-and-display-a-supportive-non-alarmist-message-to-the-user-suggesting-they-take-a-pause-the-protocol-must-not-expose-metrics-to-the-user-only-surface-the-supportive-message",
+      "featureTitle": "Implement Emotional Stability Protocol (ESP) logic. If a user posts in the 'Broke' lane more than 3 times within a 7-day window, automatically flag their account for admin review and display a supportive, non-alarmist message to the user suggesting they take a pause. The protocol must not expose metrics to the user — only surface the supportive message.",
+      "files": [
+        "frontend/src/components/AdminDashboard.tsx",
+        "frontend/src/hooks/useQueries.ts",
+        "frontend/src/pages/PostCreationPage.tsx"
+      ],
+      "components": [
+        "authorization@4.0.0",
+        "invite-links@3.0.0",
+        "core-infrastructure@1.0.2",
+        "shadcn-ui@1.0.0",
+        "build-template-react@1.0.0",
+        "initial-app@1.0.0",
+        "github-export-icp-cli@1.0.0"
+      ],
+      "testIds": [
+        "REQ-8"
+      ],
+      "confidence": "high"
+    },
+    {
+      "featureId": "feature-build-all-frontend-pages-and-ui-flows-for-veil-welcome-landing-screen-login-screen-internet-identity-signup-registration-screen-invite-code-pseudonym-region-dashboard-with-emotion-lane-navigation-buttons-happy-confess-broke-post-creation-page-with-visibility-toggle-and-word-count-validation-my-posts-page-community-feed-page-public-posts-only-and-admin-dashboard-page-apply-a-calm-minimal-visual-theme-muted-neutral-palette-clean-typography-no-gamification-visuals-no-bright-notification-colors-no-follower-counts-no-metric-displays",
+      "featureTitle": "Build all frontend pages and UI flows for VEIL: Welcome/Landing screen, Login screen (Internet Identity), Signup/Registration screen (invite code + pseudonym + region), Dashboard with emotion-lane navigation buttons (Happy / Confess / Broke), Post Creation page with visibility toggle and word-count validation, My Posts page, Community Feed page (public posts only), and Admin Dashboard page. Apply a calm, minimal visual theme: muted neutral palette, clean typography, no gamification visuals, no bright notification colors, no follower counts, no metric displays.",
+      "files": [
+        "frontend/src/components/PostCard.tsx",
+        "frontend/src/components/PublicPostCard.tsx",
+        "frontend/src/pages/PostCreationPage.tsx",
         "frontend/src/pages/SignupPage.tsx"
       ],
       "components": [
@@ -37,7 +128,7 @@
         "github-export-icp-cli@1.0.0"
       ],
       "testIds": [
-        "REQ-2"
+        "REQ-9"
       ],
       "confidence": "high"
     }

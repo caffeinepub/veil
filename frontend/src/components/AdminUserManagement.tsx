@@ -89,7 +89,6 @@ export default function AdminUserManagement() {
                 <div className="text-xs text-muted-foreground space-y-1">
                   <p>Region: {user.region}</p>
                   <p>Joined: {new Date(Number(user.createdAt / BigInt(1_000_000))).toLocaleDateString()}</p>
-                  <p>Invite code: {user.inviteCode}</p>
                 </div>
 
                 {/* Suspend/Unsuspend */}

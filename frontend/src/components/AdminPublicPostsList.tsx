@@ -49,21 +49,28 @@ export default function AdminPublicPostsList() {
     return (
       <div className="flex flex-col items-center justify-center py-12 gap-2 text-center">
         <FileText size={32} className="text-muted-foreground/40" />
-        <p className="text-sm text-muted-foreground">No public posts yet.</p>
+        <p className="text-sm text-muted-foreground">No posts yet.</p>
       </div>
     );
   }
 
   return (
     <div className="space-y-3">
-      <p className="text-sm text-muted-foreground">{sortedPosts.length} public post{sortedPosts.length !== 1 ? 's' : ''}</p>
+      <p className="text-sm text-muted-foreground">{sortedPosts.length} post{sortedPosts.length !== 1 ? 's' : ''}</p>
       {sortedPosts.map((post: Post) => (
         <div key={post.id} className="veil-card space-y-2">
           <div className="flex items-start justify-between gap-2">
             <div className="flex items-center gap-2 flex-wrap">
               <EmotionBadge emotion={post.emotionType as EmotionType} />
+              <span className={`text-xs px-2 py-0.5 rounded-full border ${
+                post.isPrivate
+                  ? 'bg-muted/50 text-muted-foreground border-border'
+                  : 'bg-primary/10 text-primary border-primary/30'
+              }`}>
+                {post.isPrivate ? 'Private' : 'Public'}
+              </span>
               <span className="text-xs text-muted-foreground font-mono">
-                {post.userId.toString().slice(0, 12)}…
+                {post.author.toString().slice(0, 12)}…
               </span>
             </div>
             <span className="text-xs text-muted-foreground shrink-0">
@@ -73,11 +80,7 @@ export default function AdminPublicPostsList() {
 
           <p className="text-sm text-foreground leading-relaxed line-clamp-3">{post.content}</p>
 
-          <div className="flex items-center justify-between">
-            <span className="text-xs text-muted-foreground">
-              {Number(post.reactionCount)} reaction{Number(post.reactionCount) !== 1 ? 's' : ''}
-            </span>
-
+          <div className="flex items-center justify-end">
             <AlertDialog>
               <AlertDialogTrigger asChild>
                 <Button size="sm" variant="ghost" disabled={deletePost.isPending} className="text-muted-foreground hover:text-foreground">
