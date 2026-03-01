@@ -1,8 +1,8 @@
 import { useState } from 'react';
-import { EmotionType, ReactionType, type Post } from '../backend';
+import { EmotionType, type Post } from '../backend';
 import {
-  useGetReactionsForPost,
-  useAddReaction,
+  useTextReactionsForPost,
+  useAddTextReaction,
   useGetCommentsForPost,
   useAddComment,
   useFlagPost,
@@ -25,16 +25,31 @@ interface PublicPostCardProps {
   post: Post;
 }
 
-const reactionConfig = [
-  { type: ReactionType.support, emoji: '🤝', label: 'Support' },
-  { type: ReactionType.care, emoji: '💙', label: 'Care' },
-  { type: ReactionType.strength, emoji: '💪', label: 'Strength' },
-];
+const REACTION_OPTIONS: Record<EmotionType, string[]> = {
+  [EmotionType.happy]: [
+    "I'm smiling with you.",
+    "This is beautiful.",
+    "You deserve this.",
+    "So happy for you.",
+  ],
+  [EmotionType.confess]: [
+    "I see you.",
+    "That took courage.",
+    "You're not alone in this.",
+    "Thank you for sharing this.",
+  ],
+  [EmotionType.broke]: [
+    "I'm holding space for you.",
+    "You don't have to carry this alone.",
+    "This sounds heavy.",
+    "Stay. We're here.",
+  ],
+};
 
 export default function PublicPostCard({ post }: PublicPostCardProps) {
   const { identity } = useInternetIdentity();
-  const { data: reactions, isLoading: reactionsLoading } = useGetReactionsForPost(post.id);
-  const addReaction = useAddReaction();
+  const { data: textReactions, isLoading: reactionsLoading } = useTextReactionsForPost(post.id);
+  const addTextReaction = useAddTextReaction();
 
   const { data: comments, isLoading: commentsLoading } = useGetCommentsForPost(post.id);
   const addComment = useAddComment();
@@ -52,16 +67,20 @@ export default function PublicPostCard({ post }: PublicPostCardProps) {
   const currentUserId = identity?.getPrincipal().toString();
   const isOwner = currentUserId === post.author.toString();
 
-  // Determine if current user has already reacted and which type
-  const myReaction = reactions?.find(r => r.author.toString() === currentUserId)?.reactionType ?? null;
+  // Determine if current user has already reacted and which text they chose
+  const myReaction = textReactions?.find(
+    r => r.userId.toString() === currentUserId
+  ) ?? null;
   const hasReacted = myReaction !== null;
+
+  const reactionOptions = REACTION_OPTIONS[post.emotionType as EmotionType] ?? REACTION_OPTIONS[EmotionType.confess];
 
   const createdAt = new Date(Number(post.createdAt / BigInt(1_000_000)));
 
-  const handleReaction = async (reactionType: ReactionType) => {
-    if (isOwner || hasReacted || addReaction.isPending) return;
+  const handleReaction = async (reactionText: string) => {
+    if (isOwner || hasReacted || addTextReaction.isPending) return;
     try {
-      await addReaction.mutateAsync({ postId: post.id, reactionType });
+      await addTextReaction.mutateAsync({ postId: post.id, reactionText });
     } catch {
       // Silently handle — user may have already reacted
     }
@@ -112,45 +131,56 @@ export default function PublicPostCard({ post }: PublicPostCardProps) {
       {/* Content */}
       <p className="text-sm text-foreground leading-relaxed whitespace-pre-wrap">{post.content}</p>
 
-      {/* Witnessing reactions — no numeric counts shown */}
-      <div className="flex items-center gap-2 pt-1 flex-wrap">
-        <span className="text-xs text-muted-foreground mr-1 italic">Witness:</span>
-        {reactionConfig.map(r => {
-          const isActive = myReaction === r.type;
-          const isDisabled = isOwner || hasReacted || addReaction.isPending || reactionsLoading;
+      {/* Text reactions — emotion-type specific, no counts */}
+      {!isOwner && (
+        <div className="pt-1 space-y-1.5">
+          {reactionsLoading ? (
+            <div className="flex items-center gap-1.5 py-1">
+              <Loader2 size={12} className="animate-spin text-muted-foreground" />
+              <span className="text-xs text-muted-foreground italic">Loading…</span>
+            </div>
+          ) : (
+            <div className="flex flex-wrap gap-2">
+              {reactionOptions.map(text => {
+                const isSelected = myReaction?.reactionText === text;
+                const isDisabled = hasReacted || addTextReaction.isPending;
 
-          return (
-            <button
-              key={r.type}
-              onClick={() => handleReaction(r.type)}
-              disabled={isDisabled}
-              title={
-                isOwner
-                  ? 'You cannot witness your own post'
-                  : hasReacted
-                  ? "You've already offered your witness"
-                  : r.label
-              }
-              className={`
-                flex items-center gap-1 px-2.5 py-1 rounded-full border text-xs transition-all
-                ${isActive
-                  ? 'bg-primary/15 border-primary/40 text-primary font-medium'
-                  : isDisabled
-                  ? 'bg-muted/30 border-border text-muted-foreground cursor-not-allowed opacity-60'
-                  : 'bg-background border-border text-muted-foreground hover:border-primary/40 hover:text-foreground cursor-pointer'
-                }
-              `}
-            >
-              {addReaction.isPending && !isActive ? (
-                <Loader2 size={10} className="animate-spin" />
-              ) : (
-                <span>{r.emoji}</span>
-              )}
-              <span>{r.label}</span>
-            </button>
-          );
-        })}
-      </div>
+                return (
+                  <button
+                    key={text}
+                    onClick={() => handleReaction(text)}
+                    disabled={isDisabled}
+                    title={
+                      hasReacted && !isSelected
+                        ? "You've already responded to this post"
+                        : text
+                    }
+                    className={[
+                      'px-3 py-1.5 rounded-md border text-xs transition-all text-left',
+                      isSelected
+                        ? 'bg-primary/10 border-primary/30 text-primary font-medium cursor-default'
+                        : hasReacted
+                        ? 'bg-muted/20 border-border/40 text-muted-foreground/40 cursor-not-allowed'
+                        : addTextReaction.isPending
+                        ? 'bg-muted/20 border-border/40 text-muted-foreground cursor-wait'
+                        : 'bg-background border-border/60 text-muted-foreground hover:border-primary/30 hover:text-foreground hover:bg-muted/30 cursor-pointer',
+                    ].join(' ')}
+                  >
+                    {addTextReaction.isPending && !hasReacted ? (
+                      <span className="flex items-center gap-1.5">
+                        <Loader2 size={10} className="animate-spin shrink-0" />
+                        {text}
+                      </span>
+                    ) : (
+                      text
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Comment & Flag actions */}
       <div className="flex items-center gap-2 pt-1 border-t border-border/50">

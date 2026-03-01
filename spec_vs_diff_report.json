@@ -1,16 +1,61 @@
 {
   "kind": "spec_vs_diff_report",
   "version": "1.0",
-  "generatedAt": "2026-03-01T23:19:37.022Z",
-  "summary": "All four requirements appear to be implemented. The diff shows: EMOTION_GUIDANCE constants with exact required strings, per-mode tonal CSS tokens (happy/confess/broke bg/text/accent), EMOTION_GUIDANCE_STYLES and EMOTION_FORM_STYLES applied in PostCreationPage, and a safety footer described as appearing only when BROKE + PUBLIC. The guidance text strings match exactly as specified. No hallucinated features detected beyond the scope of the requirements.",
-  "missing_requirements": [],
-  "hallucinated_features": [],
-  "confidence": 0.87,
+  "generatedAt": "2026-03-01T23:35:43.037Z",
+  "summary": "The diff implements a text-based reaction system across backend and frontend. However, the hook names in useQueries.ts diverge from the required names in REQ-2, and the backend exposes functions under different names than specified in REQ-1. REQ-3 appears largely implemented in PublicPostCard.tsx. Several naming discrepancies exist between the spec and the implementation.",
+  "missing_requirements": [
+    {
+      "id": "REQ-1",
+      "requirement": "Expose `addReaction(postId: Text, reactionText: Text)` and `getReactionsForPost(postId: Text)` as the public backend function names.",
+      "reason": "The backend diff shows a `textReactions` map and a `TextReaction` type, and frontend-file-summaries.txt confirms the implemented functions are named `addTextReaction` and `getTextReactionsForPost`, not `addReaction` and `getReactionsForPost` as required.",
+      "evidence": [
+        "backend/main.mo",
+        "frontend-file-summaries.txt",
+        "frontend/src/hooks/useQueries.ts"
+      ]
+    },
+    {
+      "id": "REQ-1",
+      "requirement": "The reactions stable table must be named `reactions` per the spec.",
+      "reason": "The backend implements the table as `textReactions` (Map.empty<Text, TextReaction>()) rather than `reactions` as specified. The type is also named `TextReaction` instead of `Reaction` with the required fields.",
+      "evidence": [
+        "backend/main.mo"
+      ]
+    },
+    {
+      "id": "REQ-2",
+      "requirement": "Add hooks named `useAddReaction` (mutation) and `usePostReactions` (query) in frontend/src/hooks/useQueries.ts.",
+      "reason": "The frontend-file-summaries.txt explicitly states the hooks were implemented as `useTextReactionsForPost` and `useAddTextReaction`, not `useAddReaction` and `usePostReactions` as required by REQ-2.",
+      "evidence": [
+        "frontend/src/hooks/useQueries.ts",
+        "frontend-file-summaries.txt"
+      ]
+    }
+  ],
+  "hallucinated_features": [
+    {
+      "description": "A separate legacy `Reaction` type and `reactions` map using emoji/type-based reactions are retained alongside the new `TextReaction` type and `textReactions` map, resulting in two parallel reaction systems in the backend.",
+      "reason": "The spec only requested a single reactions stable table with the TextReaction schema. The diff retains the old `Reaction` type with `reactionType: ReactionType` and a separate `reactions` map, which was not requested.",
+      "evidence": [
+        "backend/main.mo"
+      ]
+    },
+    {
+      "description": "Hook names `useTextReactionsForPost` and `useAddTextReaction` and backend function names `getTextReactionsForPost` and `addTextReaction` were introduced instead of the names specified in the build request.",
+      "reason": "The build request specifies exact names: `useAddReaction`, `usePostReactions`, `addReaction`, and `getReactionsForPost`. The implementation uses different names throughout without any stated justification.",
+      "evidence": [
+        "frontend/src/hooks/useQueries.ts",
+        "frontend/src/components/PublicPostCard.tsx",
+        "frontend-file-summaries.txt"
+      ]
+    }
+  ],
+  "confidence": 0.78,
   "changed_files": [
+    "backend/main.mo",
     "frontend-file-summaries.txt",
-    "frontend/src/index.css",
-    "frontend/src/pages/PostCreationPage.tsx",
-    "frontend/tailwind.config.js",
+    "frontend/src/components/PublicPostCard.tsx",
+    "frontend/src/hooks/useQueries.ts",
     "project_state.json"
   ]
 }

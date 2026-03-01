@@ -7,6 +7,13 @@ export interface None {
     __kind__: "None";
 }
 export type Option<T> = Some<T> | None;
+export interface Reaction {
+    id: string;
+    createdAt: Time;
+    author: Principal;
+    reactionType: ReactionType;
+    postId: string;
+}
 export type Time = bigint;
 export interface Flag {
     id: string;
@@ -74,6 +81,13 @@ export interface Post {
     updatedAt: Time;
     visibility: Visibility;
 }
+export interface TextReaction {
+    id: string;
+    userId: Principal;
+    createdAt: Time;
+    reactionText: string;
+    postId: string;
+}
 export interface UserProfile {
     region: Region;
     pseudonym: string;
@@ -81,13 +95,6 @@ export interface UserProfile {
     suspended: boolean;
     hasAcknowledgedEntryMessage: boolean;
     hasAcknowledgedPublicPostMessage: boolean;
-}
-export interface Reaction {
-    id: string;
-    createdAt: Time;
-    author: Principal;
-    reactionType: ReactionType;
-    postId: string;
 }
 export enum EmotionType {
     confess = "confess",
@@ -134,6 +141,7 @@ export interface backendInterface {
     acknowledgePublicPostMessage(): Promise<void>;
     addComment(postId: string, content: string): Promise<string>;
     addReaction(postId: string, reactionType: ReactionType): Promise<string>;
+    addTextReaction(postId: string, reactionText: string): Promise<string>;
     adminClearESPFlag(userId: Principal): Promise<void>;
     adminDeletePost(postId: string): Promise<void>;
     adminGetAllPosts(): Promise<Array<Post>>;
@@ -159,6 +167,7 @@ export interface backendInterface {
     getPublicPosts(): Promise<Array<Post>>;
     getReactionsForPost(postId: string): Promise<Array<Reaction>>;
     getSeatInfo(): Promise<SeatInfo>;
+    getTextReactionsForPost(postId: string): Promise<Array<TextReaction>>;
     getUserProfile(userId: Principal): Promise<UserProfile | null>;
     isCallerAdmin(): Promise<boolean>;
     register(pseudonym: string, region: Region, inviteCode: string): Promise<Result_1>;

@@ -72,6 +72,13 @@ export interface SeatInfo { 'maxSeats' : bigint, 'currentSeats' : bigint }
 export type SubscriptionStatus = { 'active' : null } |
   { 'expired' : null } |
   { 'grace' : null };
+export interface TextReaction {
+  'id' : string,
+  'userId' : Principal,
+  'createdAt' : Time,
+  'reactionText' : string,
+  'postId' : string,
+}
 export type Time = bigint;
 export interface User {
   'id' : Principal,
@@ -103,6 +110,7 @@ export interface _SERVICE {
   'acknowledgePublicPostMessage' : ActorMethod<[], undefined>,
   'addComment' : ActorMethod<[string, string], string>,
   'addReaction' : ActorMethod<[string, ReactionType], string>,
+  'addTextReaction' : ActorMethod<[string, string], string>,
   'adminClearESPFlag' : ActorMethod<[Principal], undefined>,
   'adminDeletePost' : ActorMethod<[string], undefined>,
   'adminGetAllPosts' : ActorMethod<[], Array<Post>>,
@@ -136,6 +144,7 @@ export interface _SERVICE {
   'getPublicPosts' : ActorMethod<[], Array<Post>>,
   'getReactionsForPost' : ActorMethod<[string], Array<Reaction>>,
   'getSeatInfo' : ActorMethod<[], SeatInfo>,
+  'getTextReactionsForPost' : ActorMethod<[string], Array<TextReaction>>,
   'getUserProfile' : ActorMethod<[Principal], [] | [UserProfile]>,
   'isCallerAdmin' : ActorMethod<[], boolean>,
   'register' : ActorMethod<[string, Region, string], Result_1>,

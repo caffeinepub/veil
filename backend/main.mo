@@ -14,8 +14,6 @@ import InviteLinksModule "invite-links/invite-links-module";
 import MixinAuthorization "authorization/MixinAuthorization";
 import AccessControl "authorization/access-control";
 
-
-
 actor {
   let accessControlState = AccessControl.initState();
   let inviteState = InviteLinksModule.initState();
@@ -24,6 +22,7 @@ actor {
   let users = Map.empty<Principal, User>();
   let posts = Map.empty<Text, Post>();
   let reactions = Map.empty<Text, Reaction>();
+  let textReactions = Map.empty<Text, TextReaction>();
   let comments = Map.empty<Text, Comment>();
   let flags = Map.empty<Text, Flag>();
   let inviteCodes = Map.empty<Text, InviteCode>();
@@ -84,6 +83,14 @@ actor {
     postId : Text;
     author : Principal;
     reactionType : ReactionType;
+    createdAt : Time.Time;
+  };
+
+  public type TextReaction = {
+    id : Text;
+    postId : Text;
+    userId : Principal;
+    reactionText : Text;
     createdAt : Time.Time;
   };
 
@@ -690,6 +697,68 @@ actor {
     };
   };
 
+  public shared ({ caller }) func addTextReaction(postId : Text, reactionText : Text) : async Text {
+    if (caller.isAnonymous()) {
+      Runtime.trap("Anonymous principals cannot add reactions");
+    };
+    requireRegisteredUser(caller);
+
+    switch (posts.get(postId)) {
+      case (?post) {
+        if (post.visibility == #privateView) {
+          Runtime.trap("Cannot react to a private post");
+        };
+        if (post.author == caller) {
+          Runtime.trap("Cannot react to your own post");
+        };
+        if (hasUserReactedWithText(caller, postId)) {
+          Runtime.trap("You have already reacted to this post");
+        };
+
+        let reactionId = await generateUuid();
+        let reaction : TextReaction = {
+          id = reactionId;
+          postId;
+          userId = caller;
+          reactionText;
+          createdAt = Time.now();
+        };
+
+        textReactions.add(reactionId, reaction);
+        reactionId;
+      };
+      case (null) {
+        Runtime.trap("Post does not exist");
+      };
+    };
+  };
+
+  func hasUserReactedWithText(userId : Principal, postId : Text) : Bool {
+    textReactions.values().any(func(r : TextReaction) : Bool {
+      r.postId == postId and r.userId == userId;
+    });
+  };
+
+  public query ({ caller }) func getTextReactionsForPost(postId : Text) : async [TextReaction] {
+    if (caller.isAnonymous()) {
+      Runtime.trap("Anonymous principals cannot view reactions");
+    };
+    requireRegisteredUser(caller);
+    switch (posts.get(postId)) {
+      case (?post) {
+        if (post.visibility == #privateView) {
+          Runtime.trap("Cannot view reactions on a private post");
+        };
+        textReactions.values().filter(func(r : TextReaction) : Bool {
+          r.postId == postId;
+        }).toArray();
+      };
+      case (null) {
+        Runtime.trap("Post does not exist");
+      };
+    };
+  };
+
   public shared ({ caller }) func addComment(postId : Text, content : Text) : async Text {
     if (caller.isAnonymous()) {
       Runtime.trap("Anonymous principals cannot add comments");
@@ -904,4 +973,3 @@ actor {
     };
   };
 };
-

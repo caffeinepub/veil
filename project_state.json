@@ -1,43 +1,27 @@
 {
   "schemaVersion": "1.0.0",
   "projectStateVersion": 3,
-  "summary": "A reflection/journaling app called Veil with three emotional modes (Happy, Confess, Broke) for post creation. Each mode has specific UI guidance text and tonal qualities. Public posts in Broke mode automatically display a subtle safety footer.",
+  "summary": "Building a social app with emotional posting modes (HAPPY, CONFESS, BROKE) and a unified reaction system that uses empathetic text reactions instead of emojis or counts.",
   "architectural_notes": [
-    "Three emotional modes: HAPPY (warm/grounded), CONFESS (gentle/witnessing), BROKE (vulnerable/honest)",
-    "Safety footer must be visually subtle and only appear on PUBLIC + BROKE posts"
+    "Reactions table: id, postId, userId, reactionText, createdAt — one reaction per user per post",
+    "Reactions vary by emotionType (HAPPY/CONFESS/BROKE) with preset empathetic text options; no counts or animations shown publicly"
   ],
   "known_issues": [],
   "isFixRequest": false,
   "existing_features": [
     {
-      "id": "feature-in-the-postcreationpage-when-the-user-selects-the-happy-emotion-mode-display-the-guidance-text-share-something-real-not-something-impressive-the-ui-surrounding-this-guidance-and-the-post-creation-form-should-adopt-a-warm-grounded-quietly-celebratory-tone-achieved-through-soft-warm-color-accents-e-g-amber-golden-hues-gentle-typography-weight-and-calm-spacing",
-      "title": "In the PostCreationPage, when the user selects the HAPPY emotion mode, display the guidance text: \"Share something real, not something impressive.\" The UI surrounding this guidance and the post creation form should adopt a warm, grounded, quietly celebratory tone — achieved through soft warm color accents (e.g., amber/golden hues), gentle typography weight, and calm spacing.",
-      "reqIds": [
-        "REQ-1"
-      ],
-      "version": 1
-    },
-    {
-      "id": "feature-in-the-postcreationpage-when-the-user-selects-the-confess-emotion-mode-display-the-guidance-text-this-space-is-for-release-not-applause-the-ui-should-adopt-a-gentle-human-witnessing-tone-soft-neutral-muted-tones-quiet-typography-no-bright-or-celebratory-accents",
-      "title": "In the PostCreationPage, when the user selects the CONFESS emotion mode, display the guidance text: \"This space is for release, not applause.\" The UI should adopt a gentle, human, witnessing tone — soft neutral/muted tones, quiet typography, no bright or celebratory accents.",
+      "id": "feature-add-react-query-hooks-useaddreaction-mutation-and-usepostreactions-query-in-frontend-src-hooks-usequeries-ts-wired-to-the-new-backend-addreaction-and-getreactionsforpost-functions",
+      "title": "Add React Query hooks `useAddReaction` (mutation) and `usePostReactions` (query) in `frontend/src/hooks/useQueries.ts` wired to the new backend `addReaction` and `getReactionsForPost` functions.",
       "reqIds": [
         "REQ-2"
       ],
       "version": 1
     },
     {
-      "id": "feature-in-the-postcreationpage-when-the-user-selects-the-broke-emotion-mode-display-the-guidance-text-share-what-feels-true-right-now-you-don-t-have-to-explain-everything-the-ui-should-adopt-a-tone-that-is-grounded-and-non-pressuring-subdued-low-contrast-color-treatment-that-feels-safe-and-unhurried",
-      "title": "In the PostCreationPage, when the user selects the BROKE emotion mode, display the guidance text: \"Share what feels true right now. You don't have to explain everything.\" The UI should adopt a tone that is grounded and non-pressuring — subdued, low-contrast color treatment that feels safe and unhurried.",
+      "id": "feature-replace-the-existing-emoji-reaction-ui-in-publicpostcard-tsx-with-emotion-type-specific-text-reaction-buttons-no-emojis-no-counts-no-reaction-numbers-displayed-anywhere-show-only-the-reaction-text-options-as-soft-ui-buttons-the-available-reaction-texts-depend-on-the-post-s-emotiontype-happy-i-m-smiling-with-you-this-is-beautiful-you-deserve-this-so-happy-for-you-confess-i-see-you-that-took-courage-you-re-not-alone-in-this-thank-you-for-sharing-this-broke-i-m-holding-space-for-you-you-don-t-have-to-carry-this-alone-this-sounds-heavy-stay-we-re-here-if-the-current-user-has-already-reacted-to-the-post-show-their-chosen-reaction-text-highlighted-softly-no-count-post-owners-cannot-react-to-their-own-posts",
+      "title": "Replace the existing emoji reaction UI in `PublicPostCard.tsx` with emotion-type-specific text reaction buttons. No emojis, no counts, no reaction numbers displayed anywhere. Show only the reaction text options as soft-UI buttons. The available reaction texts depend on the post's emotionType: HAPPY → ['I'm smiling with you.', 'This is beautiful.', 'You deserve this.', 'So happy for you.']; CONFESS → ['I see you.', 'That took courage.', 'You're not alone in this.', 'Thank you for sharing this.']; BROKE → ['I'm holding space for you.', 'You don't have to carry this alone.', 'This sounds heavy.', 'Stay. We're here.']. If the current user has already reacted to the post, show their chosen reaction text highlighted softly (no count). Post owners cannot react to their own posts.",
       "reqIds": [
         "REQ-3"
-      ],
-      "version": 1
-    },
-    {
-      "id": "feature-in-the-postcreationpage-when-the-selected-emotion-mode-is-broke-and-visibility-is-set-to-public-automatically-display-a-subtle-footer-beneath-the-post-creation-form-with-the-exact-text-veil-is-a-reflection-space-if-you-are-in-immediate-danger-please-contact-local-emergency-services-this-footer-must-be-visually-subtle-small-font-size-muted-low-opacity-text-color-no-bold-or-alarming-styling-it-must-not-appear-for-broke-private-or-for-any-other-emotion-mode-regardless-of-visibility",
-      "title": "In the PostCreationPage, when the selected emotion mode is BROKE and visibility is set to PUBLIC, automatically display a subtle footer beneath the post creation form with the exact text: \"Veil is a reflection space. If you are in immediate danger, please contact local emergency services.\" This footer must be visually subtle — small font size, muted/low-opacity text color, no bold or alarming styling. It must not appear for BROKE+PRIVATE, or for any other emotion mode regardless of visibility.",
-      "reqIds": [
-        "REQ-4"
       ],
       "version": 1
     }
@@ -45,14 +29,16 @@
   "new_feature_requests": [
     {
       "id": "AR-1",
-      "summary": "Emotional mode guidance: show contextual guidance text and apply tonal UI for Happy, Confess, and Broke modes",
+      "summary": "Unified reaction system with emotion-type-specific text reactions (no emojis, no counts) and one reaction per user per post",
       "reqIds": [],
       "status": "pending"
     },
     {
       "id": "AR-2",
-      "summary": "Auto-add subtle safety footer on PUBLIC + BROKE posts: 'Veil is a reflection space. If you are in immediate danger, please contact local emergency services.'",
-      "reqIds": [],
+      "summary": "Add a `reactions` stable table to the backend with fields: id (Text), postId (Text), userId (Principal), reactionText (Text), createdAt (Int). Enforce one reaction per user per post — if a reaction already exists for that user+post pair, return an error. Expose `addReaction(postId: Text, reactionText: Text)` and `getReactionsForPost(postId: Text)` query functions. Do not expose reaction counts in any public-facing query.",
+      "reqIds": [
+        "REQ-1"
+      ],
       "status": "pending"
     }
   ],

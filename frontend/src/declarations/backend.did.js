@@ -98,6 +98,13 @@ export const SeatInfo = IDL.Record({
   'maxSeats' : IDL.Nat,
   'currentSeats' : IDL.Nat,
 });
+export const TextReaction = IDL.Record({
+  'id' : IDL.Text,
+  'userId' : IDL.Principal,
+  'createdAt' : Time,
+  'reactionText' : IDL.Text,
+  'postId' : IDL.Text,
+});
 export const RegistrationError = IDL.Variant({
   'AnonymousNotAllowed' : IDL.Null,
   'CapacityReached' : IDL.Null,
@@ -117,6 +124,7 @@ export const idlService = IDL.Service({
   'acknowledgePublicPostMessage' : IDL.Func([], [], []),
   'addComment' : IDL.Func([IDL.Text, IDL.Text], [IDL.Text], []),
   'addReaction' : IDL.Func([IDL.Text, ReactionType], [IDL.Text], []),
+  'addTextReaction' : IDL.Func([IDL.Text, IDL.Text], [IDL.Text], []),
   'adminClearESPFlag' : IDL.Func([IDL.Principal], [], []),
   'adminDeletePost' : IDL.Func([IDL.Text], [], []),
   'adminGetAllPosts' : IDL.Func([], [IDL.Vec(Post)], ['query']),
@@ -160,6 +168,11 @@ export const idlService = IDL.Service({
   'getPublicPosts' : IDL.Func([], [IDL.Vec(Post)], ['query']),
   'getReactionsForPost' : IDL.Func([IDL.Text], [IDL.Vec(Reaction)], ['query']),
   'getSeatInfo' : IDL.Func([], [SeatInfo], ['query']),
+  'getTextReactionsForPost' : IDL.Func(
+      [IDL.Text],
+      [IDL.Vec(TextReaction)],
+      ['query'],
+    ),
   'getUserProfile' : IDL.Func(
       [IDL.Principal],
       [IDL.Opt(UserProfile)],
@@ -267,6 +280,13 @@ export const idlFactory = ({ IDL }) => {
     'maxSeats' : IDL.Nat,
     'currentSeats' : IDL.Nat,
   });
+  const TextReaction = IDL.Record({
+    'id' : IDL.Text,
+    'userId' : IDL.Principal,
+    'createdAt' : Time,
+    'reactionText' : IDL.Text,
+    'postId' : IDL.Text,
+  });
   const RegistrationError = IDL.Variant({
     'AnonymousNotAllowed' : IDL.Null,
     'CapacityReached' : IDL.Null,
@@ -286,6 +306,7 @@ export const idlFactory = ({ IDL }) => {
     'acknowledgePublicPostMessage' : IDL.Func([], [], []),
     'addComment' : IDL.Func([IDL.Text, IDL.Text], [IDL.Text], []),
     'addReaction' : IDL.Func([IDL.Text, ReactionType], [IDL.Text], []),
+    'addTextReaction' : IDL.Func([IDL.Text, IDL.Text], [IDL.Text], []),
     'adminClearESPFlag' : IDL.Func([IDL.Principal], [], []),
     'adminDeletePost' : IDL.Func([IDL.Text], [], []),
     'adminGetAllPosts' : IDL.Func([], [IDL.Vec(Post)], ['query']),
@@ -337,6 +358,11 @@ export const idlFactory = ({ IDL }) => {
         ['query'],
       ),
     'getSeatInfo' : IDL.Func([], [SeatInfo], ['query']),
+    'getTextReactionsForPost' : IDL.Func(
+        [IDL.Text],
+        [IDL.Vec(TextReaction)],
+        ['query'],
+      ),
     'getUserProfile' : IDL.Func(
         [IDL.Principal],
         [IDL.Opt(UserProfile)],

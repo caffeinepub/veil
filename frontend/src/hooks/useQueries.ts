@@ -2,7 +2,6 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useActor } from './useActor';
 import {
   EmotionType,
-  ReactionType,
   Region,
   SubscriptionStatus,
   UserProfile,
@@ -233,38 +232,38 @@ export function useDeletePost() {
   });
 }
 
-// ─── Reactions ────────────────────────────────────────────────────────────────
+// ─── Text Reactions ───────────────────────────────────────────────────────────
 
-export function useGetReactionsForPost(postId: string) {
+export function useTextReactionsForPost(postId: string) {
   const { actor, isFetching } = useActor();
 
   return useQuery({
-    queryKey: ['reactions', postId],
+    queryKey: ['textReactions', postId],
     queryFn: async () => {
       if (!actor) return [];
-      return actor.getReactionsForPost(postId);
+      return actor.getTextReactionsForPost(postId);
     },
     enabled: !!actor && !isFetching && !!postId,
   });
 }
 
-export function useAddReaction() {
+export function useAddTextReaction() {
   const { actor } = useActor();
   const queryClient = useQueryClient();
 
   return useMutation({
     mutationFn: async ({
       postId,
-      reactionType,
+      reactionText,
     }: {
       postId: string;
-      reactionType: ReactionType;
+      reactionText: string;
     }) => {
       if (!actor) throw new Error('Actor not available');
-      return actor.addReaction(postId, reactionType);
+      return actor.addTextReaction(postId, reactionText);
     },
     onSuccess: (_data, variables) => {
-      queryClient.invalidateQueries({ queryKey: ['reactions', variables.postId] });
+      queryClient.invalidateQueries({ queryKey: ['textReactions', variables.postId] });
     },
   });
 }

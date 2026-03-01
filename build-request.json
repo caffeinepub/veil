@@ -1,104 +1,87 @@
 {
   "kind": "build_request",
-  "title": "Emotional mode guidance text and tonal UI per mode",
+  "title": "Unified Emotion-Based Text Reaction System",
   "projectName": "Veil",
   "priority": "normal",
   "requirements": [
     {
       "id": "REQ-1",
-      "text": "In the PostCreationPage, when the user selects the HAPPY emotion mode, display the guidance text: \"Share something real, not something impressive.\" The UI surrounding this guidance and the post creation form should adopt a warm, grounded, quietly celebratory tone — achieved through soft warm color accents (e.g., amber/golden hues), gentle typography weight, and calm spacing.",
-      "target": "frontend",
+      "text": "Add a `reactions` stable table to the backend with fields: id (Text), postId (Text), userId (Principal), reactionText (Text), createdAt (Int). Enforce one reaction per user per post — if a reaction already exists for that user+post pair, return an error. Expose `addReaction(postId: Text, reactionText: Text)` and `getReactionsForPost(postId: Text)` query functions. Do not expose reaction counts in any public-facing query.",
+      "target": "backend",
       "source": {
         "messageIds": [
-          "msg-4"
+          "msg-3"
         ],
         "quotes": [
-          "HAPPY",
-          "Share something real, not something impressive.",
-          "Tone in UI: Warm, grounded, quiet celebration."
+          "Store reactions table: id, postId, userId, reactionText, createdAt",
+          "One reaction per user per post."
         ]
       },
       "acceptanceCriteria": [
-        "Selecting HAPPY mode displays the exact guidance text: \"Share something real, not something impressive.\"",
-        "The guidance text area uses warm/golden color accents that visually differentiate it from other modes.",
-        "The overall form area conveys a warm, grounded aesthetic when HAPPY is active."
+        "A user can submit exactly one reaction per post; a second attempt returns an error.",
+        "getReactionsForPost returns the list of reaction texts without counts or user identities exposed beyond ownership.",
+        "addReaction persists the reaction with a timestamp.",
+        "No aggregate count field is returned in any query response."
       ]
     },
     {
       "id": "REQ-2",
-      "text": "In the PostCreationPage, when the user selects the CONFESS emotion mode, display the guidance text: \"This space is for release, not applause.\" The UI should adopt a gentle, human, witnessing tone — soft neutral/muted tones, quiet typography, no bright or celebratory accents.",
+      "text": "Add React Query hooks `useAddReaction` (mutation) and `usePostReactions` (query) in `frontend/src/hooks/useQueries.ts` wired to the new backend `addReaction` and `getReactionsForPost` functions.",
       "target": "frontend",
       "source": {
         "messageIds": [
-          "msg-4"
+          "msg-3"
         ],
         "quotes": [
-          "CONFESS",
-          "This space is for release, not applause.",
-          "Tone: Gentle, human, witnessing."
+          "Store reactions table"
         ]
       },
       "acceptanceCriteria": [
-        "Selecting CONFESS mode displays the exact guidance text: \"This space is for release, not applause.\"",
-        "The guidance and form area uses muted, gentle color treatment distinct from HAPPY and BROKE modes.",
-        "No bright accents; the visual feel is quiet and human."
+        "useAddReaction mutation calls backend addReaction and invalidates the post reactions cache on success.",
+        "usePostReactions query fetches reactions for a given postId.",
+        "Both hooks use the actor from useActor."
       ]
     },
     {
       "id": "REQ-3",
-      "text": "In the PostCreationPage, when the user selects the BROKE emotion mode, display the guidance text: \"Share what feels true right now. You don't have to explain everything.\" The UI should adopt a tone that is grounded and non-pressuring — subdued, low-contrast color treatment that feels safe and unhurried.",
+      "text": "Replace the existing emoji reaction UI in `PublicPostCard.tsx` with emotion-type-specific text reaction buttons. No emojis, no counts, no reaction numbers displayed anywhere. Show only the reaction text options as soft-UI buttons. The available reaction texts depend on the post's emotionType: HAPPY → ['I'm smiling with you.', 'This is beautiful.', 'You deserve this.', 'So happy for you.']; CONFESS → ['I see you.', 'That took courage.', 'You're not alone in this.', 'Thank you for sharing this.']; BROKE → ['I'm holding space for you.', 'You don't have to carry this alone.', 'This sounds heavy.', 'Stay. We're here.']. If the current user has already reacted to the post, show their chosen reaction text highlighted softly (no count). Post owners cannot react to their own posts.",
       "target": "frontend",
       "source": {
         "messageIds": [
-          "msg-4"
+          "msg-3"
         ],
         "quotes": [
-          "BROKE",
-          "Share what feels true right now. You don't have to explain everything.",
-          "Tone"
+          "No emojis.",
+          "No counts displayed.",
+          "No reaction numbers shown anywhere.",
+          "Reactions depend on emotionType.",
+          "No animation stacking.",
+          "Soft UI feedback only."
         ]
       },
       "acceptanceCriteria": [
-        "Selecting BROKE mode displays the exact guidance text: \"Share what feels true right now. You don't have to explain everything.\"",
-        "The form area uses a subdued, low-contrast color treatment distinct from HAPPY and CONFESS.",
-        "The visual tone feels safe and unrushed."
-      ]
-    },
-    {
-      "id": "REQ-4",
-      "text": "In the PostCreationPage, when the selected emotion mode is BROKE and visibility is set to PUBLIC, automatically display a subtle footer beneath the post creation form with the exact text: \"Veil is a reflection space. If you are in immediate danger, please contact local emergency services.\" This footer must be visually subtle — small font size, muted/low-opacity text color, no bold or alarming styling. It must not appear for BROKE+PRIVATE, or for any other emotion mode regardless of visibility.",
-      "target": "frontend",
-      "source": {
-        "messageIds": [
-          "msg-4"
-        ],
-        "quotes": [
-          "If PUBLIC + BROKE:",
-          "Veil is a reflection space. If you are in immediate danger, please contact local emergency services.",
-          "This must appear visually subtle."
-        ]
-      },
-      "acceptanceCriteria": [
-        "The safety footer appears only when both emotion mode is BROKE and visibility is PUBLIC.",
-        "The footer text exactly reads: \"Veil is a reflection space. If you are in immediate danger, please contact local emergency services.\"",
-        "The footer uses small font size and muted/low-opacity text — it must not be visually alarming or prominent.",
-        "The footer does not appear for BROKE+PRIVATE posts.",
-        "The footer does not appear for HAPPY or CONFESS modes regardless of visibility."
+        "HAPPY posts show exactly the 4 HAPPY reaction text options as buttons.",
+        "CONFESS posts show exactly the 4 CONFESS reaction text options as buttons.",
+        "BROKE posts show exactly the 4 BROKE reaction text options as buttons.",
+        "No emoji characters appear in the reaction UI.",
+        "No reaction counts or numbers are displayed anywhere on the card.",
+        "A user who has already reacted sees their chosen reaction text softly highlighted; the other options are inactive.",
+        "Post owners do not see reaction buttons on their own posts.",
+        "Clicking a reaction button calls useAddReaction; on success the selected reaction is visually confirmed with soft styling only."
       ]
     }
   ],
   "constraints": [
-    "Guidance text strings must match exactly as specified: no paraphrasing.",
-    "The safety footer text must appear verbatim as specified.",
-    "Do not modify immutable frontend paths (hooks, main.tsx, ui components).",
-    "All changes are frontend-only; no backend changes required."
+    "No emoji characters anywhere in the reaction system.",
+    "No reaction counts or aggregate numbers exposed in UI or API responses.",
+    "One reaction per user per post — enforced at the backend level.",
+    "Do not modify files under frontend/src/hooks/useInternetIdentity.ts, frontend/src/hooks/useActor.ts, frontend/src/main.tsx, or frontend/src/components/ui."
   ],
   "nonGoals": [
-    "Changing the backend data model or post schema.",
-    "Modifying the EmotionBadge component or other shared UI components.",
-    "Adding new emotion modes beyond Happy, Confess, and Broke.",
-    "Displaying the safety footer anywhere other than the PostCreationPage.",
-    "Making the safety footer dismissible or interactive."
+    "Reaction editing or deletion by users.",
+    "Displaying which users reacted to a post.",
+    "Animated stacking or reaction count badges.",
+    "Reactions on private posts."
   ],
   "imageRequirements": {
     "required": [],

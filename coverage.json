@@ -1,75 +1,60 @@
 {
   "kind": "coverage_report",
   "version": "1.0",
-  "generatedAt": "2026-03-01T23:19:37.025Z",
+  "generatedAt": "2026-03-01T23:35:43.040Z",
   "sources": {
     "buildRequest": true,
     "implementationPlan": true
   },
   "requirements": {
-    "total": 4,
-    "implemented": 4,
+    "total": 3,
+    "implemented": 2,
     "items": [
       {
         "id": "REQ-1",
-        "summary": "In the PostCreationPage, when the user selects the HAPPY emotion mode, display the guidance text: \"Share something real, not something impressive.\" The UI surrounding this guidance and the post creation form should adopt a warm, grounded, quietly celebratory tone — achieved through soft warm color accents (e.g., amber/golden hues), gentle typography weight, and calm spacing.",
-        "status": "implemented",
-        "plannedFiles": [
-          "frontend/src/pages/PostCreationPage.tsx",
-          "frontend/src/index.css"
-        ],
-        "matchedFiles": [
-          "frontend/src/pages/PostCreationPage.tsx",
-          "frontend/src/index.css"
-        ]
+        "summary": "Add a `reactions` stable table to the backend with fields: id (Text), postId (Text), userId (Principal), reactionText (Text), createdAt (Int). Enforce one reaction per user per post — if a reaction already exists for that user+post pair, return an error. Expose `addReaction(postId: Text, reactionText: Text)` and `getReactionsForPost(postId: Text)` query functions. Do not expose reaction counts in any public-facing query.",
+        "status": "unknown",
+        "plannedFiles": [],
+        "matchedFiles": []
       },
       {
         "id": "REQ-2",
-        "summary": "In the PostCreationPage, when the user selects the CONFESS emotion mode, display the guidance text: \"This space is for release, not applause.\" The UI should adopt a gentle, human, witnessing tone — soft neutral/muted tones, quiet typography, no bright or celebratory accents.",
+        "summary": "Add React Query hooks `useAddReaction` (mutation) and `usePostReactions` (query) in `frontend/src/hooks/useQueries.ts` wired to the new backend `addReaction` and `getReactionsForPost` functions.",
         "status": "implemented",
         "plannedFiles": [
-          "frontend/src/pages/PostCreationPage.tsx",
-          "frontend/src/index.css"
+          "frontend/src/hooks/useQueries.ts"
         ],
         "matchedFiles": [
-          "frontend/src/pages/PostCreationPage.tsx",
-          "frontend/src/index.css"
+          "frontend/src/hooks/useQueries.ts"
         ]
       },
       {
         "id": "REQ-3",
-        "summary": "In the PostCreationPage, when the user selects the BROKE emotion mode, display the guidance text: \"Share what feels true right now. You don't have to explain everything.\" The UI should adopt a tone that is grounded and non-pressuring — subdued, low-contrast color treatment that feels safe and unhurried.",
+        "summary": "Replace the existing emoji reaction UI in `PublicPostCard.tsx` with emotion-type-specific text reaction buttons. No emojis, no counts, no reaction numbers displayed anywhere. Show only the reaction text options as soft-UI buttons. The available reaction texts depend on the post's emotionType: HAPPY → ['I'm smiling with you.', 'This is beautiful.', 'You deserve this.', 'So happy for you.']; CONFESS → ['I see you.', 'That took courage.', 'You're not alone in this.', 'Thank you for sharing this.']; BROKE → ['I'm holding space for you.', 'You don't have to carry this alone.', 'This sounds heavy.', 'Stay. We're here.']. If the current user has already reacted to the post, show their chosen reaction text highlighted softly (no count). Post owners cannot react to their own posts.",
         "status": "implemented",
         "plannedFiles": [
-          "frontend/src/pages/PostCreationPage.tsx",
-          "frontend/src/index.css"
+          "frontend/src/hooks/useQueries.ts",
+          "frontend/src/components/PublicPostCard.tsx"
         ],
         "matchedFiles": [
-          "frontend/src/pages/PostCreationPage.tsx",
-          "frontend/src/index.css"
-        ]
-      },
-      {
-        "id": "REQ-4",
-        "summary": "In the PostCreationPage, when the selected emotion mode is BROKE and visibility is set to PUBLIC, automatically display a subtle footer beneath the post creation form with the exact text: \"Veil is a reflection space. If you are in immediate danger, please contact local emergency services.\" This footer must be visually subtle — small font size, muted/low-opacity text color, no bold or alarming styling. It must not appear for BROKE+PRIVATE, or for any other emotion mode regardless of visibility.",
-        "status": "implemented",
-        "plannedFiles": [
-          "frontend/src/pages/PostCreationPage.tsx"
-        ],
-        "matchedFiles": [
-          "frontend/src/pages/PostCreationPage.tsx"
+          "frontend/src/hooks/useQueries.ts",
+          "frontend/src/components/PublicPostCard.tsx"
         ]
       }
     ]
   },
   "changedFiles": [
+    "backend/main.mo",
     "build-request.json",
     "feature_evidence.json",
     "frontend-file-summaries.txt",
     "frontend-implementation-plan.json",
-    "frontend/src/index.css",
-    "frontend/src/pages/PostCreationPage.tsx",
-    "frontend/tailwind.config.js",
+    "frontend/src/backend.d.ts",
+    "frontend/src/backend.ts",
+    "frontend/src/components/PublicPostCard.tsx",
+    "frontend/src/declarations/backend.did.d.ts",
+    "frontend/src/declarations/backend.did.js",
+    "frontend/src/hooks/useQueries.ts",
     "project_state.json",
     "scratch/component-selection.json",
     "spec.md",

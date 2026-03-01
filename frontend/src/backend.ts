@@ -89,6 +89,13 @@ export class ExternalBlob {
         return this;
     }
 }
+export interface Reaction {
+    id: string;
+    createdAt: Time;
+    author: Principal;
+    reactionType: ReactionType;
+    postId: string;
+}
 export type Time = bigint;
 export interface Flag {
     id: string;
@@ -156,6 +163,13 @@ export interface Post {
     updatedAt: Time;
     visibility: Visibility;
 }
+export interface TextReaction {
+    id: string;
+    userId: Principal;
+    createdAt: Time;
+    reactionText: string;
+    postId: string;
+}
 export interface UserProfile {
     region: Region;
     pseudonym: string;
@@ -163,13 +177,6 @@ export interface UserProfile {
     suspended: boolean;
     hasAcknowledgedEntryMessage: boolean;
     hasAcknowledgedPublicPostMessage: boolean;
-}
-export interface Reaction {
-    id: string;
-    createdAt: Time;
-    author: Principal;
-    reactionType: ReactionType;
-    postId: string;
 }
 export enum EmotionType {
     confess = "confess",
@@ -217,6 +224,7 @@ export interface backendInterface {
     acknowledgePublicPostMessage(): Promise<void>;
     addComment(postId: string, content: string): Promise<string>;
     addReaction(postId: string, reactionType: ReactionType): Promise<string>;
+    addTextReaction(postId: string, reactionText: string): Promise<string>;
     adminClearESPFlag(userId: Principal): Promise<void>;
     adminDeletePost(postId: string): Promise<void>;
     adminGetAllPosts(): Promise<Array<Post>>;
@@ -242,6 +250,7 @@ export interface backendInterface {
     getPublicPosts(): Promise<Array<Post>>;
     getReactionsForPost(postId: string): Promise<Array<Reaction>>;
     getSeatInfo(): Promise<SeatInfo>;
+    getTextReactionsForPost(postId: string): Promise<Array<TextReaction>>;
     getUserProfile(userId: Principal): Promise<UserProfile | null>;
     isCallerAdmin(): Promise<boolean>;
     register(pseudonym: string, region: Region, inviteCode: string): Promise<Result_1>;
@@ -321,6 +330,20 @@ export class Backend implements backendInterface {
             }
         } else {
             const result = await this.actor.addReaction(arg0, to_candid_ReactionType_n1(this._uploadFile, this._downloadFile, arg1));
+            return result;
+        }
+    }
+    async addTextReaction(arg0: string, arg1: string): Promise<string> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.addTextReaction(arg0, arg1);
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.addTextReaction(arg0, arg1);
             return result;
         }
     }
@@ -671,6 +694,20 @@ export class Backend implements backendInterface {
             }
         } else {
             const result = await this.actor.getSeatInfo();
+            return result;
+        }
+    }
+    async getTextReactionsForPost(arg0: string): Promise<Array<TextReaction>> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.getTextReactionsForPost(arg0);
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.getTextReactionsForPost(arg0);
             return result;
         }
     }

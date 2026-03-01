@@ -1,86 +1,47 @@
 {
   "kind": "implementation_plan",
   "version": "1.0",
-  "title": "Emotional mode guidance text and tonal UI per mode",
+  "title": "Unified Emotion-Based Text Reaction System",
   "requirements": [
     {
-      "id": "REQ-1",
-      "summary": "Display HAPPY mode guidance text with warm, grounded, celebratory UI tone",
-      "acceptanceCriteria": [
-        "Selecting HAPPY mode displays the exact guidance text: \"Share something real, not something impressive.\"",
-        "The guidance text area uses warm/golden color accents that visually differentiate it from other modes.",
-        "The overall form area conveys a warm, grounded aesthetic when HAPPY is active."
-      ],
-      "file_operations": [
-        {
-          "path": "frontend/src/pages/PostCreationPage.tsx",
-          "operation": "modify",
-          "description": "Add conditional rendering logic to display the exact guidance text \"Share something real, not something impressive.\" when the selected emotion mode is HAPPY. Apply warm color accents (amber/golden hues via Tailwind classes like bg-amber-50, text-amber-800, border-amber-200) to the guidance text container and surrounding form elements when HAPPY is active. Use gentle typography weight and calm spacing to convey a warm, grounded, quietly celebratory tone."
-        },
-        {
-          "path": "frontend/src/index.css",
-          "operation": "modify",
-          "description": "Add CSS custom properties for HAPPY mode tonal styling including warm/golden color tokens (e.g., --emotion-happy-bg, --emotion-happy-text, --emotion-happy-accent) using OKLCH color space to support the warm, grounded aesthetic required by the HAPPY emotion mode."
-        }
-      ]
-    },
-    {
       "id": "REQ-2",
-      "summary": "Display CONFESS mode guidance text with gentle, human, witnessing UI tone",
+      "summary": "Add React Query hooks for text reactions",
       "acceptanceCriteria": [
-        "Selecting CONFESS mode displays the exact guidance text: \"This space is for release, not applause.\"",
-        "The guidance and form area uses muted, gentle color treatment distinct from HAPPY and BROKE modes.",
-        "No bright accents; the visual feel is quiet and human."
+        "useAddReaction mutation calls backend addTextReaction and invalidates the post reactions cache on success.",
+        "usePostReactions query fetches reactions for a given postId.",
+        "Both hooks use the actor from useActor."
       ],
       "file_operations": [
         {
-          "path": "frontend/src/pages/PostCreationPage.tsx",
+          "path": "frontend/src/hooks/useQueries.ts",
           "operation": "modify",
-          "description": "Add conditional rendering logic to display the exact guidance text \"This space is for release, not applause.\" when the selected emotion mode is CONFESS. Apply muted, gentle color treatment (soft neutral tones via Tailwind classes like bg-gray-50, text-gray-700, border-gray-200) to the guidance text container and surrounding form elements when CONFESS is active. Use quiet typography with no bright or celebratory accents to convey a gentle, human, witnessing tone."
-        },
-        {
-          "path": "frontend/src/index.css",
-          "operation": "modify",
-          "description": "Add CSS custom properties for CONFESS mode tonal styling including muted neutral color tokens (e.g., --emotion-confess-bg, --emotion-confess-text, --emotion-confess-accent) using OKLCH color space to support the gentle, human, witnessing aesthetic required by the CONFESS emotion mode."
+          "description": "Add useAddTextReaction mutation hook that calls actor.addTextReaction(postId, reactionText) and invalidates ['textReactions', postId] on success. Add useTextReactionsForPost query hook that calls actor.getTextReactionsForPost(postId) with queryKey ['textReactions', postId]. Both hooks depend on actor from useActor and handle loading/error states."
         }
       ]
     },
     {
       "id": "REQ-3",
-      "summary": "Display BROKE mode guidance text with grounded, non-pressuring, safe UI tone",
+      "summary": "Replace emoji reactions with emotion-type-specific text reaction buttons in PublicPostCard",
       "acceptanceCriteria": [
-        "Selecting BROKE mode displays the exact guidance text: \"Share what feels true right now. You don't have to explain everything.\"",
-        "The form area uses a subdued, low-contrast color treatment distinct from HAPPY and CONFESS.",
-        "The visual tone feels safe and unrushed."
+        "HAPPY posts show exactly the 4 HAPPY reaction text options as buttons.",
+        "CONFESS posts show exactly the 4 CONFESS reaction text options as buttons.",
+        "BROKE posts show exactly the 4 BROKE reaction text options as buttons.",
+        "No emoji characters appear in the reaction UI.",
+        "No reaction counts or numbers are displayed anywhere on the card.",
+        "A user who has already reacted sees their chosen reaction text softly highlighted; the other options are inactive.",
+        "Post owners do not see reaction buttons on their own posts.",
+        "Clicking a reaction button calls useAddReaction; on success the selected reaction is visually confirmed with soft styling only."
       ],
       "file_operations": [
         {
-          "path": "frontend/src/pages/PostCreationPage.tsx",
+          "path": "frontend/src/hooks/useQueries.ts",
           "operation": "modify",
-          "description": "Add conditional rendering logic to display the exact guidance text \"Share what feels true right now. You don't have to explain everything.\" when the selected emotion mode is BROKE. Apply subdued, low-contrast color treatment (muted tones via Tailwind classes like bg-slate-50, text-slate-600, border-slate-200) to the guidance text container and surrounding form elements when BROKE is active. Use gentle spacing and unhurried visual rhythm to convey a grounded, non-pressuring, safe tone."
+          "description": "Replace existing useAddReaction and useReactionsForPost hooks with new implementations. Rename useAddReaction to useAddTextReaction and update it to call actor.addTextReaction(postId, reactionText) instead of addReaction. Rename useReactionsForPost to useTextReactionsForPost and update it to call actor.getTextReactionsForPost(postId) and use queryKey ['textReactions', postId]. Remove old reaction hooks that use ReactionType enum. Ensure both hooks invalidate the correct query keys on mutation success."
         },
         {
-          "path": "frontend/src/index.css",
+          "path": "frontend/src/components/PublicPostCard.tsx",
           "operation": "modify",
-          "description": "Add CSS custom properties for BROKE mode tonal styling including subdued low-contrast color tokens (e.g., --emotion-broke-bg, --emotion-broke-text, --emotion-broke-accent) using OKLCH color space to support the grounded, safe, unhurried aesthetic required by the BROKE emotion mode."
-        }
-      ]
-    },
-    {
-      "id": "REQ-4",
-      "summary": "Display subtle safety footer for BROKE mode with PUBLIC visibility only",
-      "acceptanceCriteria": [
-        "The safety footer appears only when both emotion mode is BROKE and visibility is PUBLIC.",
-        "The footer text exactly reads: \"Veil is a reflection space. If you are in immediate danger, please contact local emergency services.\"",
-        "The footer uses small font size and muted/low-opacity text — it must not be visually alarming or prominent.",
-        "The footer does not appear for BROKE+PRIVATE posts.",
-        "The footer does not appear for HAPPY or CONFESS modes regardless of visibility."
-      ],
-      "file_operations": [
-        {
-          "path": "frontend/src/pages/PostCreationPage.tsx",
-          "operation": "modify",
-          "description": "Add conditional rendering logic to display a subtle safety footer beneath the post creation form only when both emotionType is BROKE and visibility is PUBLIC. The footer must display the exact text: \"Veil is a reflection space. If you are in immediate danger, please contact local emergency services.\" Apply subtle styling using small font size (text-xs), muted/low-opacity text color (text-gray-500/60), and no bold or alarming styling. Ensure the footer does not appear for BROKE+PRIVATE or for any other emotion mode (HAPPY, CONFESS) regardless of visibility."
+          "description": "Remove all emoji-based reaction UI and counts. Replace with emotion-type-specific text reaction buttons. Define reaction text maps: HAPPY → ['I'm smiling with you.', 'This is beautiful.', 'You deserve this.', 'So happy for you.']; CONFESS → ['I see you.', 'That took courage.', 'You're not alone in this.', 'Thank you for sharing this.']; BROKE → ['I'm holding space for you.', 'You don't have to carry this alone.', 'This sounds heavy.', 'Stay. We're here.']. Use useTextReactionsForPost to fetch reactions. Use useAddTextReaction mutation when a button is clicked. Show post owner's buttons only if current user is not the post author (compare userId from useAuth with post.author). If current user has already reacted (check TextReaction.userId matches current user), highlight their chosen text softly with subtle background color and disable other buttons. Do not display any reaction counts or numbers. Use soft UI styling (subtle borders, muted hover states) for reaction buttons. Ensure each button shows only the reaction text with no emoji characters."
         }
       ]
     }
