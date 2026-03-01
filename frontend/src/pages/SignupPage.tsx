@@ -4,7 +4,7 @@ import { useInternetIdentity } from '../hooks/useInternetIdentity';
 import { useGetMyProfile, useRegister } from '../hooks/useQueries';
 import { Region } from '../backend';
 import { getPersistedUrlParameter, clearSessionParameter } from '../utils/urlParams';
-import { Loader2 } from 'lucide-react';
+import { Loader2, AlertCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -57,12 +57,32 @@ export default function SignupPage() {
     }
 
     try {
-      await registerMutation.mutateAsync({ pseudonym: pseudonym.trim(), region, inviteCode: inviteCode.trim() });
+      await registerMutation.mutateAsync({
+        pseudonym: pseudonym.trim(),
+        region,
+        inviteCode: inviteCode.trim().toUpperCase(),
+      });
       clearSessionParameter('code');
       navigate({ to: '/dashboard' });
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : 'Registration failed. Please try again.';
-      setFormError(message);
+      // The useRegister hook already extracts the clean canister error message
+      const raw = err instanceof Error ? err.message : String(err);
+
+      // Map backend trap messages to user-friendly text
+      if (raw.toLowerCase().includes('invalid invite code')) {
+        setFormError('Invalid invite code. Please check the code and try again.');
+      } else if (raw.toLowerCase().includes('already been used') || raw.toLowerCase().includes('already used')) {
+        setFormError('This invite code has already been used. Please use a different code.');
+      } else if (raw.toLowerCase().includes('capacity') || raw.toLowerCase().includes('max 100')) {
+        setFormError('Registration is currently full. Please try again later.');
+      } else if (raw.toLowerCase().includes('already registered')) {
+        setFormError('You are already registered. Redirecting to dashboard…');
+        setTimeout(() => navigate({ to: '/dashboard' }), 1500);
+      } else if (raw.toLowerCase().includes('actor not available')) {
+        setFormError('Connection not ready. Please wait a moment and try again.');
+      } else {
+        setFormError(raw || 'Registration failed. Please try again.');
+      }
     }
   };
 
@@ -93,7 +113,10 @@ export default function SignupPage() {
               id="pseudonym"
               placeholder="Your anonymous name"
               value={pseudonym}
-              onChange={e => setPseudonym(e.target.value)}
+              onChange={e => {
+                setPseudonym(e.target.value);
+                if (formError) setFormError(null);
+              }}
               disabled={registerMutation.isPending}
               autoComplete="off"
             />
@@ -123,18 +146,24 @@ export default function SignupPage() {
             <Label htmlFor="inviteCode">Invite Code</Label>
             <Input
               id="inviteCode"
-              placeholder="Enter your invite code"
+              placeholder="e.g. VEIL-001"
               value={inviteCode}
-              onChange={e => setInviteCode(e.target.value)}
+              onChange={e => {
+                setInviteCode(e.target.value);
+                if (formError) setFormError(null);
+              }}
               disabled={registerMutation.isPending}
               autoComplete="off"
+              className="uppercase placeholder:normal-case"
             />
+            <p className="text-xs text-muted-foreground">Enter the invite code exactly as provided (e.g. VEIL-001).</p>
           </div>
 
           {/* Inline error */}
           {formError && (
-            <div className="text-sm text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/30 rounded-md px-3 py-2">
-              {formError}
+            <div className="flex items-start gap-2 text-sm text-amber-800 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800/50 rounded-md px-3 py-2.5">
+              <AlertCircle size={15} className="mt-0.5 shrink-0" />
+              <span>{formError}</span>
             </div>
           )}
 

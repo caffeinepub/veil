@@ -2,6 +2,26 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useActor } from './useActor';
 import { EmotionType, ReactionType, Region, SubscriptionStatus, type Post, type User, type UserProfile, type InviteCode } from '../backend';
 
+// ─── Helper: Extract clean error message from ICP canister trap ───────────────
+
+export function extractCanisterError(err: unknown): string {
+  if (err instanceof Error) {
+    const msg = err.message;
+    // ICP canister trap messages look like:
+    // "Canister <id> trapped explicitly: <actual message>"
+    // or "Call failed:\n...\nMessage: <actual message>"
+    const trapMatch = msg.match(/trapped explicitly:\s*(.+)/i);
+    if (trapMatch) return trapMatch[1].trim();
+
+    const messageMatch = msg.match(/Message:\s*(.+)/i);
+    if (messageMatch) return messageMatch[1].trim();
+
+    // Return the raw message if no pattern matched
+    return msg;
+  }
+  return 'An unexpected error occurred. Please try again.';
+}
+
 // ─── Profile Hooks ────────────────────────────────────────────────────────────
 
 export function useGetMyProfile() {
@@ -237,7 +257,13 @@ export function useRegister() {
   return useMutation({
     mutationFn: async ({ pseudonym, region, inviteCode }: { pseudonym: string; region: Region; inviteCode: string }) => {
       if (!actor) throw new Error('Actor not available');
-      return actor.register(pseudonym, region, inviteCode);
+      try {
+        return await actor.register(pseudonym, region, inviteCode);
+      } catch (err: unknown) {
+        // Re-throw with a cleaned-up message so the UI can display it directly
+        const clean = extractCanisterError(err);
+        throw new Error(clean);
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['myProfile'] });

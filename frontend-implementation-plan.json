@@ -1,218 +1,28 @@
 {
   "kind": "implementation_plan",
   "version": "1.0",
-  "title": "Complete end-to-end frontend audit and fix — ensure all screens are functional and clickable",
+  "title": "Fix pre-seeded invite codes not working on deployed app",
   "requirements": [
     {
-      "id": "REQ-105",
-      "summary": "Ensure useQueries.ts has complete, correctly-typed React Query hooks for every backend function consumed by the frontend",
+      "id": "REQ-114",
+      "summary": "Surface backend invite code validation errors inline on the SignupPage without modals, keeping the form interactive for retry",
       "acceptanceCriteria": [
-        "Every backend function has a corresponding query or mutation hook in useQueries.ts",
-        "No TypeScript type errors in useQueries.ts",
-        "Mutation hooks invalidate relevant query cache keys ('myPosts', 'publicPosts', 'myProfile', 'mySubscriptionStatus', 'adminUsers', 'adminPosts', 'inviteCodes') on success",
-        "Actor is obtained from useActor hook inside every hook"
-      ],
-      "file_operations": [
-        {
-          "path": "frontend/src/hooks/useQueries.ts",
-          "operation": "modify",
-          "description": "Audit all React Query hooks to ensure coverage for getMyProfile, getMyPosts, getPublicPosts, isAdmin, getMySubscriptionStatus, getMyReaction, createPost, editPost, deletePost, setPostPrivacy, addReaction, register, validateInviteCode, adminGetAllPublicPosts, adminGetUserPosts, adminDeletePost, adminSuspendUser, adminUnsuspendUser, adminGetAllUsers, addInviteCode, revokeInviteCode, setSubscriptionStatus. Verify all parameter types and return types match backend.d.ts interface. Ensure all mutation hooks invalidate correct query cache keys on success. Verify the authorization component's access-control pattern is not used here; rely on backend authorization checks only."
-        }
-      ]
-    },
-    {
-      "id": "REQ-106",
-      "summary": "Audit and fix the LoginPage authentication flow and route guards",
-      "acceptanceCriteria": [
-        "LoginPage renders a visible login button that triggers Internet Identity flow",
-        "After successful login, user is redirected to /dashboard if profile exists or /signup if not",
-        "Visiting /dashboard, /posts, /community, or /admin while unauthenticated redirects to /login",
-        "Header logout button calls logout() and redirects to /login"
-      ],
-      "file_operations": [
-        {
-          "path": "frontend/src/pages/LoginPage.tsx",
-          "operation": "modify",
-          "description": "Audit the login flow to ensure clicking the login button triggers useInternetIdentity login function, then fetches getMyProfile after authentication. If profile exists, redirect to /dashboard. If profile is null, redirect to /signup. Ensure error handling for Internet Identity login failures is in place."
-        },
-        {
-          "path": "frontend/src/pages/DashboardPage.tsx",
-          "operation": "modify",
-          "description": "Verify that unauthenticated users are redirected to /login before rendering the dashboard. Ensure this redirect logic runs early in the component lifecycle."
-        },
-        {
-          "path": "frontend/src/pages/MyPostsPage.tsx",
-          "operation": "modify",
-          "description": "Verify that unauthenticated users are redirected to /login before fetching or rendering posts."
-        },
-        {
-          "path": "frontend/src/pages/CommunityFeedPage.tsx",
-          "operation": "modify",
-          "description": "Verify that unauthenticated users are redirected to /login before fetching or rendering the public feed."
-        },
-        {
-          "path": "frontend/src/pages/AdminPage.tsx",
-          "operation": "modify",
-          "description": "Verify that unauthenticated users or non-admins are redirected away from /admin. Ensure isAdmin check is fetched and evaluated before rendering admin dashboard."
-        },
-        {
-          "path": "frontend/src/components/Header.tsx",
-          "operation": "modify",
-          "description": "Audit the logout button to ensure it calls the logout function from useInternetIdentity and redirects the user to /login after clearing authentication state. Ensure query cache is cleared on logout."
-        }
-      ]
-    },
-    {
-      "id": "REQ-107",
-      "summary": "Audit and fix the SignupPage registration flow and inline error handling",
-      "acceptanceCriteria": [
-        "Invite code field is pre-filled from URL query param or sessionStorage if available",
-        "Region selector shows exactly two options: India and Global",
-        "Submitting with a valid invite code and pseudonym calls register mutation with correct arguments",
-        "On #ok result, user is redirected to /dashboard",
-        "On #err result, the error text is shown inline below the form (no modal)"
+        "When the backend returns #err with text 'Invalid invite code', that text appears inline below the form without a page reload.",
+        "When the backend returns #err with text 'Invite code already used', that text appears inline.",
+        "When the backend returns #err with text 'Capacity reached', that text appears inline.",
+        "The form fields remain editable after an error so the user can retry with a different code.",
+        "No modal or alert dialog is used to display the error — only an inline message."
       ],
       "file_operations": [
         {
           "path": "frontend/src/pages/SignupPage.tsx",
           "operation": "modify",
-          "description": "Audit the invite code pre-fill logic using urlParams.ts to read from URL query params or sessionStorage. Ensure region dropdown renders exactly 'India' and 'Global' options matching the Region enum. Verify register mutation is called with (pseudonym, region, inviteCode) arguments. Ensure backend Result variants (#ok, #err) are correctly unwrapped. On success, redirect to /dashboard. On error, display the error message inline below the form (no modal or toast). Verify the component handles unauthenticated state and redirects appropriately."
-        }
-      ]
-    },
-    {
-      "id": "REQ-108",
-      "summary": "Audit and fix the DashboardPage emotion buttons and subscription handling",
-      "acceptanceCriteria": [
-        "Dashboard loads and displays the user's pseudonym in the top bar",
-        "Clicking Confess navigates to /create?emotion=confess (or equivalent route param)",
-        "Clicking Broke navigates to /create?emotion=broke",
-        "Clicking Happy navigates to /create?emotion=happy",
-        "When subscription status is #expired, SubscriptionBanner is shown and emotion buttons do not navigate to /create",
-        "No red color used anywhere on the page"
-      ],
-      "file_operations": [
-        {
-          "path": "frontend/src/pages/DashboardPage.tsx",
-          "operation": "modify",
-          "description": "Audit emotion buttons (Confess, Broke, Happy) to ensure each navigates to /create with the correct emotion query parameter or route param. Verify getMyProfile and getMySubscriptionStatus are called to determine subscription status. Pass the effective subscription status to SubscriptionBanner. Block navigation to /create when status is #expired. Ensure no red UI elements are present. Verify user pseudonym is displayed in the Header or a greeting section."
+          "description": "Modify the signup form submission handler to catch backend registration errors and display them inline below the form. Add a state variable for error messages and render it as an inline alert (not a modal) below the form fields. Ensure the form remains interactive after an error so users can correct their invite code and retry. The error message should display the exact text returned by the backend (e.g., 'Invalid invite code', 'Invite code already used', 'Capacity reached')."
         },
         {
-          "path": "frontend/src/components/SubscriptionBanner.tsx",
+          "path": "frontend/src/hooks/useQueries.ts",
           "operation": "modify",
-          "description": "Audit the SubscriptionBanner component to ensure it displays a muted, supportive amber warning when subscription status is #expired. Verify it shows region-specific renewal pricing. Ensure no red color is used."
-        }
-      ]
-    },
-    {
-      "id": "REQ-109",
-      "summary": "Audit and fix the PostCreationPage form validation and submission flow",
-      "acceptanceCriteria": [
-        "Emotion type is correctly read from URL/route params",
-        "Live word counter updates as user types",
-        "Submit button is disabled when #confess or #happy word count is below 24",
-        "Submitting a valid post calls createPost mutation and navigates to /posts on success",
-        "Backend error is displayed inline below the form on failure",
-        "Expired subscription shows inline blocking message and prevents form submission"
-      ],
-      "file_operations": [
-        {
-          "path": "frontend/src/pages/PostCreationPage.tsx",
-          "operation": "modify",
-          "description": "Audit emotion type reading from URL/route query params. Ensure live word counter is displayed and updates as user types. Verify submit button is disabled when emotion is #confess or #happy and word count is below 24 (use wordCounter.ts utility). Verify createPost mutation is called with (emotionType, content) arguments. Handle Result variants correctly: navigate to /posts on success, display error inline below form on failure. Ensure expired subscription shows an inline blocking message and prevents form submission. Verify unauthenticated redirect guard is in place."
-        }
-      ]
-    },
-    {
-      "id": "REQ-110",
-      "summary": "Audit and fix the MyPostsPage and PostCard edit/delete/privacy mutations",
-      "acceptanceCriteria": [
-        "MyPostsPage renders the user's posts sorted newest-first",
-        "Edit button is only visible when post.editable === true",
-        "Clicking Edit allows inline content editing and saving via editPost mutation",
-        "Clicking Delete removes the post immediately after mutation success",
-        "'Go Public' opens a confirmation dialog with exactly the text 'This post will be visible to all Veil members.'",
-        "'Make Private' toggles without a confirmation dialog",
-        "Both 'myPosts' and 'publicPosts' query caches are invalidated on mutation success"
-      ],
-      "file_operations": [
-        {
-          "path": "frontend/src/pages/MyPostsPage.tsx",
-          "operation": "modify",
-          "description": "Audit post sorting to ensure posts are sorted newest-first. Verify empty-state messaging is present when no posts exist. Ensure unauthenticated redirect guard is in place."
-        },
-        {
-          "path": "frontend/src/components/PostCard.tsx",
-          "operation": "modify",
-          "description": "Audit PostCard to ensure Edit button is only visible when post.editable === true. Verify inline editing flow calls editPost mutation with (postId, newContent) arguments. Ensure deletePost mutation is called with (postId) and removes the post immediately on success. Verify 'Go Public' (setPostPrivacy with isPrivate=false) opens a confirmation dialog with exact text 'This post will be visible to all Veil members.' Ensure 'Make Private' (setPostPrivacy with isPrivate=true) toggles without dialog. Verify all mutations invalidate both 'myPosts' and 'publicPosts' query cache keys on success. Ensure subscription-gated publish access blocks expired users from setting posts public."
-        }
-      ]
-    },
-    {
-      "id": "REQ-111",
-      "summary": "Audit and fix the CommunityFeedPage and PublicPostCard reaction handling",
-      "acceptanceCriteria": [
-        "CommunityFeedPage renders all public posts sorted newest-first",
-        "Each post card shows emotion type label, poster's pseudonym, content, reaction count, and three reaction buttons",
-        "If the user has already reacted, their reaction button is visually highlighted and all three buttons are disabled",
-        "Reaction buttons are disabled for posts owned by the current user",
-        "Clicking a reaction button calls addReaction(postId, reactionType) and updates the displayed reaction count",
-        "No comments section, reply button, follower count, or popularity metric is shown"
-      ],
-      "file_operations": [
-        {
-          "path": "frontend/src/pages/CommunityFeedPage.tsx",
-          "operation": "modify",
-          "description": "Audit post sorting to ensure posts are sorted newest-first. Verify unauthenticated redirect guard is in place. Ensure no comments, reply buttons, follower counts, or popularity indicators are present."
-        },
-        {
-          "path": "frontend/src/components/PublicPostCard.tsx",
-          "operation": "modify",
-          "description": "Audit PublicPostCard to ensure getMyReaction(postId) is called to fetch the user's existing reaction and highlight the corresponding button. Verify addReaction mutation is called with (postId, reactionType) arguments. Ensure reaction buttons (Support, Care, Strength) are disabled if the user has already reacted or if the post is owned by the current user. Verify reaction count updates immediately after successful mutation. Ensure no comments section, reply button, follower count, or popularity metric is rendered."
-        }
-      ]
-    },
-    {
-      "id": "REQ-112",
-      "summary": "Audit and fix the AdminPage and all AdminDashboard sub-components",
-      "acceptanceCriteria": [
-        "Non-admin users navigating to /admin are redirected away",
-        "AdminPublicPostsList loads and displays all public posts with a working Delete button per post",
-        "AdminUserManagement lists all users with suspend/unsuspend and subscription status controls that work",
-        "AdminInviteCodes lists all codes (used and unused), supports adding new codes, and revoking unused codes",
-        "AdminUserPostHistory allows searching by principal and displays matching posts",
-        "All admin actions reflect immediately in the UI after mutation success"
-      ],
-      "file_operations": [
-        {
-          "path": "frontend/src/pages/AdminPage.tsx",
-          "operation": "modify",
-          "description": "Audit admin guard logic to ensure non-admin users are redirected away from /admin. Verify isAdmin check is fetched and evaluated before rendering AdminDashboard."
-        },
-        {
-          "path": "frontend/src/components/AdminDashboard.tsx",
-          "operation": "modify",
-          "description": "Audit the tabbed interface layout for public posts, members, invite codes, and post history. Ensure back-to-dashboard navigation button is functional."
-        },
-        {
-          "path": "frontend/src/components/AdminPublicPostsList.tsx",
-          "operation": "modify",
-          "description": "Audit AdminPublicPostsList to ensure adminGetAllPublicPosts query is called and displays all public posts. Verify adminDeletePost mutation is wired with (postId) argument and removes posts immediately on success. Ensure confirmation dialog is shown before deletion. Verify 'adminPosts' and 'publicPosts' query caches are invalidated on mutation success."
-        },
-        {
-          "path": "frontend/src/components/AdminUserManagement.tsx",
-          "operation": "modify",
-          "description": "Audit AdminUserManagement to ensure adminGetAllUsers query is called and lists all users. Verify adminSuspendUser and adminUnsuspendUser mutations are wired with (userId) argument. Verify setSubscriptionStatus mutation is wired with (userId, status) arguments. Ensure all mutations invalidate 'adminUsers' query cache on success. Verify UI reflects changes immediately after mutation success."
-        },
-        {
-          "path": "frontend/src/components/AdminInviteCodes.tsx",
-          "operation": "modify",
-          "description": "Audit AdminInviteCodes to ensure getInviteCodes query lists all codes (used and unused). Verify addInviteCode mutation is wired with (code) argument for adding custom codes. Verify generateInviteCode mutation is wired for generating random codes. Verify revokeInviteCode mutation is wired with (code) argument. Ensure 'inviteCodes' query cache is invalidated on mutation success. Verify copy-to-clipboard functionality for signup links works correctly. Use the invite-links component's backend capabilities (generateInviteCode, getInviteCodes, addInviteCode, revokeInviteCode) to support this panel. Verify the component's usage instructions before implementing."
-        },
-        {
-          "path": "frontend/src/components/AdminUserPostHistory.tsx",
-          "operation": "modify",
-          "description": "Audit AdminUserPostHistory to ensure adminGetUserPosts query is called with (userId) argument when searching by principal. Verify post list is displayed correctly. Ensure adminDeletePost mutation is available for deleting posts from this view. Verify 'adminPosts' query cache is invalidated on mutation success."
+          "description": "Update the register mutation hook to properly surface backend error messages. Ensure that when the backend returns an error variant (e.g., #err from validateInviteCode or register), the mutation's onError callback receives a structured error object containing the backend's error text. This allows the SignupPage to display the exact error message inline without requiring additional parsing."
         }
       ]
     }

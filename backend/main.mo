@@ -6,11 +6,14 @@ import Runtime "mo:core/Runtime";
 import Array "mo:core/Array";
 import Random "mo:core/Random";
 import Principal "mo:core/Principal";
+import Blob "mo:core/Blob";
 import MixinAuthorization "authorization/MixinAuthorization";
 import AccessControl "authorization/access-control";
 import Order "mo:core/Order";
 import InviteLinksModule "invite-links/invite-links-module";
+import Migration "migration";
 
+(with migration = Migration.run)
 actor {
   let accessControlState = AccessControl.initState();
   let inviteState = InviteLinksModule.initState();
@@ -406,7 +409,7 @@ actor {
 
   func generateUuid() : async Text {
     let blob = await Random.blob();
-    let bytes = Blob.toArray(blob);
+    let bytes = blob.toArray();
     var result = "";
     let hex = "0123456789abcdef";
     let hexChars = hex.toArray();
@@ -698,7 +701,7 @@ actor {
         if (caller.isAnonymous()) {
           Runtime.trap("Anonymous principal cannot be admin");
         };
-        AccessControl.initialize(accessControlState, caller, "", "");
+        AccessControl.initialize(accessControlState, caller, "adminToken", "userToken");
         adminPrincipal := ?caller;
       };
     };
@@ -723,4 +726,3 @@ actor {
     };
   };
 };
-

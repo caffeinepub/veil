@@ -1,92 +1,58 @@
 {
   "kind": "spec_vs_diff_report",
   "version": "1.0",
-  "generatedAt": "2026-02-28T22:45:05.820Z",
-  "summary": "The diff only modifies two files: backend/main.mo (truncated) and project_state.json. The backend/main.mo changes appear incomplete and problematic — it uses non-standard Motoko imports (mo:core/* instead of standard base library), references external modules not shown as added files, and the visible portion does not demonstrate all 22 required public functions, stable var/preupgrade/postupgrade pattern, or pre-seeded invite codes. The entire frontend codebase (REQ-105 through REQ-112) shows no changes at all in the diff.",
+  "generatedAt": "2026-03-01T00:03:02.871Z",
+  "summary": "The diff addresses both REQ-113 (backend invite code seeding) and REQ-114 (frontend inline error display). REQ-113 is partially addressed via a migration module but has concerns about the preupgrade/postupgrade stable var pattern. REQ-114 appears implemented with inline error display and no modals, but the exact error text requirement is not met.",
   "missing_requirements": [
     {
-      "id": "REQ-104",
-      "requirement": "backend/main.mo must compile correctly with all 22 required public functions, at least 5 pre-seeded invite codes, stable var with preupgrade/postupgrade pattern, and admin Principal protection.",
-      "reason": "The visible backend/main.mo uses non-standard imports (mo:core/* instead of mo:base/*), imports external modules (MixinAuthorization, AccessControl, InviteLinksModule) not present in the diff, uses non-standard Map/Text APIs, does not show stable var declarations, no preupgrade/postupgrade hooks, no pre-seeded invite codes, and only a subset of the 22 required functions are visible before truncation. The file appears unlikely to compile.",
+      "id": "REQ-113",
+      "requirement": "The InviteCodes stable map must be populated at actor initialization and survive upgrades via the preupgrade/postupgrade stable var pattern.",
+      "reason": "The diff uses a migration module applied via a (with migration = Migration.run) actor annotation rather than explicit preupgrade/postupgrade hooks with stable var declarations. The main.mo snippet shows inviteCodes declared as a regular let binding (not stable var), raising doubts about whether codes survive upgrades. No explicit system func postupgrade block is visible in the truncated diff.",
       "evidence": [
-        "backend/main.mo"
+        "backend/main.mo",
+        "backend/migration.mo"
       ]
     },
     {
-      "id": "REQ-105",
-      "requirement": "useQueries.ts must have complete, correctly-typed React Query hooks for every backend function with correct cache invalidation.",
-      "reason": "No frontend files were modified in the diff. useQueries.ts is not present in any added or modified files.",
-      "evidence": []
-    },
-    {
-      "id": "REQ-106",
-      "requirement": "LoginPage must call login from useInternetIdentity, redirect to /dashboard or /signup after auth, protect routes, and Header logout must redirect to /login.",
-      "reason": "No frontend files were modified in the diff. LoginPage and Header components are not present in any added or modified files.",
-      "evidence": []
-    },
-    {
-      "id": "REQ-107",
-      "requirement": "SignupPage must read invite code from URL params, pre-fill input, call register mutation, unwrap Result variants, route on success, show inline errors, and offer exactly India and Global region options.",
-      "reason": "No frontend files were modified in the diff. SignupPage is not present in any added or modified files.",
-      "evidence": []
-    },
-    {
-      "id": "REQ-108",
-      "requirement": "DashboardPage must call getMyProfile and getMySubscriptionStatus, pass status to SubscriptionBanner, block /create navigation when expired, and have emotion buttons navigating with query params.",
-      "reason": "No frontend files were modified in the diff. DashboardPage is not present in any added or modified files.",
-      "evidence": []
-    },
-    {
-      "id": "REQ-109",
-      "requirement": "PostCreationPage must read emotion from params, call createPost mutation, enforce 24-word minimum, show live word counter, handle Result, navigate to /posts on success, and show inline errors.",
-      "reason": "No frontend files were modified in the diff. PostCreationPage is not present in any added or modified files.",
-      "evidence": []
-    },
-    {
-      "id": "REQ-110",
-      "requirement": "MyPostsPage and PostCard must use editPost, deletePost, setPostPrivacy mutations with correct cache invalidation, show exact confirmation dialog text, and conditionally show Edit button.",
-      "reason": "No frontend files were modified in the diff. MyPostsPage and PostCard components are not present in any added or modified files.",
-      "evidence": []
-    },
-    {
-      "id": "REQ-111",
-      "requirement": "CommunityFeedPage and PublicPostCard must call getMyReaction, addReaction, disable reaction buttons for owners and already-reacted users, sort newest-first, and show no comments/replies/follower counts.",
-      "reason": "No frontend files were modified in the diff. CommunityFeedPage and PublicPostCard are not present in any added or modified files.",
-      "evidence": []
-    },
-    {
-      "id": "REQ-112",
-      "requirement": "AdminPage and sub-components must wire all admin hooks, redirect non-admins, and have working AdminPublicPostsList, AdminUserManagement, AdminInviteCodes, and AdminUserPostHistory.",
-      "reason": "No frontend files were modified in the diff. AdminPage and admin sub-components are not present in any added or modified files.",
-      "evidence": []
+      "id": "REQ-114",
+      "requirement": "The exact error text from the backend must be displayed inline — 'Invalid invite code', 'Invite code already used', 'Capacity reached'.",
+      "reason": "The SignupPage maps backend errors to different user-facing strings rather than displaying the exact backend error text. 'Invalid invite code' becomes 'Invalid invite code. Please check the code and try again.', 'already used' becomes 'This invite code has already been used. Please use a different code.', and capacity errors become 'Registration is currently full. Please try again later.' None match the exact text required by the acceptance criteria.",
+      "evidence": [
+        "frontend/src/pages/SignupPage.tsx"
+      ]
     }
   ],
   "hallucinated_features": [
     {
-      "description": "generateInviteCode, submitRSVP, and getAllRSVPs public functions added to backend",
-      "reason": "The backend/main.mo adds these functions which are not among the 22 required functions in REQ-104. submitRSVP and getAllRSVPs relate to RSVP functionality which was never requested.",
+      "description": "A dedicated backend/migration.mo module was added as a separate file to handle invite code seeding.",
+      "reason": "The build request only asked for seeding logic in the actor initialization or postupgrade hook within backend/main.mo. A separate migration module file was not requested.",
       "evidence": [
-        "backend/main.mo"
+        "backend/migration.mo"
       ]
     },
     {
-      "description": "External module imports: MixinAuthorization, AccessControl, InviteLinksModule",
-      "reason": "The backend imports authorization and invite-links modules from external files not requested and not present in the diff as added files, making the backend likely uncompilable.",
+      "description": "The SignupPage auto-uppercases invite code input on change and clears the form error on input change.",
+      "reason": "The build request did not specify auto-uppercasing behavior or error-clearing on input change for the invite code field. These are additional UX behaviors beyond the stated requirements.",
       "evidence": [
-        "backend/main.mo"
+        "frontend/src/pages/SignupPage.tsx",
+        "frontend-file-summaries.txt"
       ]
     },
     {
-      "description": "adminPrincipal stored as mutable optional var initialized to null rather than hardcoded",
-      "reason": "REQ-104 explicitly requires admin functions to be protected by a hardcoded admin Principal check. The diff declares 'var adminPrincipal : ?Principal = null' which is mutable and starts as null, contradicting the hardcoded requirement.",
+      "description": "An extractCanisterError helper function was added to useQueries.ts to strip ICP canister trap message prefixes from error messages.",
+      "reason": "The build request did not request a canister error extraction utility function. While it indirectly supports REQ-114, it is an additional abstraction not explicitly requested.",
       "evidence": [
-        "backend/main.mo"
+        "frontend/src/hooks/useQueries.ts"
       ]
     }
   ],
-  "confidence": 0.88,
+  "confidence": 0.62,
   "changed_files": [
     "backend/main.mo",
+    "backend/migration.mo",
+    "frontend-file-summaries.txt",
+    "frontend/src/hooks/useQueries.ts",
+    "frontend/src/pages/SignupPage.tsx",
     "project_state.json"
   ]
 }
