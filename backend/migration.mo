@@ -3,41 +3,38 @@ import Time "mo:core/Time";
 import Principal "mo:core/Principal";
 
 module {
-  type Region = { #india; #global };
-
-  type SubscriptionStatus = { #grace; #active; #expired };
-
   type User = {
     id : Principal;
     pseudonym : Text;
-    region : Region;
-    subscriptionStatus : SubscriptionStatus;
+    region : { #India; #Global };
+    subscriptionStatus : { #grace; #active; #expired };
     subscriptionStartDate : Time.Time;
     inviteCode : Text;
     createdAt : Time.Time;
     suspended : Bool;
   };
 
-  type InviteCode = {
-    code : Text;
-    created : Time.Time;
-    used : Bool;
-  };
-
-  type Actor = {
+  type OldActor = {
     users : Map.Map<Principal, User>;
-    inviteCodes : Map.Map<Text, InviteCode>;
+    inviteCodes : Map.Map<Text, { code : Text; created : Time.Time; used : Bool }>;
   };
 
-  public func run(old : Actor) : Actor {
-    // Filter out anonymous principal entries and keep only valid ones
+  type NewActor = {
+    users : Map.Map<Principal, User>;
+    inviteCodes : Map.Map<Text, { code : Text; created : Time.Time; used : Bool }>;
+  };
+
+  public func run(old : OldActor) : NewActor {
     let cleanedUsers = old.users.filter(
-      func(p, _) {
-        not p.isAnonymous();
+      func(key, _user) {
+        not key.isAnonymous();
       }
     );
 
-    // Re-seed default invite codes
+    let finalInviteCodes = old.inviteCodes.map<Text, { code : Text; created : Time.Time; used : Bool }, { code : Text; created : Time.Time; used : Bool }>(
+      func(k, v) { v }
+    );
+
     let defaultCodes = [
       "VEIL-001",
       "VEIL-002",
@@ -45,17 +42,21 @@ module {
       "VEIL-004",
       "VEIL-005",
     ];
+
     for (code in defaultCodes.values()) {
-      if (not old.inviteCodes.containsKey(code)) {
-        let ic : InviteCode = {
+      if (not finalInviteCodes.containsKey(code)) {
+        let ic = {
           code;
           created = Time.now();
           used = false;
         };
-        old.inviteCodes.add(code, ic);
+        finalInviteCodes.add(code, ic);
       };
     };
 
-    { old with users = cleanedUsers };
+    {
+      users = cleanedUsers;
+      inviteCodes = finalInviteCodes;
+    };
   };
 };

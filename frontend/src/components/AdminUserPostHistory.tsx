@@ -19,22 +19,30 @@ import { Loader2, Search, Trash2, FileText } from 'lucide-react';
 
 export default function AdminUserPostHistory() {
   const [searchInput, setSearchInput] = useState('');
-  const [searchedPrincipal, setSearchedPrincipal] = useState<string | null>(null);
   const [deleteErrors, setDeleteErrors] = useState<Record<string, string>>({});
 
-  const { data: posts, isLoading } = useAdminGetUserPosts(searchedPrincipal);
+  const getUserPosts = useAdminGetUserPosts();
   const deletePost = useAdminDeletePost();
 
-  const handleSearch = (e: React.FormEvent) => {
+  // posts come from the mutation result
+  const posts: Post[] = getUserPosts.data ?? [];
+  const isLoading = getUserPosts.isPending;
+  const hasSearched = getUserPosts.isSuccess || getUserPosts.isError;
+
+  const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (searchInput.trim()) {
-      setSearchedPrincipal(searchInput.trim());
+    const principal = searchInput.trim();
+    if (!principal) return;
+    try {
+      await getUserPosts.mutateAsync({ userId: principal });
+    } catch {
+      // error shown via isError
     }
   };
 
   const handleDelete = async (postId: string) => {
     try {
-      await deletePost.mutateAsync(postId);
+      await deletePost.mutateAsync({ postId });
       setDeleteErrors(prev => { const n = { ...prev }; delete n[postId]; return n; });
     } catch (err: unknown) {
       setDeleteErrors(prev => ({
@@ -44,7 +52,7 @@ export default function AdminUserPostHistory() {
     }
   };
 
-  const sortedPosts = [...(posts ?? [])].sort(
+  const sortedPosts = [...posts].sort(
     (a, b) => Number(b.createdAt - a.createdAt)
   );
 
@@ -59,16 +67,21 @@ export default function AdminUserPostHistory() {
             onChange={e => setSearchInput(e.target.value)}
             className="flex-1 font-mono text-xs"
           />
-          <Button type="submit" size="sm">
-            <Search size={14} />
+          <Button type="submit" size="sm" disabled={isLoading}>
+            {isLoading ? <Loader2 className="animate-spin" size={14} /> : <Search size={14} />}
           </Button>
         </form>
+        {getUserPosts.isError && (
+          <p className="text-xs text-amber-700 dark:text-amber-400">
+            {getUserPosts.error instanceof Error ? getUserPosts.error.message : 'Failed to fetch posts.'}
+          </p>
+        )}
       </div>
 
-      {searchedPrincipal && (
+      {hasSearched && !getUserPosts.isError && (
         <div className="space-y-3">
           <p className="text-xs text-muted-foreground font-mono">
-            Posts by: {searchedPrincipal}
+            Posts by: {searchInput.trim()}
           </p>
 
           {isLoading ? (

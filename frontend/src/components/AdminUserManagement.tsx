@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useAdminGetAllUsers, useAdminSuspendUser, useAdminUnsuspendUser, useSetSubscriptionStatus } from '../hooks/useQueries';
+import { useAdminGetAllUsers, useAdminSuspendUser, useAdminUnsuspendUser, useAdminSetSubscriptionStatus } from '../hooks/useQueries';
 import { SubscriptionStatus, type User } from '../backend';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -10,12 +10,12 @@ export default function AdminUserManagement() {
   const { data: users, isLoading } = useAdminGetAllUsers();
   const suspendUser = useAdminSuspendUser();
   const unsuspendUser = useAdminUnsuspendUser();
-  const setSubStatus = useSetSubscriptionStatus();
+  const setSubStatus = useAdminSetSubscriptionStatus();
   const [actionErrors, setActionErrors] = useState<Record<string, string>>({});
 
   const handleSuspend = async (userId: string) => {
     try {
-      await suspendUser.mutateAsync(userId);
+      await suspendUser.mutateAsync({ userId });
       setActionErrors(prev => { const n = { ...prev }; delete n[userId]; return n; });
     } catch (err: unknown) {
       setActionErrors(prev => ({ ...prev, [userId]: err instanceof Error ? err.message : 'Action failed.' }));
@@ -24,7 +24,7 @@ export default function AdminUserManagement() {
 
   const handleUnsuspend = async (userId: string) => {
     try {
-      await unsuspendUser.mutateAsync(userId);
+      await unsuspendUser.mutateAsync({ userId });
       setActionErrors(prev => { const n = { ...prev }; delete n[userId]; return n; });
     } catch (err: unknown) {
       setActionErrors(prev => ({ ...prev, [userId]: err instanceof Error ? err.message : 'Action failed.' }));

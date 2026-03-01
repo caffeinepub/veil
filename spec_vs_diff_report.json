@@ -1,28 +1,44 @@
 {
   "kind": "spec_vs_diff_report",
   "version": "1.0",
-  "generatedAt": "2026-03-01T01:15:08.818Z",
-  "summary": "The diff implements all three requirements (REQ-127, REQ-128, REQ-129) with varying degrees of completeness. REQ-128 is implemented via a new migration.mo file. REQ-129 is implemented in useQueries.ts with isValidIdentity guards. REQ-127 is partially visible in main.mo (truncated), showing anonymous checks in at least generateInviteCode, but the full coverage of all required functions cannot be confirmed due to truncation.",
+  "generatedAt": "2026-03-01T05:13:47.650Z",
+  "summary": "The diff implements changes across backend/main.mo, backend/migration.mo, and frontend/src/hooks/useQueries.ts. REQ-146 (frontend anonymous principal guard) is well-implemented with an isNonAnonymous helper and useAuthGuard hook applied to queries and mutations. backend/migration.mo is added and filters anonymous users and seeds VEIL-001 through VEIL-005 without overwriting, addressing REQ-145. However, backend/main.mo is truncated, so we cannot confirm that all named public functions have isAnonymous guards at their tops or that all map iterations have defensive checks per REQ-144. The migration.mo uses a module with a run() function rather than a postupgrade hook directly, which may indicate structural differences from the spec.",
   "missing_requirements": [
     {
-      "id": "REQ-127",
-      "requirement": "Every public update and query function in main.mo (register, createPost, editPost, deletePost, setPostPrivacy, addReaction, getMyReaction, getMyProfile, getMyPosts, getMySubscriptionStatus, and all admin functions) must check Principal.isAnonymous(caller) at the very top and return an immediate error/false if anonymous.",
-      "reason": "The main.mo diff is truncated after showing only the generateInviteCode function with an anonymous check. Coverage of all required functions (register, createPost, editPost, deletePost, setPostPrivacy, addReaction, getMyReaction, getMyProfile, getMyPosts, getMySubscriptionStatus, and admin functions) cannot be confirmed from the available diff.",
+      "id": "REQ-144",
+      "requirement": "Add Principal.isAnonymous(caller) guard at the absolute top of every public function and add defensive isAnonymous checks in all map iterations over users, posts, and reactions maps.",
+      "reason": "backend/main.mo is truncated after helper functions — the actual public function bodies where isAnonymous guards must be placed are not visible in the diff. There is no evidence in the visible portion that any public function has an isAnonymous guard or that map iterations have defensive checks.",
       "evidence": [
+        "backend/main.mo"
+      ]
+    },
+    {
+      "id": "REQ-145",
+      "requirement": "The postupgrade cleanup hook must iterate over the users map, check isAnonymous per key, remove anonymous entries without trapping, and re-seed VEIL-001 through VEIL-005 only if absent.",
+      "reason": "migration.mo defines a module with a run() function rather than a system postupgrade hook. Whether main.mo's postupgrade calls Migration.run is not verifiable from the truncated diff, so it cannot be confirmed that the postupgrade hook performs the required cleanup.",
+      "evidence": [
+        "backend/migration.mo",
         "backend/main.mo"
       ]
     }
   ],
   "hallucinated_features": [
     {
-      "description": "migration.mo uses object-method call syntax (p.isAnonymous(), old.users.filter(), old.inviteCodes.add()) which is non-standard for Motoko's Principal and Map modules where these are free functions, not instance methods.",
-      "reason": "The build request does not specify this API style and it does not match standard Motoko stdlib conventions, suggesting hallucinated API usage in the migration implementation.",
+      "description": "migration.mo defines OldActor and NewActor types with a run() transformation function, acting as a stateless migration module rather than implementing the postupgrade hook directly as specified.",
+      "reason": "The spec requires the postupgrade hook in migration.mo to perform cleanup. The diff instead creates a module with typed actor structs and a run() function, which is an architectural pattern not explicitly requested.",
       "evidence": [
         "backend/migration.mo"
       ]
+    },
+    {
+      "description": "useQueries.ts imports an RSVP type from the backend module.",
+      "reason": "The RSVP type is imported in useQueries.ts but is not mentioned anywhere in the build request or requirements. This appears to be an unrequested addition.",
+      "evidence": [
+        "frontend/src/hooks/useQueries.ts"
+      ]
     }
   ],
-  "confidence": 0.62,
+  "confidence": 0.55,
   "changed_files": [
     "backend/main.mo",
     "backend/migration.mo",

@@ -1,7 +1,7 @@
 {
   "kind": "coverage_report",
   "version": "1.0",
-  "generatedAt": "2026-03-01T01:15:08.823Z",
+  "generatedAt": "2026-03-01T05:13:47.656Z",
   "sources": {
     "buildRequest": true,
     "implementationPlan": true
@@ -11,22 +11,22 @@
     "implemented": 1,
     "items": [
       {
-        "id": "REQ-127",
-        "summary": "In backend/main.mo, audit every location where a Principal value is used in a blob conversion, equality check, or as a HashMap/TrieMap key. Add a guard using Principal.isAnonymous(caller) at the very top of every public function (register, createPost, editPost, deletePost, setPostPrivacy, addReaction, getMyReaction, getMyProfile, getMyPosts, getMySubscriptionStatus, and all admin functions) so that if the caller is anonymous, the function returns an immediate error result or false rather than proceeding. This prevents the 'RTS error: blob_of_principal: invalid principal' trap that occurs when an anonymous principal is passed to Principal.toBlob or related operations.",
+        "id": "REQ-144",
+        "summary": "In backend/main.mo, perform a comprehensive audit of every public function and every internal iteration over stored Principal values. Add a Principal.isAnonymous(caller) guard at the absolute top of every public function (register, createPost, editPost, deletePost, setPostPrivacy, addReaction, getMyReaction, getMyProfile, getMyPosts, getMySubscriptionStatus, validateInviteCode, isAdmin, adminGetAllPublicPosts, adminGetUserPosts, adminDeletePost, adminSuspendUser, adminUnsuspendUser, adminGetAllUsers, addInviteCode, revokeInviteCode, setSubscriptionStatus, and adminRegister) so that any call from an anonymous principal returns an immediate safe exit (error result, false, or empty array) before any Principal.toBlob, HashMap lookup, or other Principal operation is attempted. Additionally, audit every iteration over the users, posts, and reactions maps where stored Principal keys or values are passed to Principal.toBlob or Principal.equal — add a defensive isAnonymous check before each such operation and skip/remove any anonymous entry rather than trapping.",
         "status": "unknown",
         "plannedFiles": [],
         "matchedFiles": []
       },
       {
-        "id": "REQ-128",
-        "summary": "In backend/migration.mo, update the postupgrade cleanup step so that when iterating over stored user entries, each Principal key is checked with Principal.isAnonymous before any Principal.toBlob or comparison operation. Any entry whose key is the anonymous principal must be silently removed without trapping. The invite code re-seeding for VEIL-001 through VEIL-005 must also proceed safely after this cleanup.",
+        "id": "REQ-145",
+        "summary": "In backend/migration.mo, update the postupgrade cleanup hook so that when iterating over all stored entries in the users map, each Principal key is checked with Principal.isAnonymous before any Principal.toBlob, Principal.equal, or HashMap/TrieMap operation is performed on it. Any entry whose key is the anonymous principal must be silently removed without trapping. After this cleanup, re-seed invite codes VEIL-001 through VEIL-005 as unused entries only if they are absent from the InviteCodes map — never overwriting existing entries.",
         "status": "unknown",
         "plannedFiles": [],
         "matchedFiles": []
       },
       {
-        "id": "REQ-129",
-        "summary": "In frontend/src/hooks/useQueries.ts, reinforce the existing anonymous-identity guard so that all actor calls check both isAuthenticated from useInternetIdentity and that the identity is not the anonymous identity before dispatching any call to the backend actor. If either check fails, the query must return early with no result and mutations must not be dispatched.",
+        "id": "REQ-146",
+        "summary": "In frontend/src/hooks/useQueries.ts, add an additional layer of defense: before dispatching any actor call, verify both (1) isAuthenticated is true from useInternetIdentity, and (2) the identity's principal is not anonymous (identity.getPrincipal().isAnonymous() === false). If either check fails, all query functions must return early with no result and all mutation functions must throw or resolve without dispatching the actor call. This ensures the frontend never sends a request carrying an anonymous principal to the backend.",
         "status": "implemented",
         "plannedFiles": [
           "frontend/src/hooks/useQueries.ts"

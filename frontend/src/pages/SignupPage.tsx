@@ -3,7 +3,6 @@ import { useNavigate } from '@tanstack/react-router';
 import { useInternetIdentity } from '../hooks/useInternetIdentity';
 import { useGetMyProfile, useRegister } from '../hooks/useQueries';
 import { Region } from '../backend';
-import { getPersistedUrlParameter, clearSessionParameter } from '../utils/urlParams';
 import { Loader2, AlertCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -17,17 +16,10 @@ export default function SignupPage() {
   const registerMutation = useRegister();
 
   const [pseudonym, setPseudonym] = useState('');
-  const [region, setRegion] = useState<Region>(Region.india);
-  const [inviteCode, setInviteCode] = useState('');
+  const [region, setRegion] = useState<Region>(Region.India);
   const [formError, setFormError] = useState<string | null>(null);
 
   const isAuthenticated = !!identity;
-
-  // Pre-fill invite code from URL query param or sessionStorage
-  useEffect(() => {
-    const code = getPersistedUrlParameter('code');
-    if (code) setInviteCode(code);
-  }, []);
 
   // Redirect unauthenticated users
   useEffect(() => {
@@ -51,29 +43,17 @@ export default function SignupPage() {
       setFormError('Please enter a pseudonym.');
       return;
     }
-    if (!inviteCode.trim()) {
-      setFormError('Please enter your invite code.');
-      return;
-    }
 
     try {
       await registerMutation.mutateAsync({
         pseudonym: pseudonym.trim(),
         region,
-        inviteCode: inviteCode.trim().toUpperCase(),
       });
-      clearSessionParameter('code');
       navigate({ to: '/dashboard' });
     } catch (err: unknown) {
-      // The useRegister hook already extracts the clean canister error message
       const raw = err instanceof Error ? err.message : String(err);
 
-      // Map backend trap messages to user-friendly text
-      if (raw.toLowerCase().includes('invalid invite code')) {
-        setFormError('Invalid invite code. Please check the code and try again.');
-      } else if (raw.toLowerCase().includes('already been used') || raw.toLowerCase().includes('already used')) {
-        setFormError('This invite code has already been used. Please use a different code.');
-      } else if (raw.toLowerCase().includes('capacity') || raw.toLowerCase().includes('max 100')) {
+      if (raw.toLowerCase().includes('capacity') || raw.toLowerCase().includes('max 100')) {
         setFormError('Registration is currently full. Please try again later.');
       } else if (raw.toLowerCase().includes('already registered')) {
         setFormError('You are already registered. Redirecting to dashboard…');
@@ -135,28 +115,10 @@ export default function SignupPage() {
                 <SelectValue placeholder="Select your region" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value={Region.india}>India</SelectItem>
-                <SelectItem value={Region.global}>Global</SelectItem>
+                <SelectItem value={Region.India}>India</SelectItem>
+                <SelectItem value={Region.Global}>Global</SelectItem>
               </SelectContent>
             </Select>
-          </div>
-
-          {/* Invite Code */}
-          <div className="space-y-1.5">
-            <Label htmlFor="inviteCode">Invite Code</Label>
-            <Input
-              id="inviteCode"
-              placeholder="e.g. VEIL-001"
-              value={inviteCode}
-              onChange={e => {
-                setInviteCode(e.target.value);
-                if (formError) setFormError(null);
-              }}
-              disabled={registerMutation.isPending}
-              autoComplete="off"
-              className="uppercase placeholder:normal-case"
-            />
-            <p className="text-xs text-muted-foreground">Enter the invite code exactly as provided (e.g. VEIL-001).</p>
           </div>
 
           {/* Inline error */}
@@ -184,7 +146,7 @@ export default function SignupPage() {
         </form>
 
         <p className="text-xs text-muted-foreground text-center">
-          Invite-only · Your identity stays anonymous
+          Your identity stays anonymous
         </p>
       </div>
     </div>

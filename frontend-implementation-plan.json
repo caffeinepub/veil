@@ -1,22 +1,22 @@
 {
   "kind": "implementation_plan",
   "version": "1.0",
-  "title": "Fix RTS blob_of_principal invalid principal crash - Frontend Guards",
+  "title": "Fix RTS blob_of_principal invalid principal error - Frontend Defense Layer",
   "requirements": [
     {
-      "id": "REQ-129",
-      "summary": "Reinforce anonymous identity guards in useQueries.ts to prevent any backend actor calls when the caller is unauthenticated or using the anonymous identity",
+      "id": "REQ-146",
+      "summary": "Add frontend anonymous principal guard to prevent any actor calls from being dispatched when the identity is anonymous or unauthenticated",
       "acceptanceCriteria": [
-        "No backend actor call is ever dispatched when isAuthenticated is false or the identity is the anonymous identity.",
-        "All useQuery hooks skip (enabled: false) when the caller is unauthenticated or anonymous.",
-        "All useMutation hooks return early without calling the actor when the caller is anonymous.",
-        "After a successful Internet Identity login, all queries resume normally and backend calls succeed."
+        "No actor call is ever dispatched when the current identity is anonymous or when isAuthenticated is false.",
+        "Queries return undefined/null/empty rather than triggering a backend call when the principal is anonymous.",
+        "Mutations are silently skipped (or throw a client-side error) rather than calling the actor when the principal is anonymous.",
+        "After a successful Internet Identity login with a valid non-anonymous principal, all queries and mutations dispatch correctly."
       ],
       "file_operations": [
         {
           "path": "frontend/src/hooks/useQueries.ts",
           "operation": "modify",
-          "description": "Add a helper function at the top of the file that checks both isAuthenticated from useInternetIdentity and verifies the identity is not the anonymous identity. Update all useQuery hooks to include this check in their enabled condition (combining it with existing actor checks using &&). Update all useMutation hooks (useRegister, useCreatePost, useEditPost, useDeletePost, useSetPostPrivacy, useAddReaction, useSaveCallerUserProfile, useGenerateInviteCode, useAddInviteCode, useRevokeInviteCode, useAdminDeletePost, useAdminSuspendUser, useAdminUnsuspendUser, useSetSubscriptionStatus, useAssignCallerUserRole) to call this helper at the start of their mutationFn and return early (without invoking the actor) if the check fails. Ensure the helper returns false when identity is null, undefined, or matches the anonymous principal pattern."
+          "description": "Add a defensive guard at the top of every query and mutation function that checks (1) isAuthenticated is true from useInternetIdentity and (2) identity.getPrincipal().isAnonymous() === false. If either check fails, queries must return early with no result (undefined/null/empty array) and mutations must throw a client-side error or resolve without dispatching the actor call. Apply this guard to all existing query hooks (useGetCallerUserProfile, useGetUserProfile, useGetCallerUserRole, useIsCallerAdmin, useGetMyProfile, useGetMySubscriptionStatus, useGetSubscriptionStatus, useGetPublicPosts, useGetMyPosts, useAdminGetAllPublicPosts, useAdminGetUserPosts, useAdminGetAllUsers, useGetMyReaction, useGetUserReactionOnPost, useGetInviteCodes, useGetAllRSVPs) and all mutation hooks (useSaveCallerUserProfile, useAssignCallerUserRole, useRegister, useAdminRegister, useValidateInviteCode, useCreatePost, useEditPost, useDeletePost, useSetPostPrivacy, useAddReaction, useAdminDeletePost, useAdminSuspendUser, useAdminUnsuspendUser, useSetSubscriptionStatus, useAddInviteCode, useRevokeInviteCode, useGenerateInviteCode, useSubmitRSVP). Ensure the guard uses Principal.isAnonymous() from @dfinity/principal and never compares principal text representations as strings."
         }
       ]
     }

@@ -1,11 +1,12 @@
 # Specification
 
 ## Summary
-**Goal:** Fix the "RTS error: blob_of_principal: invalid principal" crash by guarding all backend functions and migration logic against anonymous principals, and reinforcing the frontend to never dispatch actor calls when unauthenticated.
+**Goal:** Eliminate the recurring `RTS error: blob_of_principal: invalid principal` error by adding comprehensive anonymous principal guards across the backend, migration hook, and frontend query layer.
 
 **Planned changes:**
-- In `backend/main.mo`, add `Principal.isAnonymous(caller)` checks at the top of every public function (register, createPost, editPost, deletePost, setPostPrivacy, addReaction, getMyReaction, getMyProfile, getMyPosts, getMySubscriptionStatus, and all admin functions), returning an immediate error or false if the caller is anonymous.
-- In `backend/migration.mo`, update the `postupgrade` hook to check each stored user entry's Principal key with `Principal.isAnonymous` before any blob conversion or comparison, silently removing anonymous-keyed entries without trapping, while preserving all legitimate user entries and re-seeding invite codes VEIL-001 through VEIL-005 as before.
-- In `frontend/src/hooks/useQueries.ts`, reinforce the anonymous-identity guard so all actor calls verify both `isAuthenticated` and that the identity is not anonymous before proceeding; all `useQuery` hooks set `enabled: false` and all `useMutation` hooks return early when the caller is unauthenticated or anonymous.
+- In `backend/main.mo`, add a `Principal.isAnonymous(caller)` guard at the top of every public function so anonymous callers receive a safe early exit (error, false, or empty array) before any `Principal.toBlob` or HashMap operation is attempted.
+- In `backend/main.mo`, audit all iterations over the users, posts, and reactions maps to check `isAnonymous` before any `toBlob` or equality operation on stored Principal keys, skipping/removing anonymous entries instead of trapping.
+- In `backend/migration.mo`, update the `postupgrade` hook to check `Principal.isAnonymous` on every stored user Principal key before any map operation, silently removing anonymous entries without trapping, and re-seed invite codes VEIL-001 through VEIL-005 as unused only if they are absent.
+- In `frontend/src/hooks/useQueries.ts`, add a pre-dispatch check verifying both `isAuthenticated === true` and `identity.getPrincipal().isAnonymous() === false` before any actor call; queries return empty/null and mutations are skipped if either check fails.
 
-**User-visible outcome:** Anonymous or unauthenticated sessions no longer cause a backend trap. Authenticated users continue to register, post, react, and use admin functions normally without any crashes.
+**User-visible outcome:** Authenticated users with a valid Internet Identity principal can log in and use the app without encountering the `blob_of_principal: invalid principal` runtime trap.

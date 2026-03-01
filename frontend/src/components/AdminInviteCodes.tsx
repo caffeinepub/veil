@@ -1,15 +1,15 @@
 import { useState } from 'react';
-import { useGetInviteCodes, useAddInviteCode, useGenerateInviteCode, useRevokeInviteCode } from '../hooks/useQueries';
+import { useAdminGetInviteCodes, useAdminAddInviteCode, useAdminGenerateInviteCode, useAdminRevokeInviteCode } from '../hooks/useQueries';
 import { type InviteCode } from '../backend';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Loader2, Copy, Trash2, Plus, RefreshCw, Check } from 'lucide-react';
 
 export default function AdminInviteCodes() {
-  const { data: codes, isLoading } = useGetInviteCodes();
-  const addCode = useAddInviteCode();
-  const generateCode = useGenerateInviteCode();
-  const revokeCode = useRevokeInviteCode();
+  const { data: codes, isLoading } = useAdminGetInviteCodes();
+  const addCode = useAdminAddInviteCode();
+  const generateCode = useAdminGenerateInviteCode();
+  const revokeCode = useAdminRevokeInviteCode();
 
   const [newCode, setNewCode] = useState('');
   const [addError, setAddError] = useState<string | null>(null);
@@ -24,7 +24,7 @@ export default function AdminInviteCodes() {
       return;
     }
     try {
-      await addCode.mutateAsync(newCode.trim());
+      await addCode.mutateAsync({ code: newCode.trim() });
       setNewCode('');
     } catch (err: unknown) {
       setAddError(err instanceof Error ? err.message : 'Failed to add code.');
@@ -41,7 +41,7 @@ export default function AdminInviteCodes() {
 
   const handleRevoke = async (code: string) => {
     try {
-      await revokeCode.mutateAsync(code);
+      await revokeCode.mutateAsync({ code });
       setRevokeErrors(prev => { const n = { ...prev }; delete n[code]; return n; });
     } catch (err: unknown) {
       setRevokeErrors(prev => ({ ...prev, [code]: err instanceof Error ? err.message : 'Failed to revoke.' }));

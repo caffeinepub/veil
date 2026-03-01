@@ -61,7 +61,7 @@ export default function PostCard({ post }: PostCardProps) {
   const handleDelete = async () => {
     setActionError(null);
     try {
-      await deletePost.mutateAsync(post.id);
+      await deletePost.mutateAsync({ postId: post.id });
     } catch (err: unknown) {
       setActionError(err instanceof Error ? err.message : 'Failed to delete post.');
     }

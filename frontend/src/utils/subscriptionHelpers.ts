@@ -13,7 +13,7 @@ export function canGoPublic(status: SubscriptionStatus): boolean {
 }
 
 export function getRegionalPricing(region: Region): string {
-  if (region === Region.india) {
+  if (region === Region.India) {
     return '₹150/month';
   }
   return '$9/month';

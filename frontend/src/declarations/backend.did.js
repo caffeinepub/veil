@@ -29,7 +29,7 @@ export const Post = IDL.Record({
   'isPrivate' : IDL.Bool,
   'editable' : IDL.Bool,
 });
-export const Region = IDL.Variant({ 'global' : IDL.Null, 'india' : IDL.Null });
+export const Region = IDL.Variant({ 'India' : IDL.Null, 'Global' : IDL.Null });
 export const SubscriptionStatus = IDL.Variant({
   'active' : IDL.Null,
   'expired' : IDL.Null,
@@ -45,6 +45,7 @@ export const User = IDL.Record({
   'inviteCode' : IDL.Text,
   'suspended' : IDL.Bool,
 });
+export const Result = IDL.Variant({ 'ok' : User, 'err' : IDL.Text });
 export const UserRole = IDL.Variant({
   'admin' : IDL.Null,
   'user' : IDL.Null,
@@ -81,6 +82,7 @@ export const idlService = IDL.Service({
   'adminGetAllPublicPosts' : IDL.Func([], [IDL.Vec(Post)], ['query']),
   'adminGetAllUsers' : IDL.Func([], [IDL.Vec(User)], ['query']),
   'adminGetUserPosts' : IDL.Func([IDL.Principal], [IDL.Vec(Post)], ['query']),
+  'adminRegister' : IDL.Func([IDL.Text, Region], [Result], []),
   'adminSuspendUser' : IDL.Func([IDL.Principal], [], []),
   'adminUnsuspendUser' : IDL.Func([IDL.Principal], [], []),
   'assignCallerUserRole' : IDL.Func([IDL.Principal, UserRole], [], []),
@@ -115,7 +117,7 @@ export const idlService = IDL.Service({
   'initializeAdmin' : IDL.Func([], [], []),
   'isAdmin' : IDL.Func([], [IDL.Bool], ['query']),
   'isCallerAdmin' : IDL.Func([], [IDL.Bool], ['query']),
-  'register' : IDL.Func([IDL.Text, Region, IDL.Text], [], []),
+  'register' : IDL.Func([IDL.Text, Region], [Result], []),
   'revokeInviteCode' : IDL.Func([IDL.Text], [], []),
   'saveCallerUserProfile' : IDL.Func([UserProfile], [], []),
   'setPostPrivacy' : IDL.Func([IDL.Text, IDL.Bool], [], []),
@@ -152,7 +154,7 @@ export const idlFactory = ({ IDL }) => {
     'isPrivate' : IDL.Bool,
     'editable' : IDL.Bool,
   });
-  const Region = IDL.Variant({ 'global' : IDL.Null, 'india' : IDL.Null });
+  const Region = IDL.Variant({ 'India' : IDL.Null, 'Global' : IDL.Null });
   const SubscriptionStatus = IDL.Variant({
     'active' : IDL.Null,
     'expired' : IDL.Null,
@@ -168,6 +170,7 @@ export const idlFactory = ({ IDL }) => {
     'inviteCode' : IDL.Text,
     'suspended' : IDL.Bool,
   });
+  const Result = IDL.Variant({ 'ok' : User, 'err' : IDL.Text });
   const UserRole = IDL.Variant({
     'admin' : IDL.Null,
     'user' : IDL.Null,
@@ -201,6 +204,7 @@ export const idlFactory = ({ IDL }) => {
     'adminGetAllPublicPosts' : IDL.Func([], [IDL.Vec(Post)], ['query']),
     'adminGetAllUsers' : IDL.Func([], [IDL.Vec(User)], ['query']),
     'adminGetUserPosts' : IDL.Func([IDL.Principal], [IDL.Vec(Post)], ['query']),
+    'adminRegister' : IDL.Func([IDL.Text, Region], [Result], []),
     'adminSuspendUser' : IDL.Func([IDL.Principal], [], []),
     'adminUnsuspendUser' : IDL.Func([IDL.Principal], [], []),
     'assignCallerUserRole' : IDL.Func([IDL.Principal, UserRole], [], []),
@@ -235,7 +239,7 @@ export const idlFactory = ({ IDL }) => {
     'initializeAdmin' : IDL.Func([], [], []),
     'isAdmin' : IDL.Func([], [IDL.Bool], ['query']),
     'isCallerAdmin' : IDL.Func([], [IDL.Bool], ['query']),
-    'register' : IDL.Func([IDL.Text, Region, IDL.Text], [], []),
+    'register' : IDL.Func([IDL.Text, Region], [Result], []),
     'revokeInviteCode' : IDL.Func([IDL.Text], [], []),
     'saveCallerUserProfile' : IDL.Func([UserProfile], [], []),
     'setPostPrivacy' : IDL.Func([IDL.Text, IDL.Bool], [], []),

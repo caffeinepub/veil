@@ -1,76 +1,76 @@
 {
   "kind": "build_request",
-  "title": "Fix RTS blob_of_principal invalid principal crash",
+  "title": "Fix RTS blob_of_principal invalid principal error (recurring)",
   "projectName": "Veil",
   "priority": "high",
   "requirements": [
     {
-      "id": "REQ-127",
-      "text": "In backend/main.mo, audit every location where a Principal value is used in a blob conversion, equality check, or as a HashMap/TrieMap key. Add a guard using Principal.isAnonymous(caller) at the very top of every public function (register, createPost, editPost, deletePost, setPostPrivacy, addReaction, getMyReaction, getMyProfile, getMyPosts, getMySubscriptionStatus, and all admin functions) so that if the caller is anonymous, the function returns an immediate error result or false rather than proceeding. This prevents the 'RTS error: blob_of_principal: invalid principal' trap that occurs when an anonymous principal is passed to Principal.toBlob or related operations.",
+      "id": "REQ-144",
+      "text": "In backend/main.mo, perform a comprehensive audit of every public function and every internal iteration over stored Principal values. Add a Principal.isAnonymous(caller) guard at the absolute top of every public function (register, createPost, editPost, deletePost, setPostPrivacy, addReaction, getMyReaction, getMyProfile, getMyPosts, getMySubscriptionStatus, validateInviteCode, isAdmin, adminGetAllPublicPosts, adminGetUserPosts, adminDeletePost, adminSuspendUser, adminUnsuspendUser, adminGetAllUsers, addInviteCode, revokeInviteCode, setSubscriptionStatus, and adminRegister) so that any call from an anonymous principal returns an immediate safe exit (error result, false, or empty array) before any Principal.toBlob, HashMap lookup, or other Principal operation is attempted. Additionally, audit every iteration over the users, posts, and reactions maps where stored Principal keys or values are passed to Principal.toBlob or Principal.equal — add a defensive isAnonymous check before each such operation and skip/remove any anonymous entry rather than trapping.",
       "target": "backend",
       "source": {
         "messageIds": [
-          "msg-1"
+          "msg-4"
         ],
         "quotes": [
-          "same error \"RTS error: blob_of_principal: invalid principal\""
+          "same error again. \"RTS error: blob_of_principal: invalid principal\"."
         ]
       },
       "acceptanceCriteria": [
-        "Every public update and query function in main.mo checks Principal.isAnonymous(caller) before performing any Principal-to-blob conversion or HashMap lookup, and returns an error/false immediately if the caller is anonymous.",
-        "The 'RTS error: blob_of_principal: invalid principal' trap no longer occurs when an unauthenticated (anonymous) session triggers a backend call.",
-        "Authenticated (non-anonymous) callers continue to operate normally — registration, post creation, reactions, and admin functions all work correctly.",
-        "The register function specifically rejects anonymous callers with a descriptive error text such as 'Must be authenticated to register'."
+        "Every public backend function returns a safe early exit (error, false, or empty array) when called by the anonymous principal — no trap occurs.",
+        "All iterations over stored user/post/reaction Principal keys check isAnonymous before any toBlob or equality operation — no trap occurs on iteration.",
+        "Logging into the app as a valid Internet Identity principal does not produce the 'RTS error: blob_of_principal: invalid principal' error.",
+        "Authenticated users with a valid non-anonymous principal can call getMyProfile, register, and other functions without a runtime trap."
       ]
     },
     {
-      "id": "REQ-128",
-      "text": "In backend/migration.mo, update the postupgrade cleanup step so that when iterating over stored user entries, each Principal key is checked with Principal.isAnonymous before any Principal.toBlob or comparison operation. Any entry whose key is the anonymous principal must be silently removed without trapping. The invite code re-seeding for VEIL-001 through VEIL-005 must also proceed safely after this cleanup.",
+      "id": "REQ-145",
+      "text": "In backend/migration.mo, update the postupgrade cleanup hook so that when iterating over all stored entries in the users map, each Principal key is checked with Principal.isAnonymous before any Principal.toBlob, Principal.equal, or HashMap/TrieMap operation is performed on it. Any entry whose key is the anonymous principal must be silently removed without trapping. After this cleanup, re-seed invite codes VEIL-001 through VEIL-005 as unused entries only if they are absent from the InviteCodes map — never overwriting existing entries.",
       "target": "backend",
       "source": {
         "messageIds": [
-          "msg-1"
+          "msg-4"
         ],
         "quotes": [
-          "same error \"RTS error: blob_of_principal: invalid principal\""
+          "same error again. \"RTS error: blob_of_principal: invalid principal\"."
         ]
       },
       "acceptanceCriteria": [
-        "The postupgrade hook in migration.mo completes without trapping even if anonymous-principal entries are present in the users stable map.",
-        "All user entries keyed to the anonymous principal are removed during postupgrade without crashing.",
-        "Invite codes VEIL-001 through VEIL-005 are re-seeded as unused if absent, as before.",
-        "No legitimate (non-anonymous) user entries are removed by the cleanup."
+        "The postupgrade hook completes without trapping even if anonymous-principal user entries exist in stable state.",
+        "Anonymous-principal user entries are removed from the users map after upgrade.",
+        "VEIL-001 through VEIL-005 invite codes are present as unused entries after upgrade if they were absent.",
+        "Existing used or unused invite code entries are not overwritten."
       ]
     },
     {
-      "id": "REQ-129",
-      "text": "In frontend/src/hooks/useQueries.ts, reinforce the existing anonymous-identity guard so that all actor calls check both isAuthenticated from useInternetIdentity and that the identity is not the anonymous identity before dispatching any call to the backend actor. If either check fails, the query must return early with no result and mutations must not be dispatched.",
+      "id": "REQ-146",
+      "text": "In frontend/src/hooks/useQueries.ts, add an additional layer of defense: before dispatching any actor call, verify both (1) isAuthenticated is true from useInternetIdentity, and (2) the identity's principal is not anonymous (identity.getPrincipal().isAnonymous() === false). If either check fails, all query functions must return early with no result and all mutation functions must throw or resolve without dispatching the actor call. This ensures the frontend never sends a request carrying an anonymous principal to the backend.",
       "target": "frontend",
       "source": {
         "messageIds": [
-          "msg-1"
+          "msg-4"
         ],
         "quotes": [
-          "same error \"RTS error: blob_of_principal: invalid principal\""
+          "same error again. \"RTS error: blob_of_principal: invalid principal\"."
         ]
       },
       "acceptanceCriteria": [
-        "No backend actor call is ever dispatched when isAuthenticated is false or the identity is the anonymous identity.",
-        "All useQuery hooks skip (enabled: false) when the caller is unauthenticated or anonymous.",
-        "All useMutation hooks return early without calling the actor when the caller is anonymous.",
-        "After a successful Internet Identity login, all queries resume normally and backend calls succeed."
+        "No actor call is ever dispatched when the current identity is anonymous or when isAuthenticated is false.",
+        "Queries return undefined/null/empty rather than triggering a backend call when the principal is anonymous.",
+        "Mutations are silently skipped (or throw a client-side error) rather than calling the actor when the principal is anonymous.",
+        "After a successful Internet Identity login with a valid non-anonymous principal, all queries and mutations dispatch correctly."
       ]
     }
   ],
   "constraints": [
-    "Do not change any file listed under frontend.immutablePaths.",
-    "Do not remove or overwrite user entries with valid (non-anonymous) Principal keys during migration cleanup.",
-    "Do not wipe invite codes that are already marked as used."
+    "Do not remove or alter the signatures of any existing public backend functions.",
+    "Do not modify files listed in frontend.immutablePaths.",
+    "The anonymous-principal guard must use Principal.isAnonymous() — do not compare principal text representations as strings."
   ],
   "nonGoals": [
-    "Changing the visual design or any UI component unrelated to authentication gating.",
-    "Adding new backend features beyond the principal-safety guards described above.",
-    "Modifying the Internet Identity provider or useInternetIdentity hook."
+    "Changing the registration flow or removing invite code logic beyond what is already implemented.",
+    "Adding new UI screens or features.",
+    "Modifying the admin principal constant value."
   ],
   "imageRequirements": {
     "required": [],

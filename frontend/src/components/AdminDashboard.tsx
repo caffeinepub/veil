@@ -4,6 +4,7 @@ import AdminPublicPostsList from './AdminPublicPostsList';
 import AdminUserManagement from './AdminUserManagement';
 import AdminInviteCodes from './AdminInviteCodes';
 import AdminUserPostHistory from './AdminUserPostHistory';
+import AdminSignup from './AdminSignup';
 import { ArrowLeft } from 'lucide-react';
 
 export default function AdminDashboard() {
@@ -27,11 +28,12 @@ export default function AdminDashboard() {
       </div>
 
       <Tabs defaultValue="posts">
-        <TabsList className="grid grid-cols-4 w-full">
+        <TabsList className="grid grid-cols-5 w-full">
           <TabsTrigger value="posts">Public Posts</TabsTrigger>
           <TabsTrigger value="members">Members</TabsTrigger>
           <TabsTrigger value="codes">Invite Codes</TabsTrigger>
           <TabsTrigger value="history">Post History</TabsTrigger>
+          <TabsTrigger value="signup">Admin Signup</TabsTrigger>
         </TabsList>
 
         <TabsContent value="posts" className="mt-4">
@@ -48,6 +50,10 @@ export default function AdminDashboard() {
 
         <TabsContent value="history" className="mt-4">
           <AdminUserPostHistory />
+        </TabsContent>
+
+        <TabsContent value="signup" className="mt-4">
+          <AdminSignup />
         </TabsContent>
       </Tabs>
     </div>

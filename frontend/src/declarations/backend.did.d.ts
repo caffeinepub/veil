@@ -44,8 +44,10 @@ export interface Reaction {
 export type ReactionType = { 'support' : null } |
   { 'care' : null } |
   { 'strength' : null };
-export type Region = { 'global' : null } |
-  { 'india' : null };
+export type Region = { 'India' : null } |
+  { 'Global' : null };
+export type Result = { 'ok' : User } |
+  { 'err' : string };
 export type SubscriptionStatus = { 'active' : null } |
   { 'expired' : null } |
   { 'grace' : null };
@@ -72,6 +74,7 @@ export interface _SERVICE {
   'adminGetAllPublicPosts' : ActorMethod<[], Array<Post>>,
   'adminGetAllUsers' : ActorMethod<[], Array<User>>,
   'adminGetUserPosts' : ActorMethod<[Principal], Array<Post>>,
+  'adminRegister' : ActorMethod<[string, Region], Result>,
   'adminSuspendUser' : ActorMethod<[Principal], undefined>,
   'adminUnsuspendUser' : ActorMethod<[Principal], undefined>,
   'assignCallerUserRole' : ActorMethod<[Principal, UserRole], undefined>,
@@ -94,7 +97,7 @@ export interface _SERVICE {
   'initializeAdmin' : ActorMethod<[], undefined>,
   'isAdmin' : ActorMethod<[], boolean>,
   'isCallerAdmin' : ActorMethod<[], boolean>,
-  'register' : ActorMethod<[string, Region, string], undefined>,
+  'register' : ActorMethod<[string, Region], Result>,
   'revokeInviteCode' : ActorMethod<[string], undefined>,
   'saveCallerUserProfile' : ActorMethod<[UserProfile], undefined>,
   'setPostPrivacy' : ActorMethod<[string, boolean], undefined>,

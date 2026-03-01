@@ -2,8 +2,8 @@
   "kind": "feature_evidence_report",
   "features": [
     {
-      "featureId": "feature-in-frontend-src-hooks-usequeries-ts-reinforce-the-existing-anonymous-identity-guard-so-that-all-actor-calls-check-both-isauthenticated-from-useinternetidentity-and-that-the-identity-is-not-the-anonymous-identity-before-dispatching-any-call-to-the-backend-actor-if-either-check-fails-the-query-must-return-early-with-no-result-and-mutations-must-not-be-dispatched",
-      "featureTitle": "In frontend/src/hooks/useQueries.ts, reinforce the existing anonymous-identity guard so that all actor calls check both isAuthenticated from useInternetIdentity and that the identity is not the anonymous identity before dispatching any call to the backend actor. If either check fails, the query must return early with no result and mutations must not be dispatched.",
+      "featureId": "feature-in-frontend-src-hooks-usequeries-ts-add-an-additional-layer-of-defense-before-dispatching-any-actor-call-verify-both-1-isauthenticated-is-true-from-useinternetidentity-and-2-the-identity-s-principal-is-not-anonymous-identity-getprincipal-isanonymous-false-if-either-check-fails-all-query-functions-must-return-early-with-no-result-and-all-mutation-functions-must-throw-or-resolve-without-dispatching-the-actor-call-this-ensures-the-frontend-never-sends-a-request-carrying-an-anonymous-principal-to-the-backend",
+      "featureTitle": "In frontend/src/hooks/useQueries.ts, add an additional layer of defense: before dispatching any actor call, verify both (1) isAuthenticated is true from useInternetIdentity, and (2) the identity's principal is not anonymous (identity.getPrincipal().isAnonymous() === false). If either check fails, all query functions must return early with no result and all mutation functions must throw or resolve without dispatching the actor call. This ensures the frontend never sends a request carrying an anonymous principal to the backend.",
       "files": [
         "frontend/src/hooks/useQueries.ts"
       ],
@@ -17,7 +17,7 @@
         "github-export-icp-cli@1.0.0"
       ],
       "testIds": [
-        "REQ-129"
+        "REQ-146"
       ],
       "confidence": "high"
     }

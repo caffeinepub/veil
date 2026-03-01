@@ -7,10 +7,6 @@ export interface None {
     __kind__: "None";
 }
 export type Option<T> = Some<T> | None;
-export interface UserProfile {
-    region: Region;
-    pseudonym: string;
-}
 export interface Reaction {
     id: string;
     userId: Principal;
@@ -25,6 +21,13 @@ export interface RSVP {
     attending: boolean;
 }
 export type Time = bigint;
+export type Result = {
+    __kind__: "ok";
+    ok: User;
+} | {
+    __kind__: "err";
+    err: string;
+};
 export interface InviteCode {
     created: Time;
     code: string;
@@ -50,6 +53,10 @@ export interface Post {
     isPrivate: boolean;
     editable: boolean;
 }
+export interface UserProfile {
+    region: Region;
+    pseudonym: string;
+}
 export enum EmotionType {
     confess = "confess",
     happy = "happy",
@@ -61,8 +68,8 @@ export enum ReactionType {
     strength = "strength"
 }
 export enum Region {
-    global = "global",
-    india = "india"
+    India = "India",
+    Global = "Global"
 }
 export enum SubscriptionStatus {
     active = "active",
@@ -81,6 +88,7 @@ export interface backendInterface {
     adminGetAllPublicPosts(): Promise<Array<Post>>;
     adminGetAllUsers(): Promise<Array<User>>;
     adminGetUserPosts(userId: Principal): Promise<Array<Post>>;
+    adminRegister(pseudonym: string, region: Region): Promise<Result>;
     adminSuspendUser(userId: Principal): Promise<void>;
     adminUnsuspendUser(userId: Principal): Promise<void>;
     assignCallerUserRole(user: Principal, role: UserRole): Promise<void>;
@@ -103,7 +111,7 @@ export interface backendInterface {
     initializeAdmin(): Promise<void>;
     isAdmin(): Promise<boolean>;
     isCallerAdmin(): Promise<boolean>;
-    register(pseudonym: string, region: Region, inviteCode: string): Promise<void>;
+    register(pseudonym: string, region: Region): Promise<Result>;
     revokeInviteCode(code: string): Promise<void>;
     saveCallerUserProfile(profile: UserProfile): Promise<void>;
     setPostPrivacy(postId: string, isPrivate: boolean): Promise<void>;

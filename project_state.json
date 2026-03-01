@@ -1,7 +1,7 @@
 {
   "schemaVersion": "1.0.0",
-  "projectStateVersion": 39,
-  "summary": "Veil is a private, invite-only emotional sharing platform capped at 100 members. It is pseudonymous, subscription-based, and human-moderated. Members share posts in three emotional states (Confess, Broke, Happy). Posts are private by default with user-controlled visibility. No DMs, comments, follower system, or feed ranking. Built with React frontend and Node.js/Express/MongoDB backend.",
+  "projectStateVersion": 51,
+  "summary": "Veil is a private, invite-only emotional sharing platform capped at 100 members. It is pseudonymous, subscription-based, and human-moderated. Members share posts in three emotional states (Confess, Broke, Happy). Posts are private by default with user-controlled visibility. No DMs, comments, follower system, or feed ranking. Built with React frontend and Node.js/Express/MongoDB backend. The invite code requirement has been removed from the registration/login flow so users can sign up and log in without an invite code.",
   "architectural_notes": [
     "Stack: React (functional components) frontend, Node.js/Express backend, MongoDB, JWT authentication",
     "Subscription validation middleware required; region-based pricing logic (India vs Global)",
@@ -10,10 +10,9 @@
     "UI must be calm/minimal: soft grayscale or muted pastel, no red alerts, no popularity badges, chronological order only"
   ],
   "known_issues": [
-    "Pre-seeded invite codes (VEIL-001 through VEIL-005) are not working on the deployed app — invite code validation or seeding may be broken",
-    "Users are receiving 'Already registered' error when attempting to use VEIL invite codes, suggesting the backend may have stale user state or the principal is already mapped to a user",
     "\"Admin not initialized\" error appearing on deployed app — admin principal constant or initialization logic in backend/main.mo may not be set correctly for the deployed canister identity",
-    "RTS error: blob_of_principal: invalid principal — occurs during login/registration flow, likely caused by passing an invalid or empty principal string to a Principal-related Motoko function"
+    "RTS error: blob_of_principal: invalid principal — occurs during login/registration flow, likely caused by passing an invalid or empty principal string to a Principal-related Motoko function",
+    "Invite code requirement removed from signup/login flow per user request — users can now register without an invite code"
   ],
   "isFixRequest": true,
   "existing_features": [
@@ -254,6 +253,54 @@
       "title": "In frontend/src/hooks/useQueries.ts, reinforce the existing anonymous-identity guard so that all actor calls check both isAuthenticated from useInternetIdentity and that the identity is not the anonymous identity before dispatching any call to the backend actor. If either check fails, the query must return early with no result and mutations must not be dispatched.",
       "reqIds": [
         "REQ-129"
+      ],
+      "version": 1
+    },
+    {
+      "id": "feature-in-frontend-src-hooks-usequeries-ts-reinforce-the-anonymous-identity-guard-so-that-before-dispatching-any-call-to-the-backend-actor-both-conditions-are-verified-1-isauthenticated-is-true-from-useinternetidentity-and-2-the-identity-is-not-the-anonymous-identity-identity-getprincipal-isanonymous-returns-false-if-either-check-fails-queries-must-return-early-with-no-result-and-mutations-must-not-be-dispatched-to-the-actor",
+      "title": "In frontend/src/hooks/useQueries.ts, reinforce the anonymous-identity guard so that before dispatching any call to the backend actor, both conditions are verified: (1) isAuthenticated is true from useInternetIdentity, and (2) the identity is not the anonymous identity (identity.getPrincipal().isAnonymous() returns false). If either check fails, queries must return early with no result and mutations must not be dispatched to the actor.",
+      "reqIds": [
+        "REQ-133"
+      ],
+      "version": 1
+    },
+    {
+      "id": "feature-in-frontend-src-hooks-usequeries-ts-reinforce-the-anonymous-identity-guard-so-that-before-dispatching-any-call-to-the-backend-actor-both-conditions-are-verified-1-isauthenticated-is-true-from-useinternetidentity-and-2-identity-getprincipal-isanonymous-returns-false-if-either-check-fails-queries-must-return-early-with-no-result-and-mutations-must-not-be-dispatched-to-the-actor-this-prevents-the-frontend-from-ever-sending-a-request-with-an-anonymous-principal-that-causes-the-backend-rts-trap",
+      "title": "In frontend/src/hooks/useQueries.ts, reinforce the anonymous-identity guard so that before dispatching any call to the backend actor, both conditions are verified: (1) isAuthenticated is true from useInternetIdentity, and (2) identity.getPrincipal().isAnonymous() returns false. If either check fails, queries must return early with no result and mutations must not be dispatched to the actor. This prevents the frontend from ever sending a request with an anonymous principal that causes the backend RTS trap.",
+      "reqIds": [
+        "REQ-137"
+      ],
+      "version": 1
+    },
+    {
+      "id": "feature-add-an-admin-signup-section-to-the-adminpage-or-admindashboard-in-the-frontend-show-a-small-form-with-a-pseudonym-input-and-a-region-selector-india-global-on-submit-call-a-new-adminregister-mutation-in-usequeries-ts-that-invokes-the-backend-adminregister-function-on-success-display-a-confirmation-message-account-created-successfully-on-failure-display-the-backend-error-inline-this-section-must-only-be-visible-when-the-current-user-is-confirmed-as-admin",
+      "title": "Add an 'Admin Signup' section to the AdminPage (or AdminDashboard) in the frontend. Show a small form with a pseudonym input and a region selector (India / Global). On submit, call a new `adminRegister` mutation in useQueries.ts that invokes the backend `adminRegister` function. On success, display a confirmation message 'Account created successfully.' On failure, display the backend error inline. This section must only be visible when the current user is confirmed as admin.",
+      "reqIds": [
+        "REQ-139"
+      ],
+      "version": 1
+    },
+    {
+      "id": "feature-update-frontend-src-pages-signuppage-tsx-to-remove-the-invite-code-input-field-entirely-the-registration-form-must-only-show-a-pseudonym-input-and-a-region-selector-india-global-call-the-register-mutation-from-usequeries-ts-with-only-pseudonym-region-arguments-remove-any-url-param-reading-for-invite-codes-handle-ok-and-err-result-variants-from-the-backend-as-before-route-to-dashboard-on-success-and-display-the-backend-error-text-inline-on-failure",
+      "title": "Update frontend/src/pages/SignupPage.tsx to remove the invite code input field entirely. The registration form must only show a pseudonym input and a region selector (India / Global). Call the register mutation from useQueries.ts with only (pseudonym, region) arguments. Remove any URL param reading for invite codes. Handle #ok and #err Result variants from the backend as before — route to /dashboard on success and display the backend error text inline on failure.",
+      "reqIds": [
+        "REQ-142"
+      ],
+      "version": 1
+    },
+    {
+      "id": "feature-update-frontend-src-hooks-usequeries-ts-to-change-the-register-mutation-so-it-calls-actor-register-pseudonym-region-with-no-invite-code-argument-remove-the-invitecode-parameter-from-the-mutation-s-input-type-ensure-the-mutation-still-invalidates-the-correct-react-query-cache-keys-myprofile-subscriptionstatus-on-success-also-remove-any-validateinvitecode-hook-usage-that-is-only-needed-in-support-of-the-signup-flow-keep-the-hook-definition-if-it-is-used-elsewhere-e-g-admin-tools-but-do-not-call-it-from-the-signup-path",
+      "title": "Update frontend/src/hooks/useQueries.ts to change the register mutation so it calls `actor.register(pseudonym, region)` with no invite code argument. Remove the inviteCode parameter from the mutation's input type. Ensure the mutation still invalidates the correct React Query cache keys ('myProfile', 'subscriptionStatus') on success. Also remove any validateInviteCode hook usage that is only needed in support of the signup flow — keep the hook definition if it is used elsewhere (e.g., admin tools), but do not call it from the signup path.",
+      "reqIds": [
+        "REQ-143"
+      ],
+      "version": 1
+    },
+    {
+      "id": "feature-in-frontend-src-hooks-usequeries-ts-add-an-additional-layer-of-defense-before-dispatching-any-actor-call-verify-both-1-isauthenticated-is-true-from-useinternetidentity-and-2-the-identity-s-principal-is-not-anonymous-identity-getprincipal-isanonymous-false-if-either-check-fails-all-query-functions-must-return-early-with-no-result-and-all-mutation-functions-must-throw-or-resolve-without-dispatching-the-actor-call-this-ensures-the-frontend-never-sends-a-request-carrying-an-anonymous-principal-to-the-backend",
+      "title": "In frontend/src/hooks/useQueries.ts, add an additional layer of defense: before dispatching any actor call, verify both (1) isAuthenticated is true from useInternetIdentity, and (2) the identity's principal is not anonymous (identity.getPrincipal().isAnonymous() === false). If either check fails, all query functions must return early with no result and all mutation functions must throw or resolve without dispatching the actor call. This ensures the frontend never sends a request carrying an anonymous principal to the backend.",
+      "reqIds": [
+        "REQ-146"
       ],
       "version": 1
     }
@@ -1096,6 +1143,100 @@
       "summary": "In backend/migration.mo, update the postupgrade cleanup step so that when iterating over stored user entries, each Principal key is checked with Principal.isAnonymous before any Principal.toBlob or comparison operation. Any entry whose key is the anonymous principal must be silently removed without trapping. The invite code re-seeding for VEIL-001 through VEIL-005 must also proceed safely after this cleanup.",
       "reqIds": [
         "REQ-128"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "AR-117",
+      "summary": "In backend/main.mo, add a Principal.isAnonymous(caller) guard at the very top of every public function — register, createPost, editPost, deletePost, setPostPrivacy, addReaction, getMyReaction, getMyProfile, getMyPosts, getMySubscriptionStatus, validateInviteCode, isAdmin, and all admin functions (adminGetAllPublicPosts, adminGetUserPosts, adminDeletePost, adminSuspendUser, adminUnsuspendUser, adminGetAllUsers, addInviteCode, revokeInviteCode, setSubscriptionStatus) — so that if the caller is the anonymous principal, the function immediately returns an error result, false, or empty array as appropriate, without proceeding to any Principal.toBlob, HashMap lookup, or other Principal operation. This eliminates the 'RTS error: blob_of_principal: invalid principal' trap.",
+      "reqIds": [
+        "REQ-130"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "AR-118",
+      "summary": "In backend/main.mo, audit every location where a stored Principal value (from HashMap or TrieMap keys or user records) is passed to Principal.toBlob, Principal.equal, or used in any comparison or hash operation. Add a defensive check before each such operation: if the stored value is anonymous or otherwise invalid, skip or remove that entry rather than trapping. This applies especially in any iteration over the users map (e.g., in getPublicPosts, getMyPosts, adminGetAllUsers, adminGetUserPosts) and in the preupgrade/postupgrade hooks.",
+      "reqIds": [
+        "REQ-131"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "AR-119",
+      "summary": "In backend/migration.mo, update the postupgrade cleanup hook so that when iterating over all stored user entries, each Principal key is validated with Principal.isAnonymous before any Principal.toBlob or comparison operation is performed on it. Any entry whose key is the anonymous principal must be silently removed without trapping. The invite code re-seeding for VEIL-001 through VEIL-005 must proceed safely after this cleanup, inserting each code only if it is absent from the InviteCodes map.",
+      "reqIds": [
+        "REQ-132"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "AR-120",
+      "summary": "In backend/main.mo, add a Principal.isAnonymous(caller) guard at the very top of every public function — register, createPost, editPost, deletePost, setPostPrivacy, addReaction, getMyReaction, getMyProfile, getMyPosts, getMySubscriptionStatus, validateInviteCode, isAdmin, and all admin functions (adminGetAllPublicPosts, adminGetUserPosts, adminDeletePost, adminSuspendUser, adminUnsuspendUser, adminGetAllUsers, addInviteCode, revokeInviteCode, setSubscriptionStatus) — so that if the caller is the anonymous principal, the function immediately returns an appropriate early exit (error result, false, or empty array) without proceeding to any Principal.toBlob, HashMap lookup, or other Principal operation. This eliminates the 'RTS error: blob_of_principal: invalid principal' trap.",
+      "reqIds": [
+        "REQ-134"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "AR-121",
+      "summary": "In backend/main.mo, audit every location where a stored Principal value (from HashMap or TrieMap keys or user record fields) is passed to Principal.toBlob, Principal.equal, or used in any comparison or hash operation during iteration (e.g., in getPublicPosts, adminGetAllUsers, adminGetUserPosts, preupgrade/postupgrade hooks). Before each such operation on a stored key or value, check whether the principal is anonymous; if it is, skip or remove that entry rather than trapping.",
+      "reqIds": [
+        "REQ-135"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "AR-122",
+      "summary": "In backend/migration.mo, update the postupgrade cleanup hook so that when iterating over all stored user entries, each Principal key is validated with Principal.isAnonymous before any Principal.toBlob or comparison operation is performed on it. Any entry whose key is the anonymous principal must be silently removed without trapping. The invite code re-seeding for VEIL-001 through VEIL-005 must proceed safely after this cleanup, inserting each code only if it is absent from the InviteCodes map.",
+      "reqIds": [
+        "REQ-136"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "AR-123",
+      "summary": "Add a backend function `adminRegister(pseudonym: Text, region: { #India; #Global }): async Result<User, Text>` that allows the admin principal to create an account without providing an invite code. This function must check that the caller is the admin principal, verify the 100-member capacity cap is not reached, create a user record with subscriptionStatus = #grace, subscriptionStartDate = Time.now(), suspended = false, and inviteCode = 'ADMIN_BYPASS'. Return the created User on success or a descriptive error on failure.",
+      "reqIds": [
+        "REQ-138"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "AR-124",
+      "summary": "Audit and fix the LoginPage authentication flow so that when a user successfully authenticates via Internet Identity and already has a registered profile (getMyProfile returns #ok), they are redirected directly to /dashboard without ever being shown the SignupPage or an invite code prompt. The invite code input on the SignupPage must only be shown to users who do NOT yet have a profile — i.e., users who authenticated but whose getMyProfile returns #err or null.",
+      "reqIds": [
+        "REQ-140"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "AR-125",
+      "summary": "Remove the invite code requirement from the signup/login flow. Users must be able to register and log in without providing an invite code. The invite code input field should be removed from the SignupPage. The backend register function should not require or validate an invite code for new registrations.",
+      "reqIds": [],
+      "status": "pending"
+    },
+    {
+      "id": "AR-126",
+      "summary": "Update the backend register function in backend/main.mo to remove the invite code parameter entirely. The new signature must be: `register(pseudonym: Text, region: { #India; #Global }): async Result<User, Text>`. Remove all invite code validation logic from the registration path — do not check, consume, or require an invite code to create an account. Still enforce the 100-member capacity cap and the anonymous principal guard. Return the created User record on success or a descriptive error on failure.",
+      "reqIds": [
+        "REQ-141"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "AR-127",
+      "summary": "In backend/main.mo, perform a comprehensive audit of every public function and every internal iteration over stored Principal values. Add a Principal.isAnonymous(caller) guard at the absolute top of every public function (register, createPost, editPost, deletePost, setPostPrivacy, addReaction, getMyReaction, getMyProfile, getMyPosts, getMySubscriptionStatus, validateInviteCode, isAdmin, adminGetAllPublicPosts, adminGetUserPosts, adminDeletePost, adminSuspendUser, adminUnsuspendUser, adminGetAllUsers, addInviteCode, revokeInviteCode, setSubscriptionStatus, and adminRegister) so that any call from an anonymous principal returns an immediate safe exit (error result, false, or empty array) before any Principal.toBlob, HashMap lookup, or other Principal operation is attempted. Additionally, audit every iteration over the users, posts, and reactions maps where stored Principal keys or values are passed to Principal.toBlob or Principal.equal — add a defensive isAnonymous check before each such operation and skip/remove any anonymous entry rather than trapping.",
+      "reqIds": [
+        "REQ-144"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "AR-128",
+      "summary": "In backend/migration.mo, update the postupgrade cleanup hook so that when iterating over all stored entries in the users map, each Principal key is checked with Principal.isAnonymous before any Principal.toBlob, Principal.equal, or HashMap/TrieMap operation is performed on it. Any entry whose key is the anonymous principal must be silently removed without trapping. After this cleanup, re-seed invite codes VEIL-001 through VEIL-005 as unused entries only if they are absent from the InviteCodes map — never overwriting existing entries.",
+      "reqIds": [
+        "REQ-145"
       ],
       "status": "pending"
     }

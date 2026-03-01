@@ -1,11 +1,24 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useActor } from './useActor';
 import { useInternetIdentity } from './useInternetIdentity';
-import { EmotionType, ReactionType, Region, SubscriptionStatus, UserRole, type Post, type User, type UserProfile, type InviteCode } from '../backend';
+import {
+  Region,
+  EmotionType,
+  ReactionType,
+  SubscriptionStatus,
+  UserRole,
+  type User,
+  type Post,
+  type UserProfile,
+  type Reaction,
+  type InviteCode,
+  type RSVP,
+} from '../backend';
 
-// ─── Helper: Check if caller is a valid authenticated (non-anonymous) identity ─
-
-function isValidIdentity(identity: ReturnType<typeof useInternetIdentity>['identity']): boolean {
+// ---------------------------------------------------------------------------
+// Helper: check that the current identity is non-anonymous
+// ---------------------------------------------------------------------------
+function isNonAnonymous(identity: ReturnType<typeof useInternetIdentity>['identity']): boolean {
   if (!identity) return false;
   try {
     return !identity.getPrincipal().isAnonymous();
@@ -14,313 +27,229 @@ function isValidIdentity(identity: ReturnType<typeof useInternetIdentity>['ident
   }
 }
 
-// ─── Helper: Extract clean error message from ICP canister trap ───────────────
-
-export function extractCanisterError(err: unknown): string {
-  if (err instanceof Error) {
-    const msg = err.message;
-    // ICP canister trap messages look like:
-    // "Canister <id> trapped explicitly: <actual message>"
-    // or "Call failed:\n...\nMessage: <actual message>"
-    const trapMatch = msg.match(/trapped explicitly:\s*(.+)/i);
-    if (trapMatch) return trapMatch[1].trim();
-
-    const messageMatch = msg.match(/Message:\s*(.+)/i);
-    if (messageMatch) return messageMatch[1].trim();
-
-    // Return the raw message if no pattern matched
-    return msg;
-  }
-  return 'An unexpected error occurred. Please try again.';
-}
-
-// ─── Profile Hooks ────────────────────────────────────────────────────────────
-
-export function useGetMyProfile() {
+// ---------------------------------------------------------------------------
+// Auth guard hook — centralises the "ready to call backend" check
+// ---------------------------------------------------------------------------
+function useAuthGuard() {
   const { actor, isFetching: actorFetching } = useActor();
-  const { identity } = useInternetIdentity();
-  const authenticated = isValidIdentity(identity);
-
-  const query = useQuery<User | null>({
-    queryKey: ['myProfile'],
-    queryFn: async () => {
-      if (!actor) throw new Error('Actor not available');
-      if (!isValidIdentity(identity)) throw new Error('Not authenticated');
-      return actor.getMyProfile();
-    },
-    enabled: !!actor && !actorFetching && authenticated,
-    retry: false,
-  });
-
-  return {
-    ...query,
-    isLoading: actorFetching || query.isLoading,
-    isFetched: !!actor && authenticated && query.isFetched,
-  };
+  const { identity, isInitializing } = useInternetIdentity();
+  const authenticated = isNonAnonymous(identity);
+  const ready = !!actor && !actorFetching && !isInitializing && authenticated;
+  return { actor, ready, authenticated, identity };
 }
+
+// ---------------------------------------------------------------------------
+// User profile hooks (authorization component contract)
+// ---------------------------------------------------------------------------
 
 export function useGetCallerUserProfile() {
-  const { actor, isFetching: actorFetching } = useActor();
-  const { identity } = useInternetIdentity();
-  const authenticated = isValidIdentity(identity);
+  const { actor, ready } = useAuthGuard();
+  const { identity, isInitializing } = useInternetIdentity();
+  const actorData = useActor();
 
   const query = useQuery<UserProfile | null>({
     queryKey: ['currentUserProfile'],
     queryFn: async () => {
       if (!actor) throw new Error('Actor not available');
-      if (!isValidIdentity(identity)) throw new Error('Not authenticated');
+      if (!isNonAnonymous(identity)) return null;
       return actor.getCallerUserProfile();
     },
-    enabled: !!actor && !actorFetching && authenticated,
+    enabled: ready,
     retry: false,
   });
 
   return {
     ...query,
-    isLoading: actorFetching || query.isLoading,
-    isFetched: !!actor && authenticated && query.isFetched,
+    isLoading: actorData.isFetching || isInitializing || query.isLoading,
+    isFetched: ready && query.isFetched,
   };
 }
 
-export function useIsAdmin() {
-  const { actor, isFetching: actorFetching } = useActor();
-  const { identity } = useInternetIdentity();
-  const authenticated = isValidIdentity(identity);
+export function useGetUserProfile(target?: string) {
+  const { actor, ready, identity } = useAuthGuard();
 
-  return useQuery<boolean>({
-    queryKey: ['isAdmin'],
+  return useQuery<UserProfile | null>({
+    queryKey: ['userProfile', target],
     queryFn: async () => {
-      if (!actor) return false;
-      if (!isValidIdentity(identity)) return false;
-      return actor.isAdmin();
+      if (!actor || !target) return null;
+      if (!isNonAnonymous(identity)) return null;
+      const { Principal } = await import('@dfinity/principal');
+      return actor.getUserProfile(Principal.fromText(target));
     },
-    enabled: !!actor && !actorFetching && authenticated,
+    enabled: ready && !!target,
     retry: false,
   });
 }
 
+export function useSaveCallerUserProfile() {
+  const { actor, ready, identity } = useAuthGuard();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (profile: UserProfile) => {
+      if (!actor) throw new Error('Actor not available');
+      if (!isNonAnonymous(identity)) throw new Error('Not authenticated');
+      return actor.saveCallerUserProfile(profile);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['currentUserProfile'] });
+    },
+  });
+}
+
+export function useGetCallerUserRole() {
+  const { actor, ready, identity } = useAuthGuard();
+
+  return useQuery<UserRole>({
+    queryKey: ['callerUserRole'],
+    queryFn: async () => {
+      if (!actor) throw new Error('Actor not available');
+      if (!isNonAnonymous(identity)) return UserRole.guest;
+      return actor.getCallerUserRole();
+    },
+    enabled: ready,
+    retry: false,
+  });
+}
+
+export function useAssignCallerUserRole() {
+  const { actor, identity } = useAuthGuard();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ user, role }: { user: string; role: UserRole }) => {
+      if (!actor) throw new Error('Actor not available');
+      if (!isNonAnonymous(identity)) throw new Error('Not authenticated');
+      const { Principal } = await import('@dfinity/principal');
+      return actor.assignCallerUserRole(Principal.fromText(user), role);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['callerUserRole'] });
+    },
+  });
+}
+
 export function useIsCallerAdmin() {
-  const { actor, isFetching: actorFetching } = useActor();
-  const { identity } = useInternetIdentity();
-  const authenticated = isValidIdentity(identity);
+  const { actor, ready, identity } = useAuthGuard();
 
   return useQuery<boolean>({
     queryKey: ['isCallerAdmin'],
     queryFn: async () => {
       if (!actor) return false;
-      if (!isValidIdentity(identity)) return false;
+      if (!isNonAnonymous(identity)) return false;
       return actor.isCallerAdmin();
     },
-    enabled: !!actor && !actorFetching && authenticated,
+    enabled: ready,
     retry: false,
   });
 }
 
-// ─── Subscription Hooks ───────────────────────────────────────────────────────
+// ---------------------------------------------------------------------------
+// App-specific hooks
+// ---------------------------------------------------------------------------
+
+export function useGetMyProfile() {
+  const { actor, ready, identity } = useAuthGuard();
+
+  return useQuery<User | null>({
+    queryKey: ['myProfile'],
+    queryFn: async () => {
+      if (!actor) throw new Error('Actor not available');
+      if (!isNonAnonymous(identity)) return null;
+      return actor.getMyProfile();
+    },
+    enabled: ready,
+    retry: false,
+  });
+}
 
 export function useGetMySubscriptionStatus() {
-  const { actor, isFetching: actorFetching } = useActor();
-  const { identity } = useInternetIdentity();
-  const authenticated = isValidIdentity(identity);
+  const { actor, ready, identity } = useAuthGuard();
 
   return useQuery<SubscriptionStatus>({
-    queryKey: ['subscriptionStatus'],
+    queryKey: ['mySubscriptionStatus'],
     queryFn: async () => {
       if (!actor) throw new Error('Actor not available');
-      if (!isValidIdentity(identity)) throw new Error('Not authenticated');
+      if (!isNonAnonymous(identity)) throw new Error('Not authenticated');
       return actor.getMySubscriptionStatus();
     },
-    enabled: !!actor && !actorFetching && authenticated,
+    enabled: ready,
     retry: false,
   });
 }
 
-export function useSetSubscriptionStatus() {
-  const { actor, isFetching: actorFetching } = useActor();
-  const { identity } = useInternetIdentity();
-  const queryClient = useQueryClient();
+export function useGetSubscriptionStatus(userId?: string) {
+  const { actor, ready, identity } = useAuthGuard();
 
-  return useMutation({
-    mutationFn: async ({ userId, status }: { userId: string; status: SubscriptionStatus }) => {
-      if (!actor) throw new Error('Actor not available');
-      if (actorFetching) throw new Error('Actor is initializing, please try again');
-      if (!isValidIdentity(identity)) throw new Error('Not authenticated');
-      const { Principal } = await import('@dfinity/principal');
-      return actor.setSubscriptionStatus(Principal.fromText(userId), status);
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['adminUsers'] });
-      queryClient.invalidateQueries({ queryKey: ['subscriptionStatus'] });
-    },
-  });
-}
-
-// ─── Post Hooks ───────────────────────────────────────────────────────────────
-
-export function useGetMyPosts() {
-  const { actor, isFetching: actorFetching } = useActor();
-  const { identity } = useInternetIdentity();
-  const authenticated = isValidIdentity(identity);
-
-  return useQuery<Post[]>({
-    queryKey: ['myPosts'],
+  return useQuery<SubscriptionStatus>({
+    queryKey: ['subscriptionStatus', userId],
     queryFn: async () => {
-      if (!actor) return [];
-      if (!isValidIdentity(identity)) return [];
-      return actor.getMyPosts();
+      if (!actor || !userId) throw new Error('Actor or userId not available');
+      if (!isNonAnonymous(identity)) throw new Error('Not authenticated');
+      const { Principal } = await import('@dfinity/principal');
+      return actor.getSubscriptionStatus(Principal.fromText(userId));
     },
-    enabled: !!actor && !actorFetching && authenticated,
+    enabled: ready && !!userId,
+    retry: false,
   });
 }
 
 export function useGetPublicPosts() {
-  const { actor, isFetching: actorFetching } = useActor();
-  const { identity } = useInternetIdentity();
-  const authenticated = isValidIdentity(identity);
+  const { actor, ready, identity } = useAuthGuard();
 
   return useQuery<Post[]>({
     queryKey: ['publicPosts'],
     queryFn: async () => {
       if (!actor) return [];
-      if (!isValidIdentity(identity)) return [];
+      if (!isNonAnonymous(identity)) return [];
       return actor.getPublicPosts();
     },
-    enabled: !!actor && !actorFetching && authenticated,
+    enabled: ready,
   });
 }
 
-export function useCreatePost() {
-  const { actor, isFetching: actorFetching } = useActor();
-  const { identity } = useInternetIdentity();
-  const queryClient = useQueryClient();
+export function useGetMyPosts() {
+  const { actor, ready, identity } = useAuthGuard();
 
-  return useMutation({
-    mutationFn: async ({ emotionType, content }: { emotionType: EmotionType; content: string }) => {
-      if (!actor) throw new Error('Actor not available');
-      if (actorFetching) throw new Error('Actor is initializing, please try again');
-      if (!isValidIdentity(identity)) throw new Error('Not authenticated');
-      return actor.createPost(emotionType, content);
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['myPosts'] });
-      queryClient.invalidateQueries({ queryKey: ['publicPosts'] });
-    },
-  });
-}
-
-export function useEditPost() {
-  const { actor, isFetching: actorFetching } = useActor();
-  const { identity } = useInternetIdentity();
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: async ({ postId, newContent }: { postId: string; newContent: string }) => {
-      if (!actor) throw new Error('Actor not available');
-      if (actorFetching) throw new Error('Actor is initializing, please try again');
-      if (!isValidIdentity(identity)) throw new Error('Not authenticated');
-      return actor.editPost(postId, newContent);
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['myPosts'] });
-      queryClient.invalidateQueries({ queryKey: ['publicPosts'] });
-    },
-  });
-}
-
-export function useDeletePost() {
-  const { actor, isFetching: actorFetching } = useActor();
-  const { identity } = useInternetIdentity();
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: async (postId: string) => {
-      if (!actor) throw new Error('Actor not available');
-      if (actorFetching) throw new Error('Actor is initializing, please try again');
-      if (!isValidIdentity(identity)) throw new Error('Not authenticated');
-      return actor.deletePost(postId);
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['myPosts'] });
-      queryClient.invalidateQueries({ queryKey: ['publicPosts'] });
-    },
-  });
-}
-
-export function useSetPostPrivacy() {
-  const { actor, isFetching: actorFetching } = useActor();
-  const { identity } = useInternetIdentity();
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: async ({ postId, isPrivate }: { postId: string; isPrivate: boolean }) => {
-      if (!actor) throw new Error('Actor not available');
-      if (actorFetching) throw new Error('Actor is initializing, please try again');
-      if (!isValidIdentity(identity)) throw new Error('Not authenticated');
-      return actor.setPostPrivacy(postId, isPrivate);
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['myPosts'] });
-      queryClient.invalidateQueries({ queryKey: ['publicPosts'] });
-    },
-  });
-}
-
-// ─── Reaction Hooks ───────────────────────────────────────────────────────────
-
-export function useGetMyReaction(postId: string) {
-  const { actor, isFetching: actorFetching } = useActor();
-  const { identity } = useInternetIdentity();
-  const authenticated = isValidIdentity(identity);
-
-  return useQuery<ReactionType | null>({
-    queryKey: ['myReaction', postId],
+  return useQuery<Post[]>({
+    queryKey: ['myPosts'],
     queryFn: async () => {
-      if (!actor) return null;
-      if (!isValidIdentity(identity)) return null;
-      return actor.getMyReaction(postId);
+      if (!actor) return [];
+      if (!isNonAnonymous(identity)) return [];
+      return actor.getMyPosts();
     },
-    enabled: !!actor && !actorFetching && !!postId && authenticated,
+    enabled: ready,
   });
 }
 
-export function useAddReaction() {
-  const { actor, isFetching: actorFetching } = useActor();
-  const { identity } = useInternetIdentity();
-  const queryClient = useQueryClient();
+export function useIsAdmin() {
+  const { actor, ready, identity } = useAuthGuard();
 
-  return useMutation({
-    mutationFn: async ({ postId, reactionType }: { postId: string; reactionType: ReactionType }) => {
-      if (!actor) throw new Error('Actor not available');
-      if (actorFetching) throw new Error('Actor is initializing, please try again');
-      if (!isValidIdentity(identity)) throw new Error('Not authenticated');
-      return actor.addReaction(postId, reactionType);
+  return useQuery<boolean>({
+    queryKey: ['isAdmin'],
+    queryFn: async () => {
+      if (!actor) return false;
+      if (!isNonAnonymous(identity)) return false;
+      return actor.isAdmin();
     },
-    onSuccess: (_data, variables) => {
-      queryClient.invalidateQueries({ queryKey: ['publicPosts'] });
-      queryClient.invalidateQueries({ queryKey: ['myReaction', variables.postId] });
-    },
+    enabled: ready,
+    retry: false,
   });
 }
-
-// ─── Registration Hooks ───────────────────────────────────────────────────────
 
 export function useRegister() {
-  const { actor, isFetching: actorFetching } = useActor();
-  const { identity } = useInternetIdentity();
+  const { actor, identity } = useAuthGuard();
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async ({ pseudonym, region, inviteCode }: { pseudonym: string; region: Region; inviteCode: string }) => {
+    mutationFn: async ({ pseudonym, region }: { pseudonym: string; region: Region }) => {
       if (!actor) throw new Error('Actor not available');
-      if (actorFetching) throw new Error('Actor is initializing, please wait a moment and try again.');
-      if (!isValidIdentity(identity)) throw new Error('Not authenticated. Please log in first.');
-      try {
-        return await actor.register(pseudonym, region, inviteCode);
-      } catch (err: unknown) {
-        // Re-throw with a cleaned-up message so the UI can display it directly
-        const clean = extractCanisterError(err);
-        throw new Error(clean);
+      if (!isNonAnonymous(identity)) throw new Error('Cannot register with anonymous principal');
+      const result = await actor.register(pseudonym, region);
+      if (result.__kind__ === 'err') {
+        throw new Error(result.err);
       }
+      return result.ok;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['myProfile'] });
@@ -331,64 +260,302 @@ export function useRegister() {
   });
 }
 
+export function useAdminRegister() {
+  const { actor, identity } = useAuthGuard();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ pseudonym, region }: { pseudonym: string; region: Region }) => {
+      if (!actor) throw new Error('Actor not available');
+      if (!isNonAnonymous(identity)) throw new Error('Cannot register with anonymous principal');
+      const result = await actor.adminRegister(pseudonym, region);
+      if (result.__kind__ === 'err') {
+        throw new Error(result.err);
+      }
+      return result.ok;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['myProfile'] });
+      queryClient.invalidateQueries({ queryKey: ['currentUserProfile'] });
+      queryClient.invalidateQueries({ queryKey: ['adminAllUsers'] });
+    },
+  });
+}
+
 export function useValidateInviteCode() {
-  const { actor } = useActor();
+  const { actor, identity } = useAuthGuard();
 
   return useMutation({
     mutationFn: async (code: string) => {
       if (!actor) throw new Error('Actor not available');
+      if (!isNonAnonymous(identity)) throw new Error('Not authenticated');
       return actor.validateInviteCode(code);
     },
   });
 }
 
-export function useSaveCallerUserProfile() {
-  const { actor, isFetching: actorFetching } = useActor();
-  const { identity } = useInternetIdentity();
+export function useCreatePost() {
+  const { actor, identity } = useAuthGuard();
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async (profile: UserProfile) => {
+    mutationFn: async ({ emotionType, content }: { emotionType: EmotionType; content: string }) => {
       if (!actor) throw new Error('Actor not available');
-      if (actorFetching) throw new Error('Actor is initializing, please try again');
-      if (!isValidIdentity(identity)) throw new Error('Not authenticated');
-      return actor.saveCallerUserProfile(profile);
+      if (!isNonAnonymous(identity)) throw new Error('Not authenticated');
+      return actor.createPost(emotionType, content);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['currentUserProfile'] });
-      queryClient.invalidateQueries({ queryKey: ['myProfile'] });
+      queryClient.invalidateQueries({ queryKey: ['myPosts'] });
+      queryClient.invalidateQueries({ queryKey: ['publicPosts'] });
     },
   });
 }
 
-// ─── Invite Code Hooks ────────────────────────────────────────────────────────
+export function useEditPost() {
+  const { actor, identity } = useAuthGuard();
+  const queryClient = useQueryClient();
 
-export function useGetInviteCodes() {
-  const { actor, isFetching: actorFetching } = useActor();
-  const { identity } = useInternetIdentity();
-  const authenticated = isValidIdentity(identity);
+  return useMutation({
+    mutationFn: async ({ postId, newContent }: { postId: string; newContent: string }) => {
+      if (!actor) throw new Error('Actor not available');
+      if (!isNonAnonymous(identity)) throw new Error('Not authenticated');
+      return actor.editPost(postId, newContent);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['myPosts'] });
+      queryClient.invalidateQueries({ queryKey: ['publicPosts'] });
+    },
+  });
+}
+
+export function useDeletePost() {
+  const { actor, identity } = useAuthGuard();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ postId }: { postId: string }) => {
+      if (!actor) throw new Error('Actor not available');
+      if (!isNonAnonymous(identity)) throw new Error('Not authenticated');
+      return actor.deletePost(postId);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['myPosts'] });
+      queryClient.invalidateQueries({ queryKey: ['publicPosts'] });
+    },
+  });
+}
+
+export function useSetPostPrivacy() {
+  const { actor, identity } = useAuthGuard();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ postId, isPrivate }: { postId: string; isPrivate: boolean }) => {
+      if (!actor) throw new Error('Actor not available');
+      if (!isNonAnonymous(identity)) throw new Error('Not authenticated');
+      return actor.setPostPrivacy(postId, isPrivate);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['myPosts'] });
+      queryClient.invalidateQueries({ queryKey: ['publicPosts'] });
+    },
+  });
+}
+
+export function useAddReaction() {
+  const { actor, identity } = useAuthGuard();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ postId, reactionType }: { postId: string; reactionType: ReactionType }) => {
+      if (!actor) throw new Error('Actor not available');
+      if (!isNonAnonymous(identity)) throw new Error('Not authenticated');
+      return actor.addReaction(postId, reactionType);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['publicPosts'] });
+      queryClient.invalidateQueries({ queryKey: ['myReaction'] });
+      queryClient.invalidateQueries({ queryKey: ['userReactionOnPost'] });
+    },
+  });
+}
+
+export function useGetMyReaction(postId: string) {
+  const { actor, ready, identity } = useAuthGuard();
+
+  return useQuery<ReactionType | null>({
+    queryKey: ['myReaction', postId],
+    queryFn: async () => {
+      if (!actor) return null;
+      if (!isNonAnonymous(identity)) return null;
+      return actor.getMyReaction(postId);
+    },
+    enabled: ready && !!postId,
+    retry: false,
+  });
+}
+
+export function useGetUserReactionOnPost(postId: string) {
+  const { actor, ready, identity } = useAuthGuard();
+
+  return useQuery<Reaction | null>({
+    queryKey: ['userReactionOnPost', postId],
+    queryFn: async () => {
+      if (!actor) return null;
+      if (!isNonAnonymous(identity)) return null;
+      return actor.getUserReactionOnPost(postId);
+    },
+    enabled: ready && !!postId,
+    retry: false,
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Admin hooks
+// ---------------------------------------------------------------------------
+
+export function useAdminGetAllPublicPosts() {
+  const { actor, ready, identity } = useAuthGuard();
+
+  return useQuery<Post[]>({
+    queryKey: ['adminAllPublicPosts'],
+    queryFn: async () => {
+      if (!actor) return [];
+      if (!isNonAnonymous(identity)) return [];
+      return actor.adminGetAllPublicPosts();
+    },
+    enabled: ready,
+  });
+}
+
+export function useAdminGetUserPosts() {
+  const { actor, identity } = useAuthGuard();
+
+  return useMutation({
+    mutationFn: async ({ userId }: { userId: string }) => {
+      if (!actor) throw new Error('Actor not available');
+      if (!isNonAnonymous(identity)) throw new Error('Not authenticated');
+      const { Principal } = await import('@dfinity/principal');
+      return actor.adminGetUserPosts(Principal.fromText(userId));
+    },
+  });
+}
+
+export function useAdminGetAllUsers() {
+  const { actor, ready, identity } = useAuthGuard();
+
+  return useQuery<User[]>({
+    queryKey: ['adminAllUsers'],
+    queryFn: async () => {
+      if (!actor) return [];
+      if (!isNonAnonymous(identity)) return [];
+      return actor.adminGetAllUsers();
+    },
+    enabled: ready,
+  });
+}
+
+export function useAdminDeletePost() {
+  const { actor, identity } = useAuthGuard();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ postId }: { postId: string }) => {
+      if (!actor) throw new Error('Actor not available');
+      if (!isNonAnonymous(identity)) throw new Error('Not authenticated');
+      return actor.adminDeletePost(postId);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['adminAllPublicPosts'] });
+      queryClient.invalidateQueries({ queryKey: ['publicPosts'] });
+    },
+  });
+}
+
+export function useAdminSuspendUser() {
+  const { actor, identity } = useAuthGuard();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ userId }: { userId: string }) => {
+      if (!actor) throw new Error('Actor not available');
+      if (!isNonAnonymous(identity)) throw new Error('Not authenticated');
+      const { Principal } = await import('@dfinity/principal');
+      return actor.adminSuspendUser(Principal.fromText(userId));
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['adminAllUsers'] });
+    },
+  });
+}
+
+export function useAdminUnsuspendUser() {
+  const { actor, identity } = useAuthGuard();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ userId }: { userId: string }) => {
+      if (!actor) throw new Error('Actor not available');
+      if (!isNonAnonymous(identity)) throw new Error('Not authenticated');
+      const { Principal } = await import('@dfinity/principal');
+      return actor.adminUnsuspendUser(Principal.fromText(userId));
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['adminAllUsers'] });
+    },
+  });
+}
+
+export function useAdminSetSubscriptionStatus() {
+  const { actor, identity } = useAuthGuard();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ userId, status }: { userId: string; status: SubscriptionStatus }) => {
+      if (!actor) throw new Error('Actor not available');
+      if (!isNonAnonymous(identity)) throw new Error('Not authenticated');
+      const { Principal } = await import('@dfinity/principal');
+      return actor.setSubscriptionStatus(Principal.fromText(userId), status);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['adminAllUsers'] });
+      queryClient.invalidateQueries({ queryKey: ['mySubscriptionStatus'] });
+    },
+  });
+}
+
+// Keep old name for backward compatibility
+export const useSetSubscriptionStatus = useAdminSetSubscriptionStatus;
+
+// ---------------------------------------------------------------------------
+// Invite code hooks (admin)
+// ---------------------------------------------------------------------------
+
+export function useAdminGetInviteCodes() {
+  const { actor, ready, identity } = useAuthGuard();
 
   return useQuery<InviteCode[]>({
     queryKey: ['adminInviteCodes'],
     queryFn: async () => {
       if (!actor) return [];
-      if (!isValidIdentity(identity)) return [];
+      if (!isNonAnonymous(identity)) return [];
       return actor.getInviteCodes();
     },
-    enabled: !!actor && !actorFetching && authenticated,
+    enabled: ready,
   });
 }
 
-export function useAddInviteCode() {
-  const { actor, isFetching: actorFetching } = useActor();
-  const { identity } = useInternetIdentity();
+// Keep old name for backward compatibility
+export const useGetInviteCodes = useAdminGetInviteCodes;
+
+export function useAdminAddInviteCode() {
+  const { actor, identity } = useAuthGuard();
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async (code: string) => {
+    mutationFn: async ({ code }: { code: string }) => {
       if (!actor) throw new Error('Actor not available');
-      if (actorFetching) throw new Error('Actor is initializing, please try again');
-      if (!isValidIdentity(identity)) throw new Error('Not authenticated');
+      if (!isNonAnonymous(identity)) throw new Error('Not authenticated');
       return actor.addInviteCode(code);
     },
     onSuccess: () => {
@@ -397,16 +564,17 @@ export function useAddInviteCode() {
   });
 }
 
-export function useGenerateInviteCode() {
-  const { actor, isFetching: actorFetching } = useActor();
-  const { identity } = useInternetIdentity();
+// Keep old name for backward compatibility
+export const useAddInviteCode = useAdminAddInviteCode;
+
+export function useAdminGenerateInviteCode() {
+  const { actor, identity } = useAuthGuard();
   const queryClient = useQueryClient();
 
   return useMutation({
     mutationFn: async () => {
       if (!actor) throw new Error('Actor not available');
-      if (actorFetching) throw new Error('Actor is initializing, please try again');
-      if (!isValidIdentity(identity)) throw new Error('Not authenticated');
+      if (!isNonAnonymous(identity)) throw new Error('Not authenticated');
       return actor.generateInviteCode();
     },
     onSuccess: () => {
@@ -415,16 +583,17 @@ export function useGenerateInviteCode() {
   });
 }
 
-export function useRevokeInviteCode() {
-  const { actor, isFetching: actorFetching } = useActor();
-  const { identity } = useInternetIdentity();
+// Keep old name for backward compatibility
+export const useGenerateInviteCode = useAdminGenerateInviteCode;
+
+export function useAdminRevokeInviteCode() {
+  const { actor, identity } = useAuthGuard();
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async (code: string) => {
+    mutationFn: async ({ code }: { code: string }) => {
       if (!actor) throw new Error('Actor not available');
-      if (actorFetching) throw new Error('Actor is initializing, please try again');
-      if (!isValidIdentity(identity)) throw new Error('Not authenticated');
+      if (!isNonAnonymous(identity)) throw new Error('Not authenticated');
       return actor.revokeInviteCode(code);
     },
     onSuccess: () => {
@@ -433,131 +602,31 @@ export function useRevokeInviteCode() {
   });
 }
 
-// ─── Admin Hooks ──────────────────────────────────────────────────────────────
+// Keep old name for backward compatibility
+export const useRevokeInviteCode = useAdminRevokeInviteCode;
 
-export function useAdminGetAllPublicPosts() {
-  const { actor, isFetching: actorFetching } = useActor();
-  const { identity } = useInternetIdentity();
-  const authenticated = isValidIdentity(identity);
+export function useGetAllRSVPs() {
+  const { actor, ready, identity } = useAuthGuard();
 
-  return useQuery<Post[]>({
-    queryKey: ['adminPublicPosts'],
+  return useQuery<RSVP[]>({
+    queryKey: ['allRSVPs'],
     queryFn: async () => {
       if (!actor) return [];
-      if (!isValidIdentity(identity)) return [];
-      return actor.adminGetAllPublicPosts();
+      if (!isNonAnonymous(identity)) return [];
+      return actor.getAllRSVPs();
     },
-    enabled: !!actor && !actorFetching && authenticated,
+    enabled: ready,
   });
 }
 
-export function useAdminGetAllUsers() {
-  const { actor, isFetching: actorFetching } = useActor();
-  const { identity } = useInternetIdentity();
-  const authenticated = isValidIdentity(identity);
-
-  return useQuery<User[]>({
-    queryKey: ['adminUsers'],
-    queryFn: async () => {
-      if (!actor) return [];
-      if (!isValidIdentity(identity)) return [];
-      return actor.adminGetAllUsers();
-    },
-    enabled: !!actor && !actorFetching && authenticated,
-  });
-}
-
-export function useAdminGetUserPosts(userId: string | null) {
-  const { actor, isFetching: actorFetching } = useActor();
-  const { identity } = useInternetIdentity();
-  const authenticated = isValidIdentity(identity);
-
-  return useQuery<Post[]>({
-    queryKey: ['adminUserPosts', userId],
-    queryFn: async () => {
-      if (!actor || !userId) return [];
-      if (!isValidIdentity(identity)) return [];
-      const { Principal } = await import('@dfinity/principal');
-      return actor.adminGetUserPosts(Principal.fromText(userId));
-    },
-    enabled: !!actor && !actorFetching && !!userId && authenticated,
-  });
-}
-
-export function useAdminDeletePost() {
-  const { actor, isFetching: actorFetching } = useActor();
-  const { identity } = useInternetIdentity();
-  const queryClient = useQueryClient();
+export function useSubmitRSVP() {
+  const { actor, identity } = useAuthGuard();
 
   return useMutation({
-    mutationFn: async (postId: string) => {
+    mutationFn: async ({ name, attending, inviteCode }: { name: string; attending: boolean; inviteCode: string }) => {
       if (!actor) throw new Error('Actor not available');
-      if (actorFetching) throw new Error('Actor is initializing, please try again');
-      if (!isValidIdentity(identity)) throw new Error('Not authenticated');
-      return actor.adminDeletePost(postId);
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['adminPublicPosts'] });
-      queryClient.invalidateQueries({ queryKey: ['adminUserPosts'] });
-      queryClient.invalidateQueries({ queryKey: ['publicPosts'] });
-      queryClient.invalidateQueries({ queryKey: ['myPosts'] });
-    },
-  });
-}
-
-export function useAdminSuspendUser() {
-  const { actor, isFetching: actorFetching } = useActor();
-  const { identity } = useInternetIdentity();
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: async (userId: string) => {
-      if (!actor) throw new Error('Actor not available');
-      if (actorFetching) throw new Error('Actor is initializing, please try again');
-      if (!isValidIdentity(identity)) throw new Error('Not authenticated');
-      const { Principal } = await import('@dfinity/principal');
-      return actor.adminSuspendUser(Principal.fromText(userId));
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['adminUsers'] });
-    },
-  });
-}
-
-export function useAdminUnsuspendUser() {
-  const { actor, isFetching: actorFetching } = useActor();
-  const { identity } = useInternetIdentity();
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: async (userId: string) => {
-      if (!actor) throw new Error('Actor not available');
-      if (actorFetching) throw new Error('Actor is initializing, please try again');
-      if (!isValidIdentity(identity)) throw new Error('Not authenticated');
-      const { Principal } = await import('@dfinity/principal');
-      return actor.adminUnsuspendUser(Principal.fromText(userId));
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['adminUsers'] });
-    },
-  });
-}
-
-export function useAssignCallerUserRole() {
-  const { actor, isFetching: actorFetching } = useActor();
-  const { identity } = useInternetIdentity();
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: async ({ userId, role }: { userId: string; role: UserRole }) => {
-      if (!actor) throw new Error('Actor not available');
-      if (actorFetching) throw new Error('Actor is initializing, please try again');
-      if (!isValidIdentity(identity)) throw new Error('Not authenticated');
-      const { Principal } = await import('@dfinity/principal');
-      return actor.assignCallerUserRole(Principal.fromText(userId), role);
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['adminUsers'] });
+      if (!isNonAnonymous(identity)) throw new Error('Not authenticated');
+      return actor.submitRSVP(name, attending, inviteCode);
     },
   });
 }
