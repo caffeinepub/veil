@@ -1,32 +1,51 @@
 {
   "kind": "coverage_report",
   "version": "1.0",
-  "generatedAt": "2026-03-01T00:03:02.876Z",
+  "generatedAt": "2026-03-01T00:58:44.597Z",
   "sources": {
     "buildRequest": true,
     "implementationPlan": true
   },
   "requirements": {
-    "total": 2,
+    "total": 3,
     "implemented": 1,
     "items": [
       {
-        "id": "REQ-113",
-        "summary": "Audit and fix the invite code pre-seeding in backend/main.mo. The codes VEIL-001, VEIL-002, VEIL-003, VEIL-004, and VEIL-005 must be present and valid in the InviteCodes stable state immediately after canister deployment or upgrade. Ensure the seeding logic runs in the actor's initialization (or postupgrade hook) so codes are never absent on a fresh deploy. Verify that validateInviteCode returns true for each of these codes before they are used, and that the register function correctly marks them as used upon successful registration.",
+        "id": "REQ-124",
+        "summary": "Audit every location in backend/main.mo where a Principal value is converted to a blob or compared using Principal-related operations (e.g. Principal.toBlob, Principal.fromText, Principal.equal, HashMap keyed by Principal). Ensure that no anonymous principal, empty string, or otherwise invalid principal value is ever passed to these operations. Specifically: (1) In the register function, add a guard at the top that returns an error if caller is the anonymous principal (Principal.isAnonymous(caller)); (2) In every admin guard, reaction handler, post creation handler, and any other function that resolves the caller's user record, check Principal.isAnonymous(caller) before any lookup or blob conversion and return an appropriate error; (3) In the migration/postupgrade hook, skip or remove any user entries whose key principal is anonymous or invalid before iterating over them. This eliminates the 'RTS error: blob_of_principal: invalid principal' crash.",
         "status": "unknown",
         "plannedFiles": [],
         "matchedFiles": []
       },
       {
-        "id": "REQ-114",
-        "summary": "Audit and fix the SignupPage so that invite code validation errors returned by the backend are surfaced clearly to the user. When the backend returns an #err variant from the register call (e.g. 'Invalid invite code', 'Invite code already used', 'Capacity reached'), the exact error text must be displayed inline below the form — not in a modal. The form must remain interactive so the user can correct their input and retry.",
+        "id": "REQ-125",
+        "summary": "Update backend/migration.mo so that the postupgrade cleanup step safely handles any stored user entries whose Principal key is the anonymous principal or any invalid principal. Before calling Principal.toBlob or any Principal comparison on a stored key, validate the key is non-anonymous. Remove invalid entries without trapping. Re-seed invite codes VEIL-001 through VEIL-005 as unused if absent, as before.",
+        "status": "unknown",
+        "plannedFiles": [],
+        "matchedFiles": []
+      },
+      {
+        "id": "REQ-126",
+        "summary": "In the frontend, ensure that no backend actor call is made before a valid (non-anonymous) Internet Identity principal is confirmed. In useQueries.ts and any component that calls backend functions, gate all actor calls behind a check that the identity from useInternetIdentity is authenticated (isAuthenticated is true and the identity is not the anonymous identity). If the identity is anonymous or absent, return early or skip the query — do not dispatch the call to the actor.",
         "status": "implemented",
         "plannedFiles": [
+          "frontend/src/hooks/useQueries.ts",
+          "frontend/src/pages/LoginPage.tsx",
           "frontend/src/pages/SignupPage.tsx",
-          "frontend/src/hooks/useQueries.ts"
+          "frontend/src/pages/DashboardPage.tsx",
+          "frontend/src/pages/CommunityFeedPage.tsx",
+          "frontend/src/pages/MyPostsPage.tsx",
+          "frontend/src/pages/PostCreationPage.tsx",
+          "frontend/src/pages/AdminPage.tsx",
+          "frontend/src/components/AdminDashboard.tsx",
+          "frontend/src/components/PostCard.tsx",
+          "frontend/src/components/PublicPostCard.tsx",
+          "frontend/src/components/AdminInviteCodes.tsx",
+          "frontend/src/components/AdminUserManagement.tsx",
+          "frontend/src/components/AdminPublicPostsList.tsx",
+          "frontend/src/components/AdminUserPostHistory.tsx"
         ],
         "matchedFiles": [
-          "frontend/src/pages/SignupPage.tsx",
           "frontend/src/hooks/useQueries.ts"
         ]
       }
@@ -40,7 +59,6 @@
     "frontend-file-summaries.txt",
     "frontend-implementation-plan.json",
     "frontend/src/hooks/useQueries.ts",
-    "frontend/src/pages/SignupPage.tsx",
     "project_state.json",
     "scratch/component-selection.json",
     "spec.md",

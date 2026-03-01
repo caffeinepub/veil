@@ -1,28 +1,92 @@
 {
   "kind": "implementation_plan",
   "version": "1.0",
-  "title": "Fix pre-seeded invite codes not working on deployed app",
+  "title": "Fix RTS error: blob_of_principal invalid principal",
   "requirements": [
     {
-      "id": "REQ-114",
-      "summary": "Surface backend invite code validation errors inline on the SignupPage without modals, keeping the form interactive for retry",
+      "id": "REQ-126",
+      "summary": "Gate all backend actor calls in the frontend to ensure no calls are made with anonymous or unauthenticated identities",
       "acceptanceCriteria": [
-        "When the backend returns #err with text 'Invalid invite code', that text appears inline below the form without a page reload.",
-        "When the backend returns #err with text 'Invite code already used', that text appears inline.",
-        "When the backend returns #err with text 'Capacity reached', that text appears inline.",
-        "The form fields remain editable after an error so the user can retry with a different code.",
-        "No modal or alert dialog is used to display the error — only an inline message."
+        "No backend query or mutation is fired when the user is unauthenticated (anonymous identity).",
+        "React Query hooks with enabled conditions correctly block execution until isAuthenticated is true.",
+        "After successful Internet Identity login, all queries resume normally.",
+        "No 'blob_of_principal: invalid principal' error is triggered from the frontend side."
       ],
       "file_operations": [
         {
-          "path": "frontend/src/pages/SignupPage.tsx",
-          "operation": "modify",
-          "description": "Modify the signup form submission handler to catch backend registration errors and display them inline below the form. Add a state variable for error messages and render it as an inline alert (not a modal) below the form fields. Ensure the form remains interactive after an error so users can correct their invite code and retry. The error message should display the exact text returned by the backend (e.g., 'Invalid invite code', 'Invite code already used', 'Capacity reached')."
-        },
-        {
           "path": "frontend/src/hooks/useQueries.ts",
           "operation": "modify",
-          "description": "Update the register mutation hook to properly surface backend error messages. Ensure that when the backend returns an error variant (e.g., #err from validateInviteCode or register), the mutation's onError callback receives a structured error object containing the backend's error text. This allows the SignupPage to display the exact error message inline without requiring additional parsing."
+          "description": "Add authentication guards to all React Query hooks to prevent execution when the user is unauthenticated or the identity is anonymous. For each query hook (useGetCallerUserProfile, useGetMyProfile, useGetMyPosts, useGetPublicPosts, useGetMyReaction, useGetMySubscriptionStatus, useIsCallerAdmin, useGetAllRSVPs, useGetInviteCodes, useAdminGetAllUsers, useAdminGetAllPublicPosts, useAdminGetUserPosts), add an enabled condition that checks both actor availability and authentication status from useInternetIdentity. For mutation hooks (useRegister, useCreatePost, useEditPost, useDeletePost, useSetPostPrivacy, useAddReaction, useSubmitRSVP, useGenerateInviteCode, useAddInviteCode, useRevokeInviteCode, useAdminSuspendUser, useAdminUnsuspendUser, useAdminDeletePost, useSetSubscriptionStatus, useSaveCallerUserProfile, useAssignCallerUserRole), ensure the mutation function returns early or throws a descriptive error if the identity is not authenticated before calling the backend actor. Import useInternetIdentity hook to access isAuthenticated state and identity object. Verify that no query or mutation can execute with an anonymous principal."
+        },
+        {
+          "path": "frontend/src/pages/LoginPage.tsx",
+          "operation": "modify",
+          "description": "Ensure the login flow waits for a valid authenticated identity before attempting to fetch the user profile. After successful Internet Identity login, verify isAuthenticated is true before calling useGetCallerUserProfile. Add loading state handling to prevent premature backend calls during the authentication handshake. If the identity is still anonymous after login attempt, display an error message and do not proceed to profile fetch or redirect."
+        },
+        {
+          "path": "frontend/src/pages/SignupPage.tsx",
+          "operation": "modify",
+          "description": "Add a guard at the top of the registration form submission handler to verify the user has a valid authenticated identity before calling the register mutation. If the identity is anonymous or isAuthenticated is false, show an error message prompting the user to log in first and do not attempt backend registration. This prevents the register function from being called with an anonymous principal."
+        },
+        {
+          "path": "frontend/src/pages/DashboardPage.tsx",
+          "operation": "modify",
+          "description": "Ensure all data-fetching hooks (useGetMyProfile, useGetMySubscriptionStatus) are only enabled when the user is authenticated. Add explicit checks for isAuthenticated from useInternetIdentity before rendering any components that might trigger backend queries. If the user is not authenticated, redirect to login immediately without attempting to load profile or subscription data."
+        },
+        {
+          "path": "frontend/src/pages/CommunityFeedPage.tsx",
+          "operation": "modify",
+          "description": "Guard the useGetPublicPosts query hook with an enabled condition that requires isAuthenticated to be true. Even though public posts might conceptually be public, ensure the backend call is only made with a valid authenticated identity to prevent anonymous principal errors. Add a loading state check to avoid rendering the post list before authentication is confirmed."
+        },
+        {
+          "path": "frontend/src/pages/MyPostsPage.tsx",
+          "operation": "modify",
+          "description": "Add authentication guards to the useGetMyPosts query hook to ensure it only executes when isAuthenticated is true. If the user is not authenticated, redirect to login immediately. Ensure the component does not attempt to fetch user-specific data with an anonymous identity."
+        },
+        {
+          "path": "frontend/src/pages/PostCreationPage.tsx",
+          "operation": "modify",
+          "description": "Guard the post creation form submission and any related queries (useGetMySubscriptionStatus) with authentication checks. Before calling useCreatePost mutation, verify isAuthenticated is true and the identity is not anonymous. If authentication is missing, show an error message and prevent form submission. Add similar guards to any other backend calls made from this page."
+        },
+        {
+          "path": "frontend/src/pages/AdminPage.tsx",
+          "operation": "modify",
+          "description": "Ensure the admin status check (useIsCallerAdmin) is only enabled when the user is authenticated. Add an explicit check for isAuthenticated before attempting to verify admin role. If the user is not authenticated, redirect to login without calling the backend. Prevent the AdminDashboard component from rendering until authentication and admin status are both confirmed."
+        },
+        {
+          "path": "frontend/src/components/AdminDashboard.tsx",
+          "operation": "modify",
+          "description": "Add authentication guards to all admin query hooks (useGetAllRSVPs, useGetInviteCodes, useAdminGetAllUsers, useAdminGetAllPublicPosts) to ensure they only execute when isAuthenticated is true. Since this component is only rendered for authenticated admins, add a defensive check at the component level to verify authentication before rendering any child components that trigger backend queries."
+        },
+        {
+          "path": "frontend/src/components/PostCard.tsx",
+          "operation": "modify",
+          "description": "Ensure mutation operations (useEditPost, useDeletePost, useSetPostPrivacy) verify authentication before execution. Add guards in the mutation handlers that check isAuthenticated and prevent backend calls if the identity is anonymous. Show an error toast if a mutation is attempted without valid authentication."
+        },
+        {
+          "path": "frontend/src/components/PublicPostCard.tsx",
+          "operation": "modify",
+          "description": "Guard the useAddReaction mutation and useGetMyReaction query with authentication checks. Ensure the reaction button click handler verifies isAuthenticated before calling the backend. If the user is not authenticated, show a message prompting them to log in before reacting to posts. Add an enabled condition to useGetMyReaction that requires authentication."
+        },
+        {
+          "path": "frontend/src/components/AdminInviteCodes.tsx",
+          "operation": "modify",
+          "description": "Add authentication guards to all mutation operations (useGenerateInviteCode, useAddInviteCode, useRevokeInviteCode) to verify isAuthenticated before execution. Ensure these admin operations cannot be triggered with an anonymous identity. Add defensive checks in button click handlers."
+        },
+        {
+          "path": "frontend/src/components/AdminUserManagement.tsx",
+          "operation": "modify",
+          "description": "Guard the useAdminSuspendUser, useAdminUnsuspendUser, and useSetSubscriptionStatus mutations with authentication checks. Ensure these admin actions verify isAuthenticated before calling the backend. Add defensive checks in action handlers to prevent execution with anonymous identities."
+        },
+        {
+          "path": "frontend/src/components/AdminPublicPostsList.tsx",
+          "operation": "modify",
+          "description": "Add authentication guard to the useAdminDeletePost mutation to verify isAuthenticated before execution. Ensure the delete action cannot be triggered with an anonymous identity. Add a defensive check in the confirmation dialog handler."
+        },
+        {
+          "path": "frontend/src/components/AdminUserPostHistory.tsx",
+          "operation": "modify",
+          "description": "Guard the useAdminGetUserPosts query and useAdminDeletePost mutation with authentication checks. Ensure these operations only execute when isAuthenticated is true. Add a defensive check in the search handler to prevent fetching user posts with an anonymous identity."
         }
       ]
     }

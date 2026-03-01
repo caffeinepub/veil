@@ -2,11 +2,10 @@
   "kind": "feature_evidence_report",
   "features": [
     {
-      "featureId": "feature-audit-and-fix-the-signuppage-so-that-invite-code-validation-errors-returned-by-the-backend-are-surfaced-clearly-to-the-user-when-the-backend-returns-an-err-variant-from-the-register-call-e-g-invalid-invite-code-invite-code-already-used-capacity-reached-the-exact-error-text-must-be-displayed-inline-below-the-form-not-in-a-modal-the-form-must-remain-interactive-so-the-user-can-correct-their-input-and-retry",
-      "featureTitle": "Audit and fix the SignupPage so that invite code validation errors returned by the backend are surfaced clearly to the user. When the backend returns an #err variant from the register call (e.g. 'Invalid invite code', 'Invite code already used', 'Capacity reached'), the exact error text must be displayed inline below the form — not in a modal. The form must remain interactive so the user can correct their input and retry.",
+      "featureId": "feature-in-the-frontend-ensure-that-no-backend-actor-call-is-made-before-a-valid-non-anonymous-internet-identity-principal-is-confirmed-in-usequeries-ts-and-any-component-that-calls-backend-functions-gate-all-actor-calls-behind-a-check-that-the-identity-from-useinternetidentity-is-authenticated-isauthenticated-is-true-and-the-identity-is-not-the-anonymous-identity-if-the-identity-is-anonymous-or-absent-return-early-or-skip-the-query-do-not-dispatch-the-call-to-the-actor",
+      "featureTitle": "In the frontend, ensure that no backend actor call is made before a valid (non-anonymous) Internet Identity principal is confirmed. In useQueries.ts and any component that calls backend functions, gate all actor calls behind a check that the identity from useInternetIdentity is authenticated (isAuthenticated is true and the identity is not the anonymous identity). If the identity is anonymous or absent, return early or skip the query — do not dispatch the call to the actor.",
       "files": [
-        "frontend/src/hooks/useQueries.ts",
-        "frontend/src/pages/SignupPage.tsx"
+        "frontend/src/hooks/useQueries.ts"
       ],
       "components": [
         "authorization@4.0.0",
@@ -18,7 +17,7 @@
         "github-export-icp-cli@1.0.0"
       ],
       "testIds": [
-        "REQ-114"
+        "REQ-126"
       ],
       "confidence": "high"
     }

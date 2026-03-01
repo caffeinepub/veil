@@ -1,6 +1,6 @@
 {
   "schemaVersion": "1.0.0",
-  "projectStateVersion": 29,
+  "projectStateVersion": 37,
   "summary": "Veil is a private, invite-only emotional sharing platform capped at 100 members. It is pseudonymous, subscription-based, and human-moderated. Members share posts in three emotional states (Confess, Broke, Happy). Posts are private by default with user-controlled visibility. No DMs, comments, follower system, or feed ranking. Built with React frontend and Node.js/Express/MongoDB backend.",
   "architectural_notes": [
     "Stack: React (functional components) frontend, Node.js/Express backend, MongoDB, JWT authentication",
@@ -10,7 +10,10 @@
     "UI must be calm/minimal: soft grayscale or muted pastel, no red alerts, no popularity badges, chronological order only"
   ],
   "known_issues": [
-    "Pre-seeded invite codes (VEIL-001 through VEIL-005) are not working on the deployed app — invite code validation or seeding may be broken"
+    "Pre-seeded invite codes (VEIL-001 through VEIL-005) are not working on the deployed app — invite code validation or seeding may be broken",
+    "Users are receiving 'Already registered' error when attempting to use VEIL invite codes, suggesting the backend may have stale user state or the principal is already mapped to a user",
+    "\"Admin not initialized\" error appearing on deployed app — admin principal constant or initialization logic in backend/main.mo may not be set correctly for the deployed canister identity",
+    "RTS error: blob_of_principal: invalid principal — occurs during login/registration flow, likely caused by passing an invalid or empty principal string to a Principal-related Motoko function"
   ],
   "isFixRequest": true,
   "existing_features": [
@@ -235,6 +238,14 @@
       "title": "Audit and fix the SignupPage so that invite code validation errors returned by the backend are surfaced clearly to the user. When the backend returns an #err variant from the register call (e.g. 'Invalid invite code', 'Invite code already used', 'Capacity reached'), the exact error text must be displayed inline below the form — not in a modal. The form must remain interactive so the user can correct their input and retry.",
       "reqIds": [
         "REQ-114"
+      ],
+      "version": 1
+    },
+    {
+      "id": "feature-in-the-frontend-ensure-that-no-backend-actor-call-is-made-before-a-valid-non-anonymous-internet-identity-principal-is-confirmed-in-usequeries-ts-and-any-component-that-calls-backend-functions-gate-all-actor-calls-behind-a-check-that-the-identity-from-useinternetidentity-is-authenticated-isauthenticated-is-true-and-the-identity-is-not-the-anonymous-identity-if-the-identity-is-anonymous-or-absent-return-early-or-skip-the-query-do-not-dispatch-the-call-to-the-actor",
+      "title": "In the frontend, ensure that no backend actor call is made before a valid (non-anonymous) Internet Identity principal is confirmed. In useQueries.ts and any component that calls backend functions, gate all actor calls behind a check that the identity from useInternetIdentity is authenticated (isAuthenticated is true and the identity is not the anonymous identity). If the identity is anonymous or absent, return early or skip the query — do not dispatch the call to the actor.",
+      "reqIds": [
+        "REQ-126"
       ],
       "version": 1
     }
@@ -973,6 +984,94 @@
       "summary": "Audit and fix the invite code pre-seeding in backend/main.mo. The codes VEIL-001, VEIL-002, VEIL-003, VEIL-004, and VEIL-005 must be present and valid in the InviteCodes stable state immediately after canister deployment or upgrade. Ensure the seeding logic runs in the actor's initialization (or postupgrade hook) so codes are never absent on a fresh deploy. Verify that validateInviteCode returns true for each of these codes before they are used, and that the register function correctly marks them as used upon successful registration.",
       "reqIds": [
         "REQ-113"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "AR-104",
+      "summary": "Fix the invite code seeding in backend/main.mo so that codes VEIL-001, VEIL-002, VEIL-003, VEIL-004, and VEIL-005 are guaranteed to exist in the InviteCodes stable state as unused codes immediately after any fresh deployment or canister upgrade. The seeding must run in both the actor's init block (for fresh deploys) and the postupgrade hook (for upgrades), but must NOT overwrite a code that is already marked as used — only add the code if it is absent. After seeding, validateInviteCode must return true for each unused VEIL code.",
+      "reqIds": [
+        "REQ-115"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "AR-105",
+      "summary": "Fix the 'Already registered' error that occurs when a user attempts to register with a valid VEIL invite code. Investigate and resolve the root cause: if a stale or anonymous Principal is being stored as a registered user (e.g., from a previous failed registration attempt or canister state from an earlier build), add a guard in the register function to detect and reject duplicate registrations only for the same authenticated Principal — not for a fresh Principal using a new code. If the issue is caused by a stored anonymous or test principal colliding with the caller, add a migration step in migration.mo or postupgrade to clean up any user entries whose Principal is the anonymous principal (aaaaa-aa) or any other obviously invalid/test principal.",
+      "reqIds": [
+        "REQ-116"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "AR-106",
+      "summary": "Write a migration.mo (or update the existing one) that, during the postupgrade hook, performs two cleanup steps: (1) removes any user entries keyed to the anonymous principal or any principal that is obviously a placeholder/test value, and (2) re-seeds any VEIL invite codes (VEIL-001 through VEIL-005) that are absent from the InviteCodes map. This ensures both fresh and previously-upgraded canisters reach a valid state where real users can register.",
+      "reqIds": [
+        "REQ-117"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "AR-107",
+      "summary": "Fix the 'Admin not initialized' error in backend/main.mo. Audit the admin Principal constant declaration and any initialization logic. Ensure the hardcoded admin Principal constant is set to the correct deployed canister controller/admin identity and is accessible at actor initialization time — not lazily or conditionally. The admin Principal must be a compile-time or stable constant, not derived from a mutable state variable that could be unset. All admin guard checks (isAdmin, adminGetAllPublicPosts, adminGetAllUsers, adminSuspendUser, adminUnsuspendUser, adminDeletePost, adminGetUserPosts, addInviteCode, revokeInviteCode, setSubscriptionStatus) must use this constant directly. The `isAdmin()` public query must return true for calls from that Principal and false for all others — it must never throw or return an error due to an uninitialized state.",
+      "reqIds": [
+        "REQ-118"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "AR-108",
+      "summary": "Write or update backend/migration.mo to ensure that on every postupgrade: (1) any user entries keyed to the anonymous principal (aaaaa-aa) are removed from the users stable map, and (2) invite codes VEIL-001 through VEIL-005 are re-seeded as unused if they are absent from the InviteCodes map (without overwriting codes already marked as used). This brings any previously-upgraded canister to a valid state without wiping legitimate user data.",
+      "reqIds": [
+        "REQ-119"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "AR-109",
+      "summary": "Fix the admin Principal constant in backend/main.mo so it is a hardcoded compile-time constant — never lazy, never derived from mutable state. All admin guard checks (isAdmin, adminGetAllPublicPosts, adminGetAllUsers, adminSuspendUser, adminUnsuspendUser, adminDeletePost, adminGetUserPosts, addInviteCode, revokeInviteCode, setSubscriptionStatus) must reference this constant directly. The public query isAdmin() must return true for that Principal and false for all others without throwing or returning an error under any circumstances, including on a freshly deployed canister with no prior state.",
+      "reqIds": [
+        "REQ-120"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "AR-110",
+      "summary": "Fix invite code seeding in backend/main.mo so that codes VEIL-001, VEIL-002, VEIL-003, VEIL-004, and VEIL-005 are guaranteed to exist as unused entries in the InviteCodes stable map immediately after any fresh deployment or canister upgrade. Seeding must run in both the actor's initialization block (for fresh deploys) and in the postupgrade hook (for upgrades). Seeding must only insert a code if it is absent — it must never overwrite a code that already exists (whether used or unused). After seeding, validateInviteCode must return true for each of these codes while they remain unused.",
+      "reqIds": [
+        "REQ-121"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "AR-111",
+      "summary": "Update backend/migration.mo (or create it if absent) to perform the following cleanup steps during the postupgrade hook: (1) Remove any user entries from the users stable map whose Principal is the anonymous principal (2vxsx-fae / aaaaa-aa) or any other obviously invalid placeholder Principal. (2) Re-seed invite codes VEIL-001 through VEIL-005 as unused entries if they are absent from the InviteCodes map — without overwriting any code that is already present. This ensures both fresh and previously-upgraded canisters reach a valid state where real users can register without hitting a spurious 'Already registered' error.",
+      "reqIds": [
+        "REQ-122"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "AR-112",
+      "summary": "Perform a final compile-time audit of backend/main.mo to confirm it compiles without errors and correctly exposes all required public functions with the exact signatures expected by the frontend Candid interface: register, validateInviteCode, getMyProfile, getMyPosts, getPublicPosts, isAdmin, getMySubscriptionStatus, createPost, editPost, deletePost, setPostPrivacy, addReaction, getMyReaction, adminGetAllPublicPosts, adminGetUserPosts, adminDeletePost, adminSuspendUser, adminUnsuspendUser, adminGetAllUsers, addInviteCode, revokeInviteCode, setSubscriptionStatus. Use the stable var with preupgrade/postupgrade pattern for all collections so data survives canister upgrades.",
+      "reqIds": [
+        "REQ-123"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "AR-113",
+      "summary": "Audit every location in backend/main.mo where a Principal value is converted to a blob or compared using Principal-related operations (e.g. Principal.toBlob, Principal.fromText, Principal.equal, HashMap keyed by Principal). Ensure that no anonymous principal, empty string, or otherwise invalid principal value is ever passed to these operations. Specifically: (1) In the register function, add a guard at the top that returns an error if caller is the anonymous principal (Principal.isAnonymous(caller)); (2) In every admin guard, reaction handler, post creation handler, and any other function that resolves the caller's user record, check Principal.isAnonymous(caller) before any lookup or blob conversion and return an appropriate error; (3) In the migration/postupgrade hook, skip or remove any user entries whose key principal is anonymous or invalid before iterating over them. This eliminates the 'RTS error: blob_of_principal: invalid principal' crash.",
+      "reqIds": [
+        "REQ-124"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "AR-114",
+      "summary": "Update backend/migration.mo so that the postupgrade cleanup step safely handles any stored user entries whose Principal key is the anonymous principal or any invalid principal. Before calling Principal.toBlob or any Principal comparison on a stored key, validate the key is non-anonymous. Remove invalid entries without trapping. Re-seed invite codes VEIL-001 through VEIL-005 as unused if absent, as before.",
+      "reqIds": [
+        "REQ-125"
       ],
       "status": "pending"
     }

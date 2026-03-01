@@ -1,12 +1,11 @@
 # Specification
 
 ## Summary
-**Goal:** Fix pre-seeded invite codes (VEIL-001 through VEIL-005) not working on the deployed app, and ensure signup errors are displayed clearly to the user.
+**Goal:** Fix the "RTS error: blob_of_principal: invalid principal" crash by guarding all backend functions against anonymous principals and ensuring the frontend never fires actor calls before authentication is confirmed.
 
 **Planned changes:**
-- Audit and fix the backend invite code seeding logic so VEIL-001 through VEIL-005 are always present after a fresh deploy or upgrade, using the preupgrade/postupgrade stable var pattern
-- Ensure seeding does not overwrite already-used or existing codes on upgrade
-- Verify `validateInviteCode` returns true for each pre-seeded code before use, and `register` marks codes as used upon successful registration
-- Audit and fix the SignupPage to display backend error messages (e.g. "Invalid invite code", "Invite code already used", "Capacity reached") inline below the form without a modal, keeping the form editable for retry
+- Add `Principal.isAnonymous(caller)` guard at the entry point of all state-mutating backend functions (`register`, `createPost`, `editPost`, `deletePost`, `setPostPrivacy`, `addReaction`, `adminSuspendUser`, `adminUnsuspendUser`, `setSubscriptionStatus`) and any function that performs a Principal lookup or blob conversion, returning a descriptive `#err` instead of trapping.
+- Update the `postupgrade`/migration hook in `backend/migration.mo` to skip and remove any stored user entries whose Principal key is anonymous or invalid before iterating, preventing RTS traps on upgrade.
+- In the frontend (`useQueries.ts` and related components), gate all backend actor calls behind a check that `isAuthenticated` is `true` and the identity is non-anonymous; return early or skip the query otherwise.
 
-**User-visible outcome:** Users can successfully register using any of the pre-seeded invite codes on the deployed app, and if a code is invalid or already used, a clear inline error message is shown so they can correct and retry.
+**User-visible outcome:** Anonymous/unauthenticated users no longer cause an RTS trap — they receive a graceful error. Authenticated users continue to work normally, and canister upgrades complete without crashing.

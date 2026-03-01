@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useActor } from './useActor';
+import { useInternetIdentity } from './useInternetIdentity';
 import { EmotionType, ReactionType, Region, SubscriptionStatus, type Post, type User, type UserProfile, type InviteCode } from '../backend';
 
 // ─── Helper: Extract clean error message from ICP canister trap ───────────────
@@ -26,6 +27,8 @@ export function extractCanisterError(err: unknown): string {
 
 export function useGetMyProfile() {
   const { actor, isFetching: actorFetching } = useActor();
+  const { identity } = useInternetIdentity();
+  const isAuthenticated = !!identity && !identity.getPrincipal().isAnonymous();
 
   const query = useQuery<User | null>({
     queryKey: ['myProfile'],
@@ -33,19 +36,21 @@ export function useGetMyProfile() {
       if (!actor) throw new Error('Actor not available');
       return actor.getMyProfile();
     },
-    enabled: !!actor && !actorFetching,
+    enabled: !!actor && !actorFetching && isAuthenticated,
     retry: false,
   });
 
   return {
     ...query,
     isLoading: actorFetching || query.isLoading,
-    isFetched: !!actor && query.isFetched,
+    isFetched: !!actor && isAuthenticated && query.isFetched,
   };
 }
 
 export function useGetCallerUserProfile() {
   const { actor, isFetching: actorFetching } = useActor();
+  const { identity } = useInternetIdentity();
+  const isAuthenticated = !!identity && !identity.getPrincipal().isAnonymous();
 
   const query = useQuery<UserProfile | null>({
     queryKey: ['currentUserProfile'],
@@ -53,19 +58,21 @@ export function useGetCallerUserProfile() {
       if (!actor) throw new Error('Actor not available');
       return actor.getCallerUserProfile();
     },
-    enabled: !!actor && !actorFetching,
+    enabled: !!actor && !actorFetching && isAuthenticated,
     retry: false,
   });
 
   return {
     ...query,
     isLoading: actorFetching || query.isLoading,
-    isFetched: !!actor && query.isFetched,
+    isFetched: !!actor && isAuthenticated && query.isFetched,
   };
 }
 
 export function useIsAdmin() {
   const { actor, isFetching: actorFetching } = useActor();
+  const { identity } = useInternetIdentity();
+  const isAuthenticated = !!identity && !identity.getPrincipal().isAnonymous();
 
   return useQuery<boolean>({
     queryKey: ['isAdmin'],
@@ -73,13 +80,15 @@ export function useIsAdmin() {
       if (!actor) return false;
       return actor.isAdmin();
     },
-    enabled: !!actor && !actorFetching,
+    enabled: !!actor && !actorFetching && isAuthenticated,
     retry: false,
   });
 }
 
 export function useIsCallerAdmin() {
   const { actor, isFetching: actorFetching } = useActor();
+  const { identity } = useInternetIdentity();
+  const isAuthenticated = !!identity && !identity.getPrincipal().isAnonymous();
 
   return useQuery<boolean>({
     queryKey: ['isCallerAdmin'],
@@ -87,7 +96,7 @@ export function useIsCallerAdmin() {
       if (!actor) return false;
       return actor.isCallerAdmin();
     },
-    enabled: !!actor && !actorFetching,
+    enabled: !!actor && !actorFetching && isAuthenticated,
     retry: false,
   });
 }
@@ -96,6 +105,8 @@ export function useIsCallerAdmin() {
 
 export function useGetMySubscriptionStatus() {
   const { actor, isFetching: actorFetching } = useActor();
+  const { identity } = useInternetIdentity();
+  const isAuthenticated = !!identity && !identity.getPrincipal().isAnonymous();
 
   return useQuery<SubscriptionStatus>({
     queryKey: ['subscriptionStatus'],
@@ -103,18 +114,20 @@ export function useGetMySubscriptionStatus() {
       if (!actor) throw new Error('Actor not available');
       return actor.getMySubscriptionStatus();
     },
-    enabled: !!actor && !actorFetching,
+    enabled: !!actor && !actorFetching && isAuthenticated,
     retry: false,
   });
 }
 
 export function useSetSubscriptionStatus() {
   const { actor } = useActor();
+  const { identity } = useInternetIdentity();
   const queryClient = useQueryClient();
 
   return useMutation({
     mutationFn: async ({ userId, status }: { userId: string; status: SubscriptionStatus }) => {
       if (!actor) throw new Error('Actor not available');
+      if (!identity || identity.getPrincipal().isAnonymous()) throw new Error('Not authenticated');
       const { Principal } = await import('@dfinity/principal');
       return actor.setSubscriptionStatus(Principal.fromText(userId), status);
     },
@@ -129,6 +142,8 @@ export function useSetSubscriptionStatus() {
 
 export function useGetMyPosts() {
   const { actor, isFetching: actorFetching } = useActor();
+  const { identity } = useInternetIdentity();
+  const isAuthenticated = !!identity && !identity.getPrincipal().isAnonymous();
 
   return useQuery<Post[]>({
     queryKey: ['myPosts'],
@@ -136,12 +151,14 @@ export function useGetMyPosts() {
       if (!actor) return [];
       return actor.getMyPosts();
     },
-    enabled: !!actor && !actorFetching,
+    enabled: !!actor && !actorFetching && isAuthenticated,
   });
 }
 
 export function useGetPublicPosts() {
   const { actor, isFetching: actorFetching } = useActor();
+  const { identity } = useInternetIdentity();
+  const isAuthenticated = !!identity && !identity.getPrincipal().isAnonymous();
 
   return useQuery<Post[]>({
     queryKey: ['publicPosts'],
@@ -149,17 +166,19 @@ export function useGetPublicPosts() {
       if (!actor) return [];
       return actor.getPublicPosts();
     },
-    enabled: !!actor && !actorFetching,
+    enabled: !!actor && !actorFetching && isAuthenticated,
   });
 }
 
 export function useCreatePost() {
   const { actor } = useActor();
+  const { identity } = useInternetIdentity();
   const queryClient = useQueryClient();
 
   return useMutation({
     mutationFn: async ({ emotionType, content }: { emotionType: EmotionType; content: string }) => {
       if (!actor) throw new Error('Actor not available');
+      if (!identity || identity.getPrincipal().isAnonymous()) throw new Error('Not authenticated');
       return actor.createPost(emotionType, content);
     },
     onSuccess: () => {
@@ -171,11 +190,13 @@ export function useCreatePost() {
 
 export function useEditPost() {
   const { actor } = useActor();
+  const { identity } = useInternetIdentity();
   const queryClient = useQueryClient();
 
   return useMutation({
     mutationFn: async ({ postId, newContent }: { postId: string; newContent: string }) => {
       if (!actor) throw new Error('Actor not available');
+      if (!identity || identity.getPrincipal().isAnonymous()) throw new Error('Not authenticated');
       return actor.editPost(postId, newContent);
     },
     onSuccess: () => {
@@ -187,11 +208,13 @@ export function useEditPost() {
 
 export function useDeletePost() {
   const { actor } = useActor();
+  const { identity } = useInternetIdentity();
   const queryClient = useQueryClient();
 
   return useMutation({
     mutationFn: async (postId: string) => {
       if (!actor) throw new Error('Actor not available');
+      if (!identity || identity.getPrincipal().isAnonymous()) throw new Error('Not authenticated');
       return actor.deletePost(postId);
     },
     onSuccess: () => {
@@ -203,11 +226,13 @@ export function useDeletePost() {
 
 export function useSetPostPrivacy() {
   const { actor } = useActor();
+  const { identity } = useInternetIdentity();
   const queryClient = useQueryClient();
 
   return useMutation({
     mutationFn: async ({ postId, isPrivate }: { postId: string; isPrivate: boolean }) => {
       if (!actor) throw new Error('Actor not available');
+      if (!identity || identity.getPrincipal().isAnonymous()) throw new Error('Not authenticated');
       return actor.setPostPrivacy(postId, isPrivate);
     },
     onSuccess: () => {
@@ -221,6 +246,8 @@ export function useSetPostPrivacy() {
 
 export function useGetMyReaction(postId: string) {
   const { actor, isFetching: actorFetching } = useActor();
+  const { identity } = useInternetIdentity();
+  const isAuthenticated = !!identity && !identity.getPrincipal().isAnonymous();
 
   return useQuery<ReactionType | null>({
     queryKey: ['myReaction', postId],
@@ -228,17 +255,19 @@ export function useGetMyReaction(postId: string) {
       if (!actor) return null;
       return actor.getMyReaction(postId);
     },
-    enabled: !!actor && !actorFetching && !!postId,
+    enabled: !!actor && !actorFetching && !!postId && isAuthenticated,
   });
 }
 
 export function useAddReaction() {
   const { actor } = useActor();
+  const { identity } = useInternetIdentity();
   const queryClient = useQueryClient();
 
   return useMutation({
     mutationFn: async ({ postId, reactionType }: { postId: string; reactionType: ReactionType }) => {
       if (!actor) throw new Error('Actor not available');
+      if (!identity || identity.getPrincipal().isAnonymous()) throw new Error('Not authenticated');
       return actor.addReaction(postId, reactionType);
     },
     onSuccess: (_data, variables) => {
@@ -252,11 +281,13 @@ export function useAddReaction() {
 
 export function useRegister() {
   const { actor } = useActor();
+  const { identity } = useInternetIdentity();
   const queryClient = useQueryClient();
 
   return useMutation({
     mutationFn: async ({ pseudonym, region, inviteCode }: { pseudonym: string; region: Region; inviteCode: string }) => {
       if (!actor) throw new Error('Actor not available');
+      if (!identity || identity.getPrincipal().isAnonymous()) throw new Error('Not authenticated. Please log in first.');
       try {
         return await actor.register(pseudonym, region, inviteCode);
       } catch (err: unknown) {
@@ -289,6 +320,8 @@ export function useValidateInviteCode() {
 
 export function useGetInviteCodes() {
   const { actor, isFetching: actorFetching } = useActor();
+  const { identity } = useInternetIdentity();
+  const isAuthenticated = !!identity && !identity.getPrincipal().isAnonymous();
 
   return useQuery<InviteCode[]>({
     queryKey: ['adminInviteCodes'],
@@ -296,17 +329,19 @@ export function useGetInviteCodes() {
       if (!actor) return [];
       return actor.getInviteCodes();
     },
-    enabled: !!actor && !actorFetching,
+    enabled: !!actor && !actorFetching && isAuthenticated,
   });
 }
 
 export function useAddInviteCode() {
   const { actor } = useActor();
+  const { identity } = useInternetIdentity();
   const queryClient = useQueryClient();
 
   return useMutation({
     mutationFn: async (code: string) => {
       if (!actor) throw new Error('Actor not available');
+      if (!identity || identity.getPrincipal().isAnonymous()) throw new Error('Not authenticated');
       return actor.addInviteCode(code);
     },
     onSuccess: () => {
@@ -317,11 +352,13 @@ export function useAddInviteCode() {
 
 export function useGenerateInviteCode() {
   const { actor } = useActor();
+  const { identity } = useInternetIdentity();
   const queryClient = useQueryClient();
 
   return useMutation({
     mutationFn: async () => {
       if (!actor) throw new Error('Actor not available');
+      if (!identity || identity.getPrincipal().isAnonymous()) throw new Error('Not authenticated');
       return actor.generateInviteCode();
     },
     onSuccess: () => {
@@ -332,11 +369,13 @@ export function useGenerateInviteCode() {
 
 export function useRevokeInviteCode() {
   const { actor } = useActor();
+  const { identity } = useInternetIdentity();
   const queryClient = useQueryClient();
 
   return useMutation({
     mutationFn: async (code: string) => {
       if (!actor) throw new Error('Actor not available');
+      if (!identity || identity.getPrincipal().isAnonymous()) throw new Error('Not authenticated');
       return actor.revokeInviteCode(code);
     },
     onSuccess: () => {
@@ -349,6 +388,8 @@ export function useRevokeInviteCode() {
 
 export function useAdminGetAllPublicPosts() {
   const { actor, isFetching: actorFetching } = useActor();
+  const { identity } = useInternetIdentity();
+  const isAuthenticated = !!identity && !identity.getPrincipal().isAnonymous();
 
   return useQuery<Post[]>({
     queryKey: ['adminPublicPosts'],
@@ -356,12 +397,14 @@ export function useAdminGetAllPublicPosts() {
       if (!actor) return [];
       return actor.adminGetAllPublicPosts();
     },
-    enabled: !!actor && !actorFetching,
+    enabled: !!actor && !actorFetching && isAuthenticated,
   });
 }
 
 export function useAdminGetAllUsers() {
   const { actor, isFetching: actorFetching } = useActor();
+  const { identity } = useInternetIdentity();
+  const isAuthenticated = !!identity && !identity.getPrincipal().isAnonymous();
 
   return useQuery<User[]>({
     queryKey: ['adminUsers'],
@@ -369,12 +412,14 @@ export function useAdminGetAllUsers() {
       if (!actor) return [];
       return actor.adminGetAllUsers();
     },
-    enabled: !!actor && !actorFetching,
+    enabled: !!actor && !actorFetching && isAuthenticated,
   });
 }
 
 export function useAdminGetUserPosts(userId: string | null) {
   const { actor, isFetching: actorFetching } = useActor();
+  const { identity } = useInternetIdentity();
+  const isAuthenticated = !!identity && !identity.getPrincipal().isAnonymous();
 
   return useQuery<Post[]>({
     queryKey: ['adminUserPosts', userId],
@@ -383,17 +428,19 @@ export function useAdminGetUserPosts(userId: string | null) {
       const { Principal } = await import('@dfinity/principal');
       return actor.adminGetUserPosts(Principal.fromText(userId));
     },
-    enabled: !!actor && !actorFetching && !!userId,
+    enabled: !!actor && !actorFetching && !!userId && isAuthenticated,
   });
 }
 
 export function useAdminDeletePost() {
   const { actor } = useActor();
+  const { identity } = useInternetIdentity();
   const queryClient = useQueryClient();
 
   return useMutation({
     mutationFn: async (postId: string) => {
       if (!actor) throw new Error('Actor not available');
+      if (!identity || identity.getPrincipal().isAnonymous()) throw new Error('Not authenticated');
       return actor.adminDeletePost(postId);
     },
     onSuccess: () => {
@@ -407,11 +454,13 @@ export function useAdminDeletePost() {
 
 export function useAdminSuspendUser() {
   const { actor } = useActor();
+  const { identity } = useInternetIdentity();
   const queryClient = useQueryClient();
 
   return useMutation({
     mutationFn: async (userId: string) => {
       if (!actor) throw new Error('Actor not available');
+      if (!identity || identity.getPrincipal().isAnonymous()) throw new Error('Not authenticated');
       const { Principal } = await import('@dfinity/principal');
       return actor.adminSuspendUser(Principal.fromText(userId));
     },
@@ -423,11 +472,13 @@ export function useAdminSuspendUser() {
 
 export function useAdminUnsuspendUser() {
   const { actor } = useActor();
+  const { identity } = useInternetIdentity();
   const queryClient = useQueryClient();
 
   return useMutation({
     mutationFn: async (userId: string) => {
       if (!actor) throw new Error('Actor not available');
+      if (!identity || identity.getPrincipal().isAnonymous()) throw new Error('Not authenticated');
       const { Principal } = await import('@dfinity/principal');
       return actor.adminUnsuspendUser(Principal.fromText(userId));
     },

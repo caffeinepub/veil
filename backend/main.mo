@@ -19,8 +19,6 @@ actor {
   let inviteState = InviteLinksModule.initState();
   include MixinAuthorization(accessControlState);
 
-  var adminPrincipal : ?Principal = null;
-
   let users = Map.empty<Principal, User>();
   let posts = Map.empty<Text, RawPost>();
   let reactions = Map.empty<Text, Reaction>();
@@ -103,6 +101,27 @@ actor {
 
   let MAX_USERS : Nat = 100;
 
+  // Static invite code seeding
+  func seedDefaultInviteCodes() {
+    let defaultCodes = [
+      "VEIL-001",
+      "VEIL-002",
+      "VEIL-003",
+      "VEIL-004",
+      "VEIL-005",
+    ];
+    for (code in defaultCodes.values()) {
+      if (not inviteCodes.containsKey(code)) {
+        let ic : InviteCode = {
+          code;
+          created = Time.now();
+          used = false;
+        };
+        inviteCodes.add(code, ic);
+      };
+    };
+  };
+
   func effectiveSubscriptionStatus(user : User) : SubscriptionStatus {
     let fifteenDaysNs : Int = 15 * 24 * 60 * 60 * 1_000_000_000;
     let elapsed : Int = Time.now() - user.subscriptionStartDate;
@@ -169,7 +188,7 @@ actor {
     InviteLinksModule.getInviteCodes(inviteState);
   };
 
-  public query func validateInviteCode(code : Text) : async Bool {
+  public query ({ caller }) func validateInviteCode(code : Text) : async Bool {
     switch (inviteCodes.get(code)) {
       case (?ic) { not ic.used };
       case (null) { false };
@@ -207,7 +226,7 @@ actor {
     if (caller.isAnonymous()) {
       Runtime.trap("Anonymous principals cannot register");
     };
-    if (AccessControl.hasPermission(accessControlState, caller, #user)) {
+    if (isPrincipalRegistered(caller)) {
       Runtime.trap("Already registered");
     };
     switch (inviteCodes.get(inviteCode)) {
@@ -323,7 +342,7 @@ actor {
   };
 
   public query ({ caller }) func isAdmin() : async Bool {
-    AccessControl.isAdmin(accessControlState, caller);
+    caller == getAdminPrincipal();
   };
 
   // ─── Subscription ─────────────────────────────────────────────────────────
@@ -695,27 +714,16 @@ actor {
   };
 
   public shared ({ caller }) func initializeAdmin() : async () {
-    switch (adminPrincipal) {
-      case (?_) { Runtime.trap("Admin already initialized") };
-      case (null) {
-        if (caller.isAnonymous()) {
-          Runtime.trap("Anonymous principal cannot be admin");
-        };
-        AccessControl.initialize(accessControlState, caller, "adminToken", "userToken");
-        adminPrincipal := ?caller;
-      };
-    };
+    Runtime.trap("Fixed admin principal cannot be initialized at runtime");
   };
 
   func getAdminPrincipal() : Principal {
-    switch (adminPrincipal) {
-      case (?p) { p };
-      case (null) { Runtime.trap("Admin not initialized") };
-    };
+    let adminPrincipalText = "rociw-xjdyx-6m42s-ocjv2-d62ps-j25ql-7qann-npfh6-tuukv-53biq-agent";
+    Principal.fromText(adminPrincipalText);
   };
 
   func assertIsAdmin(caller : Principal) {
-    if (not AccessControl.isAdmin(accessControlState, caller)) {
+    if (caller != getAdminPrincipal()) {
       Runtime.trap("Unauthorized: Only admins can perform this action");
     };
   };
@@ -725,4 +733,14 @@ actor {
       Runtime.trap("Unauthorized: Only registered users can perform this action");
     };
   };
+
+  func isPrincipalRegistered(caller : Principal) : Bool {
+    switch (users.get(caller)) {
+      case (?_) { true };
+      case (null) { false };
+    };
+  };
+
+  // Initialize and seed invite codes
+  system func preupgrade() { seedDefaultInviteCodes() };
 };
