@@ -1,7 +1,7 @@
 {
   "kind": "coverage_report",
   "version": "1.0",
-  "generatedAt": "2026-03-01T00:58:44.597Z",
+  "generatedAt": "2026-03-01T01:15:08.823Z",
   "sources": {
     "buildRequest": true,
     "implementationPlan": true
@@ -11,39 +11,25 @@
     "implemented": 1,
     "items": [
       {
-        "id": "REQ-124",
-        "summary": "Audit every location in backend/main.mo where a Principal value is converted to a blob or compared using Principal-related operations (e.g. Principal.toBlob, Principal.fromText, Principal.equal, HashMap keyed by Principal). Ensure that no anonymous principal, empty string, or otherwise invalid principal value is ever passed to these operations. Specifically: (1) In the register function, add a guard at the top that returns an error if caller is the anonymous principal (Principal.isAnonymous(caller)); (2) In every admin guard, reaction handler, post creation handler, and any other function that resolves the caller's user record, check Principal.isAnonymous(caller) before any lookup or blob conversion and return an appropriate error; (3) In the migration/postupgrade hook, skip or remove any user entries whose key principal is anonymous or invalid before iterating over them. This eliminates the 'RTS error: blob_of_principal: invalid principal' crash.",
+        "id": "REQ-127",
+        "summary": "In backend/main.mo, audit every location where a Principal value is used in a blob conversion, equality check, or as a HashMap/TrieMap key. Add a guard using Principal.isAnonymous(caller) at the very top of every public function (register, createPost, editPost, deletePost, setPostPrivacy, addReaction, getMyReaction, getMyProfile, getMyPosts, getMySubscriptionStatus, and all admin functions) so that if the caller is anonymous, the function returns an immediate error result or false rather than proceeding. This prevents the 'RTS error: blob_of_principal: invalid principal' trap that occurs when an anonymous principal is passed to Principal.toBlob or related operations.",
         "status": "unknown",
         "plannedFiles": [],
         "matchedFiles": []
       },
       {
-        "id": "REQ-125",
-        "summary": "Update backend/migration.mo so that the postupgrade cleanup step safely handles any stored user entries whose Principal key is the anonymous principal or any invalid principal. Before calling Principal.toBlob or any Principal comparison on a stored key, validate the key is non-anonymous. Remove invalid entries without trapping. Re-seed invite codes VEIL-001 through VEIL-005 as unused if absent, as before.",
+        "id": "REQ-128",
+        "summary": "In backend/migration.mo, update the postupgrade cleanup step so that when iterating over stored user entries, each Principal key is checked with Principal.isAnonymous before any Principal.toBlob or comparison operation. Any entry whose key is the anonymous principal must be silently removed without trapping. The invite code re-seeding for VEIL-001 through VEIL-005 must also proceed safely after this cleanup.",
         "status": "unknown",
         "plannedFiles": [],
         "matchedFiles": []
       },
       {
-        "id": "REQ-126",
-        "summary": "In the frontend, ensure that no backend actor call is made before a valid (non-anonymous) Internet Identity principal is confirmed. In useQueries.ts and any component that calls backend functions, gate all actor calls behind a check that the identity from useInternetIdentity is authenticated (isAuthenticated is true and the identity is not the anonymous identity). If the identity is anonymous or absent, return early or skip the query — do not dispatch the call to the actor.",
+        "id": "REQ-129",
+        "summary": "In frontend/src/hooks/useQueries.ts, reinforce the existing anonymous-identity guard so that all actor calls check both isAuthenticated from useInternetIdentity and that the identity is not the anonymous identity before dispatching any call to the backend actor. If either check fails, the query must return early with no result and mutations must not be dispatched.",
         "status": "implemented",
         "plannedFiles": [
-          "frontend/src/hooks/useQueries.ts",
-          "frontend/src/pages/LoginPage.tsx",
-          "frontend/src/pages/SignupPage.tsx",
-          "frontend/src/pages/DashboardPage.tsx",
-          "frontend/src/pages/CommunityFeedPage.tsx",
-          "frontend/src/pages/MyPostsPage.tsx",
-          "frontend/src/pages/PostCreationPage.tsx",
-          "frontend/src/pages/AdminPage.tsx",
-          "frontend/src/components/AdminDashboard.tsx",
-          "frontend/src/components/PostCard.tsx",
-          "frontend/src/components/PublicPostCard.tsx",
-          "frontend/src/components/AdminInviteCodes.tsx",
-          "frontend/src/components/AdminUserManagement.tsx",
-          "frontend/src/components/AdminPublicPostsList.tsx",
-          "frontend/src/components/AdminUserPostHistory.tsx"
+          "frontend/src/hooks/useQueries.ts"
         ],
         "matchedFiles": [
           "frontend/src/hooks/useQueries.ts"

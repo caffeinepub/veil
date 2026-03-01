@@ -1,20 +1,28 @@
 {
   "kind": "spec_vs_diff_report",
   "version": "1.0",
-  "generatedAt": "2026-03-01T00:58:44.592Z",
-  "summary": "The diff implements most of REQ-124, REQ-125, and REQ-126. The frontend (useQueries.ts) correctly gates all queries behind isAuthenticated checks. A new backend/migration.mo is added that filters anonymous-principal users and re-seeds VEIL codes. The backend/main.mo is modified and imports Migration with the migration hook wired. However, due to truncation of main.mo, it is not possible to fully confirm all Principal.isAnonymous(caller) guards are present at every required entry point.",
+  "generatedAt": "2026-03-01T01:15:08.818Z",
+  "summary": "The diff implements all three requirements (REQ-127, REQ-128, REQ-129) with varying degrees of completeness. REQ-128 is implemented via a new migration.mo file. REQ-129 is implemented in useQueries.ts with isValidIdentity guards. REQ-127 is partially visible in main.mo (truncated), showing anonymous checks in at least generateInviteCode, but the full coverage of all required functions cannot be confirmed due to truncation.",
   "missing_requirements": [
     {
-      "id": "REQ-124",
-      "requirement": "Principal.isAnonymous(caller) guard is present at the entry point of ALL state-mutating functions: register, createPost, editPost, deletePost, setPostPrivacy, addReaction, adminSuspendUser, adminUnsuspendUser, setSubscriptionStatus.",
-      "reason": "The diff of backend/main.mo is truncated and does not show the bodies of most of these functions, so it cannot be confirmed that all required anonymous-caller guards are present at every entry point.",
+      "id": "REQ-127",
+      "requirement": "Every public update and query function in main.mo (register, createPost, editPost, deletePost, setPostPrivacy, addReaction, getMyReaction, getMyProfile, getMyPosts, getMySubscriptionStatus, and all admin functions) must check Principal.isAnonymous(caller) at the very top and return an immediate error/false if anonymous.",
+      "reason": "The main.mo diff is truncated after showing only the generateInviteCode function with an anonymous check. Coverage of all required functions (register, createPost, editPost, deletePost, setPostPrivacy, addReaction, getMyReaction, getMyProfile, getMyPosts, getMySubscriptionStatus, and admin functions) cannot be confirmed from the available diff.",
       "evidence": [
         "backend/main.mo"
       ]
     }
   ],
-  "hallucinated_features": [],
-  "confidence": 0.72,
+  "hallucinated_features": [
+    {
+      "description": "migration.mo uses object-method call syntax (p.isAnonymous(), old.users.filter(), old.inviteCodes.add()) which is non-standard for Motoko's Principal and Map modules where these are free functions, not instance methods.",
+      "reason": "The build request does not specify this API style and it does not match standard Motoko stdlib conventions, suggesting hallucinated API usage in the migration implementation.",
+      "evidence": [
+        "backend/migration.mo"
+      ]
+    }
+  ],
+  "confidence": 0.62,
   "changed_files": [
     "backend/main.mo",
     "backend/migration.mo",

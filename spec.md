@@ -1,11 +1,11 @@
 # Specification
 
 ## Summary
-**Goal:** Fix the "RTS error: blob_of_principal: invalid principal" crash by guarding all backend functions against anonymous principals and ensuring the frontend never fires actor calls before authentication is confirmed.
+**Goal:** Fix the "RTS error: blob_of_principal: invalid principal" crash by guarding all backend functions and migration logic against anonymous principals, and reinforcing the frontend to never dispatch actor calls when unauthenticated.
 
 **Planned changes:**
-- Add `Principal.isAnonymous(caller)` guard at the entry point of all state-mutating backend functions (`register`, `createPost`, `editPost`, `deletePost`, `setPostPrivacy`, `addReaction`, `adminSuspendUser`, `adminUnsuspendUser`, `setSubscriptionStatus`) and any function that performs a Principal lookup or blob conversion, returning a descriptive `#err` instead of trapping.
-- Update the `postupgrade`/migration hook in `backend/migration.mo` to skip and remove any stored user entries whose Principal key is anonymous or invalid before iterating, preventing RTS traps on upgrade.
-- In the frontend (`useQueries.ts` and related components), gate all backend actor calls behind a check that `isAuthenticated` is `true` and the identity is non-anonymous; return early or skip the query otherwise.
+- In `backend/main.mo`, add `Principal.isAnonymous(caller)` checks at the top of every public function (register, createPost, editPost, deletePost, setPostPrivacy, addReaction, getMyReaction, getMyProfile, getMyPosts, getMySubscriptionStatus, and all admin functions), returning an immediate error or false if the caller is anonymous.
+- In `backend/migration.mo`, update the `postupgrade` hook to check each stored user entry's Principal key with `Principal.isAnonymous` before any blob conversion or comparison, silently removing anonymous-keyed entries without trapping, while preserving all legitimate user entries and re-seeding invite codes VEIL-001 through VEIL-005 as before.
+- In `frontend/src/hooks/useQueries.ts`, reinforce the anonymous-identity guard so all actor calls verify both `isAuthenticated` and that the identity is not anonymous before proceeding; all `useQuery` hooks set `enabled: false` and all `useMutation` hooks return early when the caller is unauthenticated or anonymous.
 
-**User-visible outcome:** Anonymous/unauthenticated users no longer cause an RTS trap — they receive a graceful error. Authenticated users continue to work normally, and canister upgrades complete without crashing.
+**User-visible outcome:** Anonymous or unauthenticated sessions no longer cause a backend trap. Authenticated users continue to register, post, react, and use admin functions normally without any crashes.

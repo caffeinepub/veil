@@ -6,10 +6,10 @@ import Runtime "mo:core/Runtime";
 import Array "mo:core/Array";
 import Random "mo:core/Random";
 import Principal "mo:core/Principal";
+import Order "mo:core/Order";
 import Blob "mo:core/Blob";
 import MixinAuthorization "authorization/MixinAuthorization";
 import AccessControl "authorization/access-control";
-import Order "mo:core/Order";
 import InviteLinksModule "invite-links/invite-links-module";
 import Migration "migration";
 
@@ -101,7 +101,6 @@ actor {
 
   let MAX_USERS : Nat = 100;
 
-  // Static invite code seeding
   func seedDefaultInviteCodes() {
     let defaultCodes = [
       "VEIL-001",
@@ -158,9 +157,10 @@ actor {
     } else { #equal };
   };
 
-  // ─── Invite Code Management ───────────────────────────────────────────────
-
   public shared ({ caller }) func generateInviteCode() : async Text {
+    if (caller.isAnonymous()) {
+      Runtime.trap("Anonymous principals cannot generate invite codes");
+    };
     assertIsAdmin(caller);
     let blob = await Random.blob();
     let code = InviteLinksModule.generateUUID(blob);
@@ -179,11 +179,17 @@ actor {
   };
 
   public query ({ caller }) func getAllRSVPs() : async [InviteLinksModule.RSVP] {
+    if (caller.isAnonymous()) {
+      Runtime.trap("Anonymous principals cannot get RSVPs");
+    };
     assertIsAdmin(caller);
     InviteLinksModule.getAllRSVPs(inviteState);
   };
 
   public query ({ caller }) func getInviteCodes() : async [InviteLinksModule.InviteCode] {
+    if (caller.isAnonymous()) {
+      Runtime.trap("Anonymous principals cannot get invite codes");
+    };
     assertIsAdmin(caller);
     InviteLinksModule.getInviteCodes(inviteState);
   };
@@ -196,6 +202,9 @@ actor {
   };
 
   public shared ({ caller }) func addInviteCode(code : Text) : async () {
+    if (caller.isAnonymous()) {
+      Runtime.trap("Anonymous principals cannot add invite codes");
+    };
     assertIsAdmin(caller);
     let ic : InviteCode = {
       code;
@@ -206,6 +215,9 @@ actor {
   };
 
   public shared ({ caller }) func revokeInviteCode(code : Text) : async () {
+    if (caller.isAnonymous()) {
+      Runtime.trap("Anonymous principals cannot revoke invite codes");
+    };
     assertIsAdmin(caller);
     switch (inviteCodes.get(code)) {
       case (?ic) {
@@ -219,8 +231,6 @@ actor {
       };
     };
   };
-
-  // ─── User Registration ────────────────────────────────────────────────────
 
   public shared ({ caller }) func register(pseudonym : Text, region : Region, inviteCode : Text) : async () {
     if (caller.isAnonymous()) {
@@ -273,9 +283,10 @@ actor {
     AccessControl.assignRole(accessControlState, admin, caller, #user);
   };
 
-  // ─── UserProfile (required by frontend) ──────────────────────────────────
-
   public query ({ caller }) func getCallerUserProfile() : async ?UserProfile {
+    if (caller.isAnonymous()) {
+      Runtime.trap("Anonymous principals cannot get user profiles");
+    };
     assertIsUser(caller);
     switch (users.get(caller)) {
       case (?user) {
@@ -286,6 +297,9 @@ actor {
   };
 
   public shared ({ caller }) func saveCallerUserProfile(profile : UserProfile) : async () {
+    if (caller.isAnonymous()) {
+      Runtime.trap("Anonymous principals cannot save user profiles");
+    };
     assertIsUser(caller);
     switch (users.get(caller)) {
       case (?user) {
@@ -308,6 +322,9 @@ actor {
   };
 
   public query ({ caller }) func getUserProfile(target : Principal) : async ?UserProfile {
+    if (target.isAnonymous()) {
+      Runtime.trap("Anonymous principals cannot have user profiles");
+    };
     if (caller != target and not AccessControl.isAdmin(accessControlState, caller)) {
       Runtime.trap("Unauthorized: Can only view your own profile");
     };
@@ -320,11 +337,17 @@ actor {
   };
 
   public query ({ caller }) func getMyProfile() : async ?User {
+    if (caller.isAnonymous()) {
+      Runtime.trap("Anonymous principals cannot have profiles");
+    };
     assertIsUser(caller);
     users.get(caller);
   };
 
   public query ({ caller }) func getMyPosts() : async [Post] {
+    if (caller.isAnonymous()) {
+      Runtime.trap("Anonymous principals cannot have posts");
+    };
     assertIsUser(caller);
     posts.values()
       .filter(func(p : RawPost) : Bool { p.userId == caller })
@@ -342,12 +365,19 @@ actor {
   };
 
   public query ({ caller }) func isAdmin() : async Bool {
+    if (caller.isAnonymous()) {
+      return false;
+    };
     caller == getAdminPrincipal();
   };
 
-  // ─── Subscription ─────────────────────────────────────────────────────────
-
   public query ({ caller }) func getSubscriptionStatus(userId : Principal) : async SubscriptionStatus {
+    if (caller.isAnonymous()) {
+      Runtime.trap("Anonymous principals cannot have subscription statuses");
+    };
+    if (userId.isAnonymous()) {
+      Runtime.trap("Anonymous principals cannot have subscription statuses");
+    };
     if (caller != userId and not AccessControl.isAdmin(accessControlState, caller)) {
       Runtime.trap("Unauthorized: Can only view your own subscription status");
     };
@@ -358,6 +388,9 @@ actor {
   };
 
   public query ({ caller }) func getMySubscriptionStatus() : async SubscriptionStatus {
+    if (caller.isAnonymous()) {
+      Runtime.trap("Anonymous principals cannot have subscription statuses");
+    };
     assertIsUser(caller);
     switch (users.get(caller)) {
       case (?user) { effectiveSubscriptionStatus(user) };
@@ -366,6 +399,12 @@ actor {
   };
 
   public shared ({ caller }) func setSubscriptionStatus(userId : Principal, status : SubscriptionStatus) : async () {
+    if (caller.isAnonymous()) {
+      Runtime.trap("Anonymous principals cannot set subscription statuses");
+    };
+    if (userId.isAnonymous()) {
+      Runtime.trap("Anonymous principals cannot have subscription statuses");
+    };
     assertIsAdmin(caller);
     switch (users.get(userId)) {
       case (?user) {
@@ -387,9 +426,10 @@ actor {
     };
   };
 
-  // ─── Post Creation ────────────────────────────────────────────────────────
-
   public shared ({ caller }) func createPost(emotionType : EmotionType, content : Text) : async Text {
+    if (caller.isAnonymous()) {
+      Runtime.trap("Anonymous principals cannot create posts");
+    };
     assertIsUser(caller);
 
     switch (users.get(caller)) {
@@ -440,9 +480,10 @@ actor {
     result;
   };
 
-  // ─── Post Editing ─────────────────────────────────────────────────────────
-
   public shared ({ caller }) func editPost(postId : Text, newContent : Text) : async () {
+    if (caller.isAnonymous()) {
+      Runtime.trap("Anonymous principals cannot edit posts");
+    };
     assertIsUser(caller);
 
     switch (posts.get(postId)) {
@@ -475,9 +516,10 @@ actor {
     };
   };
 
-  // ─── Privacy Toggle ───────────────────────────────────────────────────────
-
   public shared ({ caller }) func setPostPrivacy(postId : Text, isPrivate : Bool) : async () {
+    if (caller.isAnonymous()) {
+      Runtime.trap("Anonymous principals cannot set post privacy");
+    };
     assertIsUser(caller);
 
     switch (posts.get(postId)) {
@@ -521,9 +563,10 @@ actor {
     };
   };
 
-  // ─── Reactions ────────────────────────────────────────────────────────────
-
   public shared ({ caller }) func addReaction(postId : Text, reactionType : ReactionType) : async Text {
+    if (caller.isAnonymous()) {
+      Runtime.trap("Anonymous principals cannot add reactions");
+    };
     assertIsUser(caller);
 
     switch (users.get(caller)) {
@@ -587,6 +630,9 @@ actor {
   };
 
   public query ({ caller }) func getMyReaction(postId : Text) : async ?ReactionType {
+    if (caller.isAnonymous()) {
+      Runtime.trap("Anonymous principals cannot have reactions");
+    };
     assertIsUser(caller);
     switch (
       reactions.values().find(func(r : Reaction) : Bool {
@@ -599,15 +645,19 @@ actor {
   };
 
   public query ({ caller }) func getUserReactionOnPost(postId : Text) : async ?Reaction {
+    if (caller.isAnonymous()) {
+      Runtime.trap("Anonymous principals cannot have reactions");
+    };
     assertIsUser(caller);
     reactions.values().find(func(r : Reaction) : Bool {
       r.postId == postId and r.userId == caller;
     });
   };
 
-  // ─── Post Deletion (Owner) ────────────────────────────────────────────────
-
   public shared ({ caller }) func deletePost(postId : Text) : async () {
+    if (caller.isAnonymous()) {
+      Runtime.trap("Anonymous principals cannot delete posts");
+    };
     assertIsUser(caller);
 
     switch (posts.get(postId)) {
@@ -631,9 +681,10 @@ actor {
     };
   };
 
-  // ─── Admin Moderation ────────────────────────────────────────────────────
-
   public query ({ caller }) func adminGetAllPublicPosts() : async [Post] {
+    if (caller.isAnonymous()) {
+      Runtime.trap("Anonymous principals cannot get posts");
+    };
     assertIsAdmin(caller);
     posts.values()
       .filter(func(p : RawPost) : Bool { not p.isPrivate })
@@ -643,6 +694,12 @@ actor {
   };
 
   public query ({ caller }) func adminGetUserPosts(userId : Principal) : async [Post] {
+    if (caller.isAnonymous()) {
+      Runtime.trap("Anonymous principals cannot get posts");
+    };
+    if (userId.isAnonymous()) {
+      Runtime.trap("Anonymous principals cannot have posts");
+    };
     assertIsAdmin(caller);
     posts.values()
       .filter(func(p : RawPost) : Bool { p.userId == userId })
@@ -652,6 +709,9 @@ actor {
   };
 
   public shared ({ caller }) func adminDeletePost(postId : Text) : async () {
+    if (caller.isAnonymous()) {
+      Runtime.trap("Anonymous principals cannot delete posts");
+    };
     assertIsAdmin(caller);
 
     let toRemove = reactions.filter(func(_ : Text, r : Reaction) : Bool {
@@ -665,6 +725,12 @@ actor {
   };
 
   public shared ({ caller }) func adminSuspendUser(userId : Principal) : async () {
+    if (caller.isAnonymous()) {
+      Runtime.trap("Anonymous principals cannot suspend users");
+    };
+    if (userId.isAnonymous()) {
+      Runtime.trap("Anonymous principals cannot be suspended");
+    };
     assertIsAdmin(caller);
     switch (users.get(userId)) {
       case (?user) {
@@ -687,6 +753,12 @@ actor {
   };
 
   public shared ({ caller }) func adminUnsuspendUser(userId : Principal) : async () {
+    if (caller.isAnonymous()) {
+      Runtime.trap("Anonymous principals cannot unsuspend users");
+    };
+    if (userId.isAnonymous()) {
+      Runtime.trap("Anonymous principals cannot be suspended");
+    };
     assertIsAdmin(caller);
     switch (users.get(userId)) {
       case (?user) {
@@ -709,6 +781,9 @@ actor {
   };
 
   public query ({ caller }) func adminGetAllUsers() : async [User] {
+    if (caller.isAnonymous()) {
+      Runtime.trap("Anonymous principals cannot get users");
+    };
     assertIsAdmin(caller);
     users.values().toArray();
   };
@@ -741,6 +816,5 @@ actor {
     };
   };
 
-  // Initialize and seed invite codes
   system func preupgrade() { seedDefaultInviteCodes() };
 };

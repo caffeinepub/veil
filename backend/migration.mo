@@ -1,42 +1,43 @@
 import Map "mo:core/Map";
-import Principal "mo:core/Principal";
 import Time "mo:core/Time";
+import Principal "mo:core/Principal";
 
 module {
+  type Region = { #india; #global };
+
+  type SubscriptionStatus = { #grace; #active; #expired };
+
   type User = {
     id : Principal;
     pseudonym : Text;
-    region : {
-      #india;
-      #global;
-    };
-    subscriptionStatus : {
-      #grace;
-      #active;
-      #expired;
-    };
-    subscriptionStartDate : Int;
+    region : Region;
+    subscriptionStatus : SubscriptionStatus;
+    subscriptionStartDate : Time.Time;
     inviteCode : Text;
-    createdAt : Int;
+    createdAt : Time.Time;
     suspended : Bool;
+  };
+
+  type InviteCode = {
+    code : Text;
+    created : Time.Time;
+    used : Bool;
   };
 
   type Actor = {
     users : Map.Map<Principal, User>;
-    inviteCodes : Map.Map<Text, { code : Text; created : Int; used : Bool }>;
-  };
-
-  func removeAnonymousUsers(users : Map.Map<Principal, User>) : Map.Map<Principal, User> {
-    users.filter(
-      func(principal, _) {
-        not principal.isAnonymous();
-      }
-    );
+    inviteCodes : Map.Map<Text, InviteCode>;
   };
 
   public func run(old : Actor) : Actor {
-    let cleanedUsers = removeAnonymousUsers(old.users);
+    // Filter out anonymous principal entries and keep only valid ones
+    let cleanedUsers = old.users.filter(
+      func(p, _) {
+        not p.isAnonymous();
+      }
+    );
 
+    // Re-seed default invite codes
     let defaultCodes = [
       "VEIL-001",
       "VEIL-002",
@@ -46,7 +47,7 @@ module {
     ];
     for (code in defaultCodes.values()) {
       if (not old.inviteCodes.containsKey(code)) {
-        let ic = {
+        let ic : InviteCode = {
           code;
           created = Time.now();
           used = false;

@@ -1,6 +1,6 @@
 {
   "schemaVersion": "1.0.0",
-  "projectStateVersion": 37,
+  "projectStateVersion": 39,
   "summary": "Veil is a private, invite-only emotional sharing platform capped at 100 members. It is pseudonymous, subscription-based, and human-moderated. Members share posts in three emotional states (Confess, Broke, Happy). Posts are private by default with user-controlled visibility. No DMs, comments, follower system, or feed ranking. Built with React frontend and Node.js/Express/MongoDB backend.",
   "architectural_notes": [
     "Stack: React (functional components) frontend, Node.js/Express backend, MongoDB, JWT authentication",
@@ -246,6 +246,14 @@
       "title": "In the frontend, ensure that no backend actor call is made before a valid (non-anonymous) Internet Identity principal is confirmed. In useQueries.ts and any component that calls backend functions, gate all actor calls behind a check that the identity from useInternetIdentity is authenticated (isAuthenticated is true and the identity is not the anonymous identity). If the identity is anonymous or absent, return early or skip the query — do not dispatch the call to the actor.",
       "reqIds": [
         "REQ-126"
+      ],
+      "version": 1
+    },
+    {
+      "id": "feature-in-frontend-src-hooks-usequeries-ts-reinforce-the-existing-anonymous-identity-guard-so-that-all-actor-calls-check-both-isauthenticated-from-useinternetidentity-and-that-the-identity-is-not-the-anonymous-identity-before-dispatching-any-call-to-the-backend-actor-if-either-check-fails-the-query-must-return-early-with-no-result-and-mutations-must-not-be-dispatched",
+      "title": "In frontend/src/hooks/useQueries.ts, reinforce the existing anonymous-identity guard so that all actor calls check both isAuthenticated from useInternetIdentity and that the identity is not the anonymous identity before dispatching any call to the backend actor. If either check fails, the query must return early with no result and mutations must not be dispatched.",
+      "reqIds": [
+        "REQ-129"
       ],
       "version": 1
     }
@@ -1072,6 +1080,22 @@
       "summary": "Update backend/migration.mo so that the postupgrade cleanup step safely handles any stored user entries whose Principal key is the anonymous principal or any invalid principal. Before calling Principal.toBlob or any Principal comparison on a stored key, validate the key is non-anonymous. Remove invalid entries without trapping. Re-seed invite codes VEIL-001 through VEIL-005 as unused if absent, as before.",
       "reqIds": [
         "REQ-125"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "AR-115",
+      "summary": "In backend/main.mo, audit every location where a Principal value is used in a blob conversion, equality check, or as a HashMap/TrieMap key. Add a guard using Principal.isAnonymous(caller) at the very top of every public function (register, createPost, editPost, deletePost, setPostPrivacy, addReaction, getMyReaction, getMyProfile, getMyPosts, getMySubscriptionStatus, and all admin functions) so that if the caller is anonymous, the function returns an immediate error result or false rather than proceeding. This prevents the 'RTS error: blob_of_principal: invalid principal' trap that occurs when an anonymous principal is passed to Principal.toBlob or related operations.",
+      "reqIds": [
+        "REQ-127"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "AR-116",
+      "summary": "In backend/migration.mo, update the postupgrade cleanup step so that when iterating over stored user entries, each Principal key is checked with Principal.isAnonymous before any Principal.toBlob or comparison operation. Any entry whose key is the anonymous principal must be silently removed without trapping. The invite code re-seeding for VEIL-001 through VEIL-005 must also proceed safely after this cleanup.",
+      "reqIds": [
+        "REQ-128"
       ],
       "status": "pending"
     }
