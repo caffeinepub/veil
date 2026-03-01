@@ -22,7 +22,7 @@ export default function AdminFlaggedPosts() {
 
   const handleDelete = async (postId: string) => {
     try {
-      await deletePost.mutateAsync({ postId });
+      await deletePost.mutateAsync(postId);
       setDeleteErrors(prev => { const n = { ...prev }; delete n[postId]; return n; });
     } catch (err: unknown) {
       setDeleteErrors(prev => ({

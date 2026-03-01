@@ -1,6 +1,14 @@
-import { RouterProvider, createRouter, createRoute, createRootRoute, Outlet } from '@tanstack/react-router';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import {
+  createRouter,
+  createRoute,
+  createRootRoute,
+  RouterProvider,
+  Outlet,
+  redirect,
+} from '@tanstack/react-router';
 import { Toaster } from '@/components/ui/sonner';
+import { ThemeProvider } from 'next-themes';
 import Layout from './components/Layout';
 import LoginPage from './pages/LoginPage';
 import SignupPage from './pages/SignupPage';
@@ -19,6 +27,7 @@ const queryClient = new QueryClient({
   },
 });
 
+// Root route with Layout
 const rootRoute = createRootRoute({
   component: () => (
     <Layout>
@@ -45,19 +54,13 @@ const dashboardRoute = createRoute({
   component: DashboardPage,
 });
 
-const indexRoute = createRoute({
-  getParentRoute: () => rootRoute,
-  path: '/',
-  component: DashboardPage,
-});
-
-const createRoute_ = createRoute({
+const createPostRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/create',
   component: PostCreationPage,
 });
 
-const postsRoute = createRoute({
+const myPostsRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/posts',
   component: MyPostsPage,
@@ -75,13 +78,22 @@ const adminRoute = createRoute({
   component: AdminPage,
 });
 
+const indexRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/',
+  beforeLoad: () => {
+    throw redirect({ to: '/login' });
+  },
+  component: () => null,
+});
+
 const routeTree = rootRoute.addChildren([
   indexRoute,
   loginRoute,
   signupRoute,
   dashboardRoute,
-  createRoute_,
-  postsRoute,
+  createPostRoute,
+  myPostsRoute,
   communityRoute,
   adminRoute,
 ]);
@@ -96,9 +108,11 @@ declare module '@tanstack/react-router' {
 
 export default function App() {
   return (
-    <QueryClientProvider client={queryClient}>
-      <RouterProvider router={router} />
-      <Toaster richColors position="top-right" />
-    </QueryClientProvider>
+    <ThemeProvider attribute="class" defaultTheme="light" enableSystem={false}>
+      <QueryClientProvider client={queryClient}>
+        <RouterProvider router={router} />
+        <Toaster richColors position="top-right" />
+      </QueryClientProvider>
+    </ThemeProvider>
   );
 }

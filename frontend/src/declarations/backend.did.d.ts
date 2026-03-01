@@ -38,7 +38,8 @@ export interface Post {
   'content' : string,
   'createdAt' : Time,
   'author' : Principal,
-  'isPrivate' : boolean,
+  'updatedAt' : Time,
+  'visibility' : Visibility,
 }
 export interface RSVP {
   'name' : string,
@@ -58,10 +59,16 @@ export type ReactionType = { 'support' : null } |
   { 'strength' : null };
 export type Region = { 'India' : null } |
   { 'Global' : null };
-export type Result = { 'ok' : User } |
+export type RegistrationError = { 'AnonymousNotAllowed' : null } |
+  { 'CapacityReached' : null } |
+  { 'InviteCodeUsed' : null } |
+  { 'AlreadyRegistered' : null } |
+  { 'InvalidInviteCode' : null };
+export type Result = { 'ok' : Post } |
   { 'err' : string };
-export type Result_1 = { 'ok' : string } |
-  { 'err' : string };
+export type Result_1 = { 'ok' : User } |
+  { 'err' : RegistrationError };
+export interface SeatInfo { 'maxSeats' : bigint, 'currentSeats' : bigint }
 export type SubscriptionStatus = { 'active' : null } |
   { 'expired' : null } |
   { 'grace' : null };
@@ -73,18 +80,27 @@ export interface User {
   'createdAt' : Time,
   'subscriptionStatus' : SubscriptionStatus,
   'suspended' : boolean,
+  'hasAcknowledgedEntryMessage' : boolean,
+  'hasAcknowledgedPublicPostMessage' : boolean,
 }
 export interface UserProfile {
   'region' : Region,
   'pseudonym' : string,
   'subscriptionStatus' : SubscriptionStatus,
   'suspended' : boolean,
+  'hasAcknowledgedEntryMessage' : boolean,
+  'hasAcknowledgedPublicPostMessage' : boolean,
 }
+export interface UserProfileUpdate { 'region' : Region, 'pseudonym' : string }
 export type UserRole = { 'admin' : null } |
   { 'user' : null } |
   { 'guest' : null };
+export type Visibility = { 'publicView' : null } |
+  { 'privateView' : null };
 export interface _SERVICE {
   '_initializeAccessControlWithSecret' : ActorMethod<[string], undefined>,
+  'acknowledgeEntryMessage' : ActorMethod<[], undefined>,
+  'acknowledgePublicPostMessage' : ActorMethod<[], undefined>,
   'addComment' : ActorMethod<[string, string], string>,
   'addReaction' : ActorMethod<[string, ReactionType], string>,
   'adminClearESPFlag' : ActorMethod<[Principal], undefined>,
@@ -93,7 +109,6 @@ export interface _SERVICE {
   'adminGetAllUsers' : ActorMethod<[], Array<User>>,
   'adminGetESPFlaggedUsers' : ActorMethod<[], Array<Principal>>,
   'adminGetFlaggedPosts' : ActorMethod<[], Array<Flag>>,
-  'adminGetSeatCount' : ActorMethod<[], bigint>,
   'adminGetUserPosts' : ActorMethod<[Principal], Array<Post>>,
   'adminSetSubscriptionStatus' : ActorMethod<
     [Principal, SubscriptionStatus],
@@ -108,7 +123,7 @@ export interface _SERVICE {
       { 'anonymous' : null } |
       { 'newUser' : null }
   >,
-  'createPost' : ActorMethod<[EmotionType, string, boolean], Result_1>,
+  'createPost' : ActorMethod<[EmotionType, string, [] | [Visibility]], Result>,
   'flagPost' : ActorMethod<[string, string], string>,
   'generateInviteCode' : ActorMethod<[], string>,
   'getAllRSVPs' : ActorMethod<[], Array<RSVP>>,
@@ -120,12 +135,14 @@ export interface _SERVICE {
   'getMyPosts' : ActorMethod<[], Array<Post>>,
   'getPublicPosts' : ActorMethod<[], Array<Post>>,
   'getReactionsForPost' : ActorMethod<[string], Array<Reaction>>,
+  'getSeatInfo' : ActorMethod<[], SeatInfo>,
   'getUserProfile' : ActorMethod<[Principal], [] | [UserProfile]>,
   'isCallerAdmin' : ActorMethod<[], boolean>,
-  'register' : ActorMethod<[string, Region, string], Result>,
+  'register' : ActorMethod<[string, Region, string], Result_1>,
   'revokeInviteCode' : ActorMethod<[string], undefined>,
-  'saveCallerUserProfile' : ActorMethod<[UserProfile], undefined>,
+  'saveCallerUserProfile' : ActorMethod<[UserProfileUpdate], undefined>,
   'submitRSVP' : ActorMethod<[string, boolean, string], undefined>,
+  'togglePostVisibility' : ActorMethod<[string], Result>,
   'validateInviteCode' : ActorMethod<[string], boolean>,
 }
 export declare const idlService: IDL.ServiceClass;

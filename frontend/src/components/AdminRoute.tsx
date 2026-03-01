@@ -1,14 +1,15 @@
 import { useEffect } from 'react';
 import { useNavigate } from '@tanstack/react-router';
 import { useAuth } from '../hooks/useAuth';
-import { useGetCallerUserProfile } from '../hooks/useQueries';
-import AdminDashboard from '../components/AdminDashboard';
 import { Loader2, ShieldOff } from 'lucide-react';
 
-export default function AdminPage() {
-  const navigate = useNavigate();
+interface AdminRouteProps {
+  children: React.ReactNode;
+}
+
+export default function AdminRoute({ children }: AdminRouteProps) {
   const { isAuthenticated, isInitializing, role } = useAuth();
-  const { data: profile, isLoading: profileLoading, isFetched: profileFetched } = useGetCallerUserProfile();
+  const navigate = useNavigate();
 
   useEffect(() => {
     if (!isInitializing && !isAuthenticated) {
@@ -16,13 +17,7 @@ export default function AdminPage() {
     }
   }, [isAuthenticated, isInitializing, navigate]);
 
-  useEffect(() => {
-    if (profileFetched && !profile && isAuthenticated) {
-      navigate({ to: '/signup' });
-    }
-  }, [profileFetched, profile, isAuthenticated, navigate]);
-
-  if (isInitializing || profileLoading) {
+  if (isInitializing) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -30,7 +25,9 @@ export default function AdminPage() {
     );
   }
 
-  if (!isAuthenticated) return null;
+  if (!isAuthenticated) {
+    return null;
+  }
 
   if (role !== 'admin') {
     return (
@@ -56,11 +53,5 @@ export default function AdminPage() {
     );
   }
 
-  return (
-    <div className="min-h-screen bg-background py-8 px-4">
-      <div className="max-w-5xl mx-auto">
-        <AdminDashboard />
-      </div>
-    </div>
-  );
+  return <>{children}</>;
 }

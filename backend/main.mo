@@ -1,19 +1,21 @@
 import Map "mo:core/Map";
-import Iter "mo:core/Iter";
+import List "mo:core/List";
 import Order "mo:core/Order";
 import Array "mo:core/Array";
-import Text "mo:core/Text";
-import Blob "mo:core/Blob";
 import Time "mo:core/Time";
+import Iter "mo:core/Iter";
 import Random "mo:core/Random";
 import Principal "mo:core/Principal";
 import Runtime "mo:core/Runtime";
+import Blob "mo:core/Blob";
+import Text "mo:core/Text";
+import Nat "mo:core/Nat";
+import InviteLinksModule "invite-links/invite-links-module";
 import MixinAuthorization "authorization/MixinAuthorization";
 import AccessControl "authorization/access-control";
-import InviteLinksModule "invite-links/invite-links-module";
-import Migration "migration";
 
-(with migration = Migration.run)
+
+
 actor {
   let accessControlState = AccessControl.initState();
   let inviteState = InviteLinksModule.initState();
@@ -26,6 +28,7 @@ actor {
   let flags = Map.empty<Text, Flag>();
   let inviteCodes = Map.empty<Text, InviteCode>();
   let espFlaggedUsers = Map.empty<Principal, Bool>();
+  let lastToggleTime = Map.empty<Text, Time.Time>();
 
   public type Region = {
     #India;
@@ -50,6 +53,11 @@ actor {
     #strength;
   };
 
+  public type Visibility = {
+    #privateView;
+    #publicView;
+  };
+
   public type User = {
     id : Principal;
     pseudonym : Text;
@@ -57,6 +65,8 @@ actor {
     subscriptionStatus : SubscriptionStatus;
     createdAt : Time.Time;
     suspended : Bool;
+    hasAcknowledgedEntryMessage : Bool;
+    hasAcknowledgedPublicPostMessage : Bool;
   };
 
   public type Post = {
@@ -64,8 +74,9 @@ actor {
     author : Principal;
     emotionType : EmotionType;
     content : Text;
-    isPrivate : Bool;
+    visibility : Visibility;
     createdAt : Time.Time;
+    updatedAt : Time.Time;
   };
 
   public type Reaction = {
@@ -105,6 +116,13 @@ actor {
     region : Region;
     subscriptionStatus : SubscriptionStatus;
     suspended : Bool;
+    hasAcknowledgedEntryMessage : Bool;
+    hasAcknowledgedPublicPostMessage : Bool;
+  };
+
+  public type UserProfileUpdate = {
+    pseudonym : Text;
+    region : Region;
   };
 
   public type Result<Ok, Err> = {
@@ -112,9 +130,25 @@ actor {
     #err : Err;
   };
 
+  public type SeatInfo = {
+    currentSeats : Nat;
+    maxSeats : Nat;
+  };
+
+  public type RegistrationError = {
+    #AnonymousNotAllowed;
+    #CapacityReached;
+    #AlreadyRegistered;
+    #InvalidInviteCode;
+    #InviteCodeUsed;
+  };
+
   let MAX_USERS : Nat = 100;
   let SEVEN_DAYS_NS : Int = 7 * 24 * 60 * 60 * 1_000_000_000;
   let BROKE_THRESHOLD : Nat = 3;
+  let MAX_PRIVATE_POSTS_PER_DAY : Nat = 5;
+  let ONE_DAY_NS : Int = 24 * 60 * 60 * 1_000_000_000;
+  let MAX_CONTENT_LENGTH : Nat = 1000;
 
   func generateUuid() : async Text {
     let blob = await Random.blob();
@@ -195,25 +229,26 @@ actor {
     pseudonym : Text,
     region : Region,
     inviteCode : Text
-  ) : async Result<User, Text> {
+  ) : async Result<User, RegistrationError> {
     if (caller.isAnonymous()) {
-      return #err("Anonymous principals cannot register");
+      return #err(#AnonymousNotAllowed);
     };
+
     if (users.size() >= MAX_USERS) {
-      return #err("User capacity reached (max 100 users)");
+      return #err(#CapacityReached);
     };
+
     if (users.get(caller) != null) {
-      return #err("User already registered");
+      return #err(#AlreadyRegistered);
     };
+
     switch (inviteCodes.get(inviteCode)) {
       case (?ic) {
         if (ic.used) {
-          return #err("Invite code already used");
+          return #err(#InviteCodeUsed);
         };
       };
-      case (null) {
-        return #err("Invalid invite code");
-      };
+      case (null) { return #err(#InvalidInviteCode) };
     };
 
     let now = Time.now();
@@ -224,6 +259,8 @@ actor {
       subscriptionStatus = #grace;
       createdAt = now;
       suspended = false;
+      hasAcknowledgedEntryMessage = false;
+      hasAcknowledgedPublicPostMessage = false;
     };
 
     users.add(caller, user);
@@ -250,9 +287,7 @@ actor {
       Runtime.trap("Anonymous principals are not allowed");
     };
     switch (users.get(caller)) {
-      case (null) {
-        Runtime.trap("Unauthorized: Only registered users can perform this action");
-      };
+      case (null) { Runtime.trap("Unauthorized: Only registered users can perform this action") };
       case (?user) {
         if (user.suspended) {
           Runtime.trap("Your account has been suspended");
@@ -281,13 +316,15 @@ actor {
           region = user.region;
           subscriptionStatus = user.subscriptionStatus;
           suspended = user.suspended;
+          hasAcknowledgedEntryMessage = user.hasAcknowledgedEntryMessage;
+          hasAcknowledgedPublicPostMessage = user.hasAcknowledgedPublicPostMessage;
         };
       };
       case (null) { null };
     };
   };
 
-  public shared ({ caller }) func saveCallerUserProfile(profile : UserProfile) : async () {
+  public shared ({ caller }) func saveCallerUserProfile(profile : UserProfileUpdate) : async () {
     if (caller.isAnonymous()) {
       Runtime.trap("Anonymous principals cannot save user profiles");
     };
@@ -306,26 +343,84 @@ actor {
           subscriptionStatus = user.subscriptionStatus;
           createdAt = user.createdAt;
           suspended = user.suspended;
+          hasAcknowledgedEntryMessage = user.hasAcknowledgedEntryMessage;
+          hasAcknowledgedPublicPostMessage = user.hasAcknowledgedPublicPostMessage;
         };
         users.add(caller, updated);
       };
     };
   };
 
-  public query ({ caller }) func getUserProfile(user : Principal) : async ?UserProfile {
+  public shared ({ caller }) func acknowledgeEntryMessage() : async () {
+    if (caller.isAnonymous()) {
+      Runtime.trap("Anonymous principals cannot acknowledge entry message");
+    };
+    switch (users.get(caller)) {
+      case (null) {
+        Runtime.trap("Unauthorized: Only registered users can perform this action");
+      };
+      case (?user) {
+        if (user.suspended) {
+          Runtime.trap("Your account has been suspended");
+        };
+        let updated : User = {
+          id = user.id;
+          pseudonym = user.pseudonym;
+          region = user.region;
+          subscriptionStatus = user.subscriptionStatus;
+          createdAt = user.createdAt;
+          suspended = user.suspended;
+          hasAcknowledgedEntryMessage = true;
+          hasAcknowledgedPublicPostMessage = user.hasAcknowledgedPublicPostMessage;
+        };
+        users.add(caller, updated);
+      };
+    };
+  };
+
+  public shared ({ caller }) func acknowledgePublicPostMessage() : async () {
+    if (caller.isAnonymous()) {
+      Runtime.trap("Anonymous principals cannot acknowledge public post message");
+    };
+    switch (users.get(caller)) {
+      case (null) {
+        Runtime.trap("Unauthorized: Only registered users can perform this action");
+      };
+      case (?user) {
+        if (user.suspended) {
+          Runtime.trap("Your account has been suspended");
+        };
+        let updated : User = {
+          id = user.id;
+          pseudonym = user.pseudonym;
+          region = user.region;
+          subscriptionStatus = user.subscriptionStatus;
+          createdAt = user.createdAt;
+          suspended = user.suspended;
+          hasAcknowledgedEntryMessage = user.hasAcknowledgedEntryMessage;
+          hasAcknowledgedPublicPostMessage = true;
+        };
+        users.add(caller, updated);
+      };
+    };
+  };
+
+  public query ({ caller }) func getUserProfile(userId : Principal) : async ?UserProfile {
     if (caller.isAnonymous()) {
       Runtime.trap("Anonymous principals cannot get user profiles");
     };
-    if (caller != user and not AccessControl.isAdmin(accessControlState, caller)) {
+    if (caller != userId and not AccessControl.isAdmin(accessControlState, caller)) {
       Runtime.trap("Unauthorized: Can only view your own profile");
     };
-    switch (users.get(user)) {
-      case (?u) {
+    switch (users.get(userId)) {
+      case (?user) {
         ?{
-          pseudonym = u.pseudonym;
-          region = u.region;
-          subscriptionStatus = u.subscriptionStatus;
-          suspended = u.suspended;
+          pseudonym = user.pseudonym;
+          region = user.region;
+          subscriptionStatus = user.subscriptionStatus;
+          suspended = user.suspended;
+          hasAcknowledgedEntryMessage = user.hasAcknowledgedEntryMessage;
+          hasAcknowledgedPublicPostMessage = user.hasAcknowledgedPublicPostMessage;
         };
       };
       case (null) { null };
@@ -366,44 +461,127 @@ actor {
     count;
   };
 
+  func countPrivatePostsToday(userId : Principal) : Nat {
+    let today = Time.now() / (24 * 60 * 60 * 1_000_000_000);
+    var count = 0;
+    for (post in posts.values()) {
+      if (post.author == userId and post.visibility == #privateView) {
+        let postDay = post.createdAt / (24 * 60 * 60 * 1_000_000_000);
+        if (postDay == today) {
+          count += 1;
+        };
+      };
+    };
+    count;
+  };
+
   public shared ({ caller }) func createPost(
     emotionType : EmotionType,
     content : Text,
-    isPrivate : Bool
-  ) : async Result<Text, Text> {
+    visibility : ?Visibility,
+  ) : async Result<Post, Text> {
     if (caller.isAnonymous()) {
       Runtime.trap("Anonymous principals cannot create posts");
     };
-    requireRegisteredUser(caller);
+    switch (users.get(caller)) {
+      case (null) {
+        return #err("Unauthorized: Only registered users can create posts");
+      };
+      case (?user) {
+        if (user.suspended) {
+          return #err("Your account has been suspended");
+        };
+      };
+    };
 
-    if (countWords(content) < 24) {
-      return #err("Post must contain at least 24 words");
+    if (content.size() == 0) {
+      return #err("Content cannot be empty");
+    };
+    if (content.size() > MAX_CONTENT_LENGTH) {
+      return #err("Content exceeds maximum length of 1000 characters");
+    };
+
+    let resolvedVisibility : Visibility = switch (visibility) {
+      case (?v) { v };
+      case (null) { #privateView };
+    };
+
+    if (resolvedVisibility == #privateView) {
+      let todayCount = countPrivatePostsToday(caller);
+      if (todayCount >= MAX_PRIVATE_POSTS_PER_DAY) {
+        return #err("Rate limit exceeded: You can only create 5 private posts per day");
+      };
     };
 
     let postId = await generateUuid();
+    let now = Time.now();
     let post : Post = {
       id = postId;
       author = caller;
       emotionType;
       content;
-      isPrivate;
-      createdAt = Time.now();
+      visibility = resolvedVisibility;
+      createdAt = now;
+      updatedAt = now;
     };
-
     posts.add(postId, post);
+    #ok(post);
+  };
 
-    switch (emotionType) {
-      case (#broke) {
-        let brokeCount = countBrokePostsLast7Days(caller);
-        if (brokeCount > BROKE_THRESHOLD) {
-          espFlaggedUsers.add(caller, true);
-          return #ok(postId);
+  public shared ({ caller }) func togglePostVisibility(postId : Text) : async Result<Post, Text> {
+    if (caller.isAnonymous()) {
+      Runtime.trap("Anonymous principals cannot toggle post visibility");
+    };
+    switch (users.get(caller)) {
+      case (null) {
+        return #err("Unauthorized: Only registered users can toggle post visibility");
+      };
+      case (?user) {
+        if (user.suspended) {
+          return #err("Your account has been suspended");
         };
       };
-      case (_) {};
     };
 
-    #ok(postId);
+    switch (posts.get(postId)) {
+      case (null) {
+        return #err("Post does not exist");
+      };
+      case (?post) {
+        if (post.author != caller) {
+          return #err("Unauthorized: You can only toggle visibility of your own posts");
+        };
+
+        let now = Time.now();
+        switch (lastToggleTime.get(postId)) {
+          case (?lastToggle) {
+            if (now - lastToggle < ONE_DAY_NS) {
+              return #err("Rate limit exceeded: You can only toggle visibility once per post per day");
+            };
+          };
+          case (null) {};
+        };
+
+        let newVisibility : Visibility = switch (post.visibility) {
+          case (#privateView) { #publicView };
+          case (#publicView) { #privateView };
+        };
+
+        let updatedPost : Post = {
+          id = post.id;
+          author = post.author;
+          emotionType = post.emotionType;
+          content = post.content;
+          visibility = newVisibility;
+          createdAt = post.createdAt;
+          updatedAt = now;
+        };
+
+        posts.add(postId, updatedPost);
+        lastToggleTime.add(postId, now);
+        #ok(updatedPost);
+      };
+    };
   };
 
   public query ({ caller }) func getESPStatus() : async Bool {
@@ -421,9 +599,16 @@ actor {
       Runtime.trap("Anonymous principals cannot view posts");
     };
     requireRegisteredUser(caller);
-    posts.values().filter(func(p : Post) : Bool {
-      not p.isPrivate;
+    let publicPosts = posts.values().filter(func(p : Post) : Bool {
+      p.visibility == #publicView;
     }).toArray();
+    publicPosts.sort(
+      func(a : Post, b : Post) : Order.Order {
+        if (a.createdAt > b.createdAt) { #less }
+        else if (a.createdAt < b.createdAt) { #greater }
+        else { #equal };
+      }
+    );
   };
 
   public query ({ caller }) func getMyPosts() : async [Post] {
@@ -431,9 +616,16 @@ actor {
       Runtime.trap("Anonymous principals cannot view posts");
     };
     requireRegisteredUser(caller);
-    posts.values().filter(func(p : Post) : Bool {
+    let myPosts = posts.values().filter(func(p : Post) : Bool {
       p.author == caller;
     }).toArray();
+    myPosts.sort(
+      func(a : Post, b : Post) : Order.Order {
+        if (a.createdAt > b.createdAt) { #less }
+        else if (a.createdAt < b.createdAt) { #greater }
+        else { #equal };
+      }
+    );
   };
 
   public shared ({ caller }) func addReaction(postId : Text, reactionType : ReactionType) : async Text {
@@ -444,7 +636,7 @@ actor {
 
     switch (posts.get(postId)) {
       case (?post) {
-        if (post.isPrivate) {
+        if (post.visibility == #privateView) {
           Runtime.trap("Cannot react to a private post");
         };
         if (post.author == caller) {
@@ -485,7 +677,7 @@ actor {
     requireRegisteredUser(caller);
     switch (posts.get(postId)) {
       case (?post) {
-        if (post.isPrivate) {
+        if (post.visibility == #privateView) {
           Runtime.trap("Cannot view reactions on a private post");
         };
         reactions.values().filter(func(r : Reaction) : Bool {
@@ -506,7 +698,7 @@ actor {
 
     switch (posts.get(postId)) {
       case (?post) {
-        if (post.isPrivate) {
+        if (post.visibility == #privateView) {
           Runtime.trap("Cannot comment on a private post");
         };
         let commentId = await generateUuid();
@@ -533,7 +725,7 @@ actor {
     requireRegisteredUser(caller);
     switch (posts.get(postId)) {
       case (?post) {
-        if (post.isPrivate) {
+        if (post.visibility == #privateView) {
           Runtime.trap("Cannot view comments on a private post");
         };
         comments.values().filter(func(c : Comment) : Bool {
@@ -622,6 +814,8 @@ actor {
           subscriptionStatus = user.subscriptionStatus;
           createdAt = user.createdAt;
           suspended = true;
+          hasAcknowledgedEntryMessage = user.hasAcknowledgedEntryMessage;
+          hasAcknowledgedPublicPostMessage = user.hasAcknowledgedPublicPostMessage;
         };
         users.add(userId, updated);
       };
@@ -640,6 +834,8 @@ actor {
           subscriptionStatus = user.subscriptionStatus;
           createdAt = user.createdAt;
           suspended = false;
+          hasAcknowledgedEntryMessage = user.hasAcknowledgedEntryMessage;
+          hasAcknowledgedPublicPostMessage = user.hasAcknowledgedPublicPostMessage;
         };
         users.add(userId, updated);
       };
@@ -661,6 +857,8 @@ actor {
           subscriptionStatus = status;
           createdAt = user.createdAt;
           suspended = user.suspended;
+          hasAcknowledgedEntryMessage = user.hasAcknowledgedEntryMessage;
+          hasAcknowledgedPublicPostMessage = user.hasAcknowledgedPublicPostMessage;
         };
         users.add(userId, updated);
       };
@@ -674,9 +872,11 @@ actor {
     }).toArray();
   };
 
-  public query ({ caller }) func adminGetSeatCount() : async Nat {
-    requireAdmin(caller);
-    users.size();
+  public query func getSeatInfo() : async SeatInfo {
+    {
+      currentSeats = users.size();
+      maxSeats = MAX_USERS;
+    };
   };
 
   public query ({ caller }) func adminGetESPFlaggedUsers() : async [Principal] {
@@ -703,6 +903,5 @@ actor {
       case (null) { #newUser };
     };
   };
-
-  system func preupgrade() {};
 };
+

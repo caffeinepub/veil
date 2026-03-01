@@ -9,18 +9,20 @@ import AdminFlaggedPosts from './AdminFlaggedPosts';
 import { useAdminGetSeatCount, useAdminGetESPFlaggedUsers, useAdminClearESPFlag } from '../hooks/useQueries';
 import { ArrowLeft, Users, AlertTriangle, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Principal } from '@dfinity/principal';
 
 export default function AdminDashboard() {
   const navigate = useNavigate();
-  const { data: seatCount, isLoading: seatLoading } = useAdminGetSeatCount();
+  const { data: seatInfo, isLoading: seatLoading } = useAdminGetSeatCount();
   const { data: espUsers, isLoading: espLoading } = useAdminGetESPFlaggedUsers();
   const clearESPFlag = useAdminClearESPFlag();
 
-  const seatCountNum = seatCount ? Number(seatCount) : 0;
+  const currentSeats = seatInfo ? Number(seatInfo.currentSeats) : 0;
+  const maxSeats = seatInfo ? Number(seatInfo.maxSeats) : 100;
 
-  const handleClearESP = async (userId: string) => {
+  const handleClearESP = async (principalStr: string) => {
     try {
-      await clearESPFlag.mutateAsync({ userId });
+      await clearESPFlag.mutateAsync(Principal.fromText(principalStr));
     } catch {
       // silently handle
     }
@@ -53,12 +55,12 @@ export default function AdminDashboard() {
           <Loader2 size={14} className="animate-spin text-muted-foreground" />
         ) : (
           <div className="flex items-center gap-2">
-            <span className="text-sm font-semibold text-foreground">{seatCountNum}</span>
-            <span className="text-sm text-muted-foreground">/ 100 seats used</span>
+            <span className="text-sm font-semibold text-foreground">{currentSeats}</span>
+            <span className="text-sm text-muted-foreground">/ {maxSeats} seats filled</span>
             <div className="ml-2 h-2 w-24 bg-muted rounded-full overflow-hidden">
               <div
                 className="h-full bg-primary rounded-full transition-all"
-                style={{ width: `${Math.min((seatCountNum / 100) * 100, 100)}%` }}
+                style={{ width: `${Math.min((currentSeats / maxSeats) * 100, 100)}%` }}
               />
             </div>
           </div>
@@ -76,14 +78,14 @@ export default function AdminDashboard() {
           </div>
           <div className="space-y-2">
             {espUsers.map((principal: any) => {
-              const userId = principal.toString();
+              const principalStr = principal.toString();
               return (
-                <div key={userId} className="flex items-center justify-between gap-2 py-1.5 border-t border-border/50">
-                  <span className="text-xs font-mono text-muted-foreground">{userId.slice(0, 24)}…</span>
+                <div key={principalStr} className="flex items-center justify-between gap-2 py-1.5 border-t border-border/50">
+                  <span className="text-xs font-mono text-muted-foreground">{principalStr.slice(0, 24)}…</span>
                   <Button
                     size="sm"
                     variant="outline"
-                    onClick={() => handleClearESP(userId)}
+                    onClick={() => handleClearESP(principalStr)}
                     disabled={clearESPFlag.isPending}
                     className="h-7 text-xs"
                   >

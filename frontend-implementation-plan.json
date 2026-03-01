@@ -1,247 +1,86 @@
 {
   "kind": "implementation_plan",
   "version": "1.0",
-  "title": "VEIL – Private Emotional Infrastructure App (MVP) Frontend Implementation",
+  "title": "Emotional mode guidance text and tonal UI per mode",
   "requirements": [
     {
-      "id": "REQ-2",
-      "summary": "Implement Internet Identity-based login flow with routing logic to dashboard or signup based on user profile existence",
+      "id": "REQ-1",
+      "summary": "Display HAPPY mode guidance text with warm, grounded, celebratory UI tone",
       "acceptanceCriteria": [
-        "Anonymous principals cannot reach any authenticated routes",
-        "Existing users land on the dashboard after login",
-        "New users are routed to the signup/registration page",
-        "Session is restored automatically on page reload"
+        "Selecting HAPPY mode displays the exact guidance text: \"Share something real, not something impressive.\"",
+        "The guidance text area uses warm/golden color accents that visually differentiate it from other modes.",
+        "The overall form area conveys a warm, grounded aesthetic when HAPPY is active."
       ],
       "file_operations": [
         {
-          "path": "frontend/src/pages/LoginPage.tsx",
+          "path": "frontend/src/pages/PostCreationPage.tsx",
           "operation": "modify",
-          "description": "Update login flow to call checkLoginStatus backend method instead of getCallerUserProfile. Route to dashboard for existingUser, signup for newUser, and show error for anonymous status. Use the authorization component's authentication pattern and verify usage instructions before implementing."
+          "description": "Add conditional rendering logic to display the exact guidance text \"Share something real, not something impressive.\" when the selected emotion mode is HAPPY. Apply warm color accents (amber/golden hues via Tailwind classes like bg-amber-50, text-amber-800, border-amber-200) to the guidance text container and surrounding form elements when HAPPY is active. Use gentle typography weight and calm spacing to convey a warm, grounded, quietly celebratory tone."
         },
         {
-          "path": "frontend/src/App.tsx",
+          "path": "frontend/src/index.css",
           "operation": "modify",
-          "description": "Add route guards to protected routes (dashboard, create, posts, community, admin) that redirect unauthenticated users to /login. Ensure the router checks authentication state before rendering protected content."
+          "description": "Add CSS custom properties for HAPPY mode tonal styling including warm/golden color tokens (e.g., --emotion-happy-bg, --emotion-happy-text, --emotion-happy-accent) using OKLCH color space to support the warm, grounded aesthetic required by the HAPPY emotion mode."
+        }
+      ]
+    },
+    {
+      "id": "REQ-2",
+      "summary": "Display CONFESS mode guidance text with gentle, human, witnessing UI tone",
+      "acceptanceCriteria": [
+        "Selecting CONFESS mode displays the exact guidance text: \"This space is for release, not applause.\"",
+        "The guidance and form area uses muted, gentle color treatment distinct from HAPPY and BROKE modes.",
+        "No bright accents; the visual feel is quiet and human."
+      ],
+      "file_operations": [
+        {
+          "path": "frontend/src/pages/PostCreationPage.tsx",
+          "operation": "modify",
+          "description": "Add conditional rendering logic to display the exact guidance text \"This space is for release, not applause.\" when the selected emotion mode is CONFESS. Apply muted, gentle color treatment (soft neutral tones via Tailwind classes like bg-gray-50, text-gray-700, border-gray-200) to the guidance text container and surrounding form elements when CONFESS is active. Use quiet typography with no bright or celebratory accents to convey a gentle, human, witnessing tone."
+        },
+        {
+          "path": "frontend/src/index.css",
+          "operation": "modify",
+          "description": "Add CSS custom properties for CONFESS mode tonal styling including muted neutral color tokens (e.g., --emotion-confess-bg, --emotion-confess-text, --emotion-confess-accent) using OKLCH color space to support the gentle, human, witnessing aesthetic required by the CONFESS emotion mode."
+        }
+      ]
+    },
+    {
+      "id": "REQ-3",
+      "summary": "Display BROKE mode guidance text with grounded, non-pressuring, safe UI tone",
+      "acceptanceCriteria": [
+        "Selecting BROKE mode displays the exact guidance text: \"Share what feels true right now. You don't have to explain everything.\"",
+        "The form area uses a subdued, low-contrast color treatment distinct from HAPPY and CONFESS.",
+        "The visual tone feels safe and unrushed."
+      ],
+      "file_operations": [
+        {
+          "path": "frontend/src/pages/PostCreationPage.tsx",
+          "operation": "modify",
+          "description": "Add conditional rendering logic to display the exact guidance text \"Share what feels true right now. You don't have to explain everything.\" when the selected emotion mode is BROKE. Apply subdued, low-contrast color treatment (muted tones via Tailwind classes like bg-slate-50, text-slate-600, border-slate-200) to the guidance text container and surrounding form elements when BROKE is active. Use gentle spacing and unhurried visual rhythm to convey a grounded, non-pressuring, safe tone."
+        },
+        {
+          "path": "frontend/src/index.css",
+          "operation": "modify",
+          "description": "Add CSS custom properties for BROKE mode tonal styling including subdued low-contrast color tokens (e.g., --emotion-broke-bg, --emotion-broke-text, --emotion-broke-accent) using OKLCH color space to support the grounded, safe, unhurried aesthetic required by the BROKE emotion mode."
         }
       ]
     },
     {
       "id": "REQ-4",
-      "summary": "Implement witnessing-based reactions UI for public posts with Support, Care, and Strength buttons",
+      "summary": "Display subtle safety footer for BROKE mode with PUBLIC visibility only",
       "acceptanceCriteria": [
-        "Reaction buttons show Support, Care, and Strength as witnessing actions",
-        "Post owners cannot react to their own posts",
-        "Duplicate reactions from the same user on the same post are rejected",
-        "Reactions are not displayed as a raw numeric count"
-      ],
-      "file_operations": [
-        {
-          "path": "frontend/src/components/PublicPostCard.tsx",
-          "operation": "modify",
-          "description": "Replace reaction count display with witnessing-style reaction visualization. Show reaction types (Support, Care, Strength) with visual indicators (icons/badges) rather than numeric counts. Disable reaction buttons for post owners. Add error handling for duplicate reactions. Ensure the UI communicates witnessing rather than metrics."
-        },
-        {
-          "path": "frontend/src/hooks/useQueries.ts",
-          "operation": "modify",
-          "description": "Ensure useAddReaction mutation handles backend rejection of duplicate reactions and owner self-reactions gracefully. Add error messages that align with witnessing language (e.g., 'You've already offered this support' instead of 'Duplicate reaction')."
-        }
-      ]
-    },
-    {
-      "id": "REQ-5",
-      "summary": "Implement commenting UI for public posts only, ensuring private posts have no comment section",
-      "acceptanceCriteria": [
-        "Comments can only be submitted on public posts",
-        "Private posts have no visible comment section",
-        "Comments are stored and displayed in chronological order"
-      ],
-      "file_operations": [
-        {
-          "path": "frontend/src/components/PublicPostCard.tsx",
-          "operation": "modify",
-          "description": "Add a comment section component below each public post card. Include a comment input field with a submit button and a list of existing comments sorted by createdAt. Use useGetCommentsForPost and useAddComment hooks. Ensure the comment section is only rendered for public posts (when isPrivate is false)."
-        },
-        {
-          "path": "frontend/src/hooks/useQueries.ts",
-          "operation": "modify",
-          "description": "Add useAddComment mutation hook that calls addComment(postId, content) and invalidates the comments query for that post. Ensure it handles errors appropriately (e.g., attempting to comment on a private post)."
-        },
-        {
-          "path": "frontend/src/components/PostCard.tsx",
-          "operation": "modify",
-          "description": "Verify that the PostCard component (used for user's own posts) never displays a comment section, even for public posts. Comments should only appear on PublicPostCard in the community feed."
-        }
-      ]
-    },
-    {
-      "id": "REQ-6",
-      "summary": "Implement post flagging UI allowing authenticated users to flag any public post for review",
-      "acceptanceCriteria": [
-        "Any authenticated user can flag a post",
-        "A user cannot flag the same post more than once",
-        "Flagged posts appear in the admin dashboard with flag count and reasons"
-      ],
-      "file_operations": [
-        {
-          "path": "frontend/src/components/PublicPostCard.tsx",
-          "operation": "modify",
-          "description": "Add a flag/report button to each public post card. On click, show a modal or inline form allowing the user to select or enter a reason for flagging. Call useFlagPost mutation with postId and reason. Disable the flag button after successful submission or if the user has already flagged this post. Handle duplicate flag errors gracefully with a message like 'You have already flagged this post'."
-        },
-        {
-          "path": "frontend/src/hooks/useQueries.ts",
-          "operation": "modify",
-          "description": "Add useFlagPost mutation hook that calls flagPost(postId, reason) and invalidates admin flagged posts query. Add client-side tracking (via React state or query cache) to prevent duplicate flag submissions by the same user."
-        },
-        {
-          "path": "frontend/src/components/AdminDashboard.tsx",
-          "operation": "modify",
-          "description": "Add a Flagged Posts tab to the admin dashboard that displays posts flagged for review. Include post content, flag count, flag reasons, and reporter information. Provide a button to clear flags or delete the post. Use useGetFlaggedPosts hook."
-        },
-        {
-          "path": "frontend/src/hooks/useQueries.ts",
-          "operation": "modify",
-          "description": "Add useGetFlaggedPosts query hook that calls adminGetFlaggedPosts() to retrieve flagged posts for admin review. Ensure it only runs when the user is authenticated and is an admin."
-        }
-      ]
-    },
-    {
-      "id": "REQ-7",
-      "summary": "Enhance admin dashboard with flagged posts review, seat count display, and improved post/user management",
-      "acceptanceCriteria": [
-        "Non-admin users are redirected away from the admin page",
-        "Admin can delete any post",
-        "Admin can suspend or unsuspend any user",
-        "Admin can create and revoke invite codes",
-        "Seat counter is visible showing current users vs max 100",
-        "Flagged posts are listed with flag details"
-      ],
-      "file_operations": [
-        {
-          "path": "frontend/src/components/AdminDashboard.tsx",
-          "operation": "modify",
-          "description": "Add a Flagged Posts tab using useGetFlaggedPosts hook to display flagged posts with flag details and actions. Add a seat count display section showing current registered users out of 100 maximum using useGetSeatCount hook. Ensure all existing tabs (posts, members, invites, post history) remain functional."
-        },
-        {
-          "path": "frontend/src/hooks/useQueries.ts",
-          "operation": "modify",
-          "description": "Add useGetSeatCount query hook that calls adminGetSeatCount() to fetch the current user count. Display this in the admin dashboard as 'X / 100 seats used'."
-        },
-        {
-          "path": "frontend/src/pages/AdminPage.tsx",
-          "operation": "modify",
-          "description": "Ensure non-admin users are redirected to the dashboard or login page. Use isCallerAdmin() check and show an access denied message or redirect immediately if the user is not an admin."
-        }
-      ]
-    },
-    {
-      "id": "REQ-8",
-      "summary": "Implement Emotional Stability Protocol (ESP) UI feedback when users exceed Broke lane posting limits",
-      "acceptanceCriteria": [
-        "Posting in Broke more than 3 times in 7 days triggers the protocol",
-        "A calm, supportive message is shown to the user when triggered",
-        "The user's account is flagged for admin review in the dashboard",
-        "No raw counts or metrics are shown to the user"
+        "The safety footer appears only when both emotion mode is BROKE and visibility is PUBLIC.",
+        "The footer text exactly reads: \"Veil is a reflection space. If you are in immediate danger, please contact local emergency services.\"",
+        "The footer uses small font size and muted/low-opacity text — it must not be visually alarming or prominent.",
+        "The footer does not appear for BROKE+PRIVATE posts.",
+        "The footer does not appear for HAPPY or CONFESS modes regardless of visibility."
       ],
       "file_operations": [
         {
           "path": "frontend/src/pages/PostCreationPage.tsx",
           "operation": "modify",
-          "description": "After a user submits a post in the Broke emotion lane, check getESPStatus() and display a supportive, non-alarmist modal or banner if the protocol is triggered. Use calming language like 'We noticed you've been sharing some difficult feelings recently. Taking a pause can be helpful. Your well-being matters.' Do not show counts or metrics. Provide a button to acknowledge and return to the dashboard."
-        },
-        {
-          "path": "frontend/src/hooks/useQueries.ts",
-          "operation": "modify",
-          "description": "Add useGetESPStatus query hook that calls getESPStatus() to determine if the current user has triggered the Emotional Stability Protocol. This should be called after submitting a Broke post to check the status and display the supportive message."
-        },
-        {
-          "path": "frontend/src/components/AdminDashboard.tsx",
-          "operation": "modify",
-          "description": "Add an ESP Flagged Users section or tab in the admin dashboard that lists users who have triggered the protocol using useGetESPFlaggedUsers hook. Display their pseudonym and a timestamp. Provide an action button for the admin to clear the flag using adminClearESPFlag mutation."
-        },
-        {
-          "path": "frontend/src/hooks/useQueries.ts",
-          "operation": "modify",
-          "description": "Add useGetESPFlaggedUsers query hook that calls adminGetESPFlaggedUsers() and useAdminClearESPFlag mutation hook that calls adminClearESPFlag(userId). Ensure these are admin-only hooks."
-        }
-      ]
-    },
-    {
-      "id": "REQ-9",
-      "summary": "Build and style all frontend pages and UI flows with a calm, minimal, metric-free aesthetic",
-      "acceptanceCriteria": [
-        "All listed pages are reachable via defined routes",
-        "Unauthenticated users are redirected to the login/welcome screen",
-        "Emotion lane buttons (Happy / Confess / Broke) are present on the dashboard",
-        "Post creation enforces 24-word minimum with live feedback",
-        "Public/private toggle is visible and functional on post creation",
-        "No numeric follower counts, like counts, or gamification elements are present",
-        "Color palette is calm, muted, and neutral throughout"
-      ],
-      "file_operations": [
-        {
-          "path": "frontend/src/index.css",
-          "operation": "modify",
-          "description": "Update global CSS custom properties to enforce a calm, muted, neutral color palette. Replace any bright or saturated colors with desaturated OKLCH values. Adjust background, foreground, card, and accent colors to align with a minimal emotional-wellness aesthetic. Remove any bright notification colors (e.g., vivid red, green, yellow) and replace with softer equivalents."
-        },
-        {
-          "path": "frontend/tailwind.config.js",
-          "operation": "modify",
-          "description": "Update Tailwind theme colors to use muted neutrals (grays, warm beiges, soft blues). Remove gamification-related colors. Ensure border-radius values are subtle and rounded corners are minimal. Verify typography uses the existing Lora/Inter fonts with appropriate weights for calm readability."
-        },
-        {
-          "path": "frontend/src/pages/DashboardPage.tsx",
-          "operation": "modify",
-          "description": "Ensure the dashboard displays three emotion lane buttons (Happy, Confess, Broke) that navigate to /create with the selected emotion type as a query parameter. Apply calm styling with muted colors for each button. Verify the subscription banner is displayed when appropriate. Remove any metric displays or gamification elements."
-        },
-        {
-          "path": "frontend/src/pages/PostCreationPage.tsx",
-          "operation": "modify",
-          "description": "Ensure the post creation page has an emotion type selector (if not pre-selected from dashboard), a textarea for content, a public/private toggle, and live word count feedback. Show a warning if the content is below 24 words. Disable the submit button until the minimum is met. Style the page with calm, minimal aesthetics and no bright validation colors."
-        },
-        {
-          "path": "frontend/src/pages/MyPostsPage.tsx",
-          "operation": "modify",
-          "description": "Verify the My Posts page lists all user posts sorted by date with no metric displays (no like counts, follower counts). Ensure the page uses the calm color palette and minimal styling. Include an empty state message if the user has no posts."
-        },
-        {
-          "path": "frontend/src/pages/CommunityFeedPage.tsx",
-          "operation": "modify",
-          "description": "Verify the Community Feed page displays public posts only, sorted by creation date. Remove any numeric reaction counts from the post cards and replace with witnessing-style visualization. Ensure the page uses the calm, muted aesthetic with no gamification elements."
-        },
-        {
-          "path": "frontend/src/components/Header.tsx",
-          "operation": "modify",
-          "description": "Update the header to use the generated VEIL logo image (workspace path: frontend/public/assets/generated/veil-logo.dim_256x256.png). Display the user's pseudonym instead of their principal. Ensure the header uses the calm color palette and minimal styling. Keep navigation links simple and unobtrusive."
-        },
-        {
-          "path": "frontend/src/components/Layout.tsx",
-          "operation": "modify",
-          "description": "Verify the Layout component applies a calm, muted background using the generated background image (workspace path: frontend/public/assets/generated/veil-bg.dim_1440x900.png) or a solid muted color. Ensure the layout does not include any bright or distracting visual elements."
-        },
-        {
-          "path": "frontend/src/pages/LoginPage.tsx",
-          "operation": "modify",
-          "description": "Style the login page with the VEIL logo (veil-logo.dim_256x256.png), a welcoming message, and a prominent Internet Identity login button. Use the calm, minimal aesthetic with no bright colors or gamification elements. Ensure the page is accessible to unauthenticated users."
-        },
-        {
-          "path": "frontend/src/pages/SignupPage.tsx",
-          "operation": "modify",
-          "description": "Update the signup page to require an invite code, pseudonym, and region selection. Style the form with calm, minimal aesthetics. Display validation errors in a non-alarmist way. Ensure the page is only accessible to authenticated users without a profile (new users)."
-        },
-        {
-          "path": "frontend/src/components/EmotionBadge.tsx",
-          "operation": "modify",
-          "description": "Update emotion badge colors to use calm, muted tones instead of bright or saturated colors. Ensure Happy, Confess, and Broke badges are visually distinct but not jarring. Use soft pastels or desaturated hues."
-        },
-        {
-          "path": "frontend/src/components/PostCard.tsx",
-          "operation": "modify",
-          "description": "Remove any numeric metric displays (like counts, view counts) from the PostCard component. Ensure the card uses the calm, muted color palette. Verify the public/private toggle is visible and styled appropriately."
-        },
-        {
-          "path": "frontend/src/components/PublicPostCard.tsx",
-          "operation": "modify",
-          "description": "Remove numeric reaction counts and replace with witnessing-style visualization (e.g., showing reaction types as icons or badges without numbers). Ensure the card uses the calm, muted aesthetic. Style reaction buttons subtly with no bright hover colors."
+          "description": "Add conditional rendering logic to display a subtle safety footer beneath the post creation form only when both emotionType is BROKE and visibility is PUBLIC. The footer must display the exact text: \"Veil is a reflection space. If you are in immediate danger, please contact local emergency services.\" Apply subtle styling using small font size (text-xs), muted/low-opacity text color (text-gray-500/60), and no bold or alarming styling. Ensure the footer does not appear for BROKE+PRIVATE or for any other emotion mode (HAPPY, CONFESS) regardless of visibility."
         }
       ]
     }

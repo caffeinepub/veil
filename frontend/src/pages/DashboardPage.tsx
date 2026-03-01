@@ -1,7 +1,7 @@
 import { useEffect } from 'react';
 import { useNavigate } from '@tanstack/react-router';
-import { useInternetIdentity } from '../hooks/useInternetIdentity';
-import { useGetMyProfile, useGetMySubscriptionStatus } from '../hooks/useQueries';
+import { useAuth } from '../hooks/useAuth';
+import { useGetCallerUserProfile } from '../hooks/useQueries';
 import { SubscriptionStatus } from '../backend';
 import { canCreatePost } from '../utils/subscriptionHelpers';
 import SubscriptionBanner from '../components/SubscriptionBanner';
@@ -33,25 +33,22 @@ const emotions = [
 
 export default function DashboardPage() {
   const navigate = useNavigate();
-  const { identity, isInitializing } = useInternetIdentity();
-  const { data: profile, isFetched: profileFetched, isLoading: profileLoading } = useGetMyProfile();
-  const { data: subscriptionStatus, isLoading: subLoading } = useGetMySubscriptionStatus();
-
-  const isAuthenticated = !!identity;
+  const { isAuthenticated, isInitializing } = useAuth();
+  const { data: profile, isLoading: profileLoading, isFetched: profileFetched } = useGetCallerUserProfile();
 
   useEffect(() => {
     if (!isInitializing && !isAuthenticated) {
       navigate({ to: '/login' });
     }
-  }, [isInitializing, isAuthenticated, navigate]);
+  }, [isAuthenticated, isInitializing, navigate]);
 
   useEffect(() => {
-    if (isAuthenticated && profileFetched && !profileLoading && !profile) {
+    if (profileFetched && !profile && isAuthenticated) {
       navigate({ to: '/signup' });
     }
-  }, [isAuthenticated, profile, profileFetched, profileLoading, navigate]);
+  }, [profileFetched, profile, isAuthenticated, navigate]);
 
-  if (isInitializing || profileLoading || subLoading) {
+  if (isInitializing || profileLoading) {
     return (
       <div className="min-h-[60vh] flex items-center justify-center">
         <Loader2 className="animate-spin text-muted-foreground" size={28} />
@@ -61,8 +58,9 @@ export default function DashboardPage() {
 
   if (!isAuthenticated || !profile) return null;
 
+  const subscriptionStatus = profile.subscriptionStatus;
   const isExpired = subscriptionStatus === SubscriptionStatus.expired;
-  const canPost = canCreatePost(subscriptionStatus ?? SubscriptionStatus.expired);
+  const canPost = canCreatePost(subscriptionStatus);
 
   const handleEmotionClick = (emotionKey: string) => {
     if (!canPost) return;
@@ -76,51 +74,49 @@ export default function DashboardPage() {
         <h1 className="font-serif text-2xl font-semibold text-foreground">
           Welcome back, {profile.pseudonym}
         </h1>
-        <p className="text-sm text-muted-foreground">
-          What are you feeling today?
-        </p>
+        <p className="text-sm text-muted-foreground">What are you feeling today?</p>
       </div>
 
       {/* Subscription banner */}
-      {isExpired && (
-        <SubscriptionBanner region={profile.region} />
-      )}
+      {isExpired && <SubscriptionBanner region={profile.region} />}
 
       {/* Emotion buttons */}
       <div className="space-y-3">
-        <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-          Choose your emotion
+        <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+          Choose an emotion to write about
         </p>
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-          {emotions.map(emotion => (
+          {emotions.map((emotion) => (
             <button
               key={emotion.key}
               onClick={() => handleEmotionClick(emotion.key)}
               disabled={!canPost}
               className={`
-                relative flex flex-col items-center gap-2 p-5 rounded-xl border transition-all
-                ${canPost
-                  ? `${emotion.color} cursor-pointer`
-                  : 'bg-muted/30 border-border text-muted-foreground cursor-not-allowed opacity-60'
+                flex flex-col items-center gap-2 p-5 rounded-xl border transition-all text-center
+                ${
+                  canPost
+                    ? `${emotion.color} cursor-pointer`
+                    : 'bg-muted/30 border-border text-muted-foreground cursor-not-allowed opacity-60'
                 }
               `}
             >
-              <span className="text-3xl">{emotion.emoji}</span>
-              <span className="font-medium text-sm">{emotion.label}</span>
-              <span className="text-xs opacity-70 text-center">{emotion.description}</span>
+              <span className="text-2xl">{emotion.emoji}</span>
+              <div>
+                <p className="font-semibold text-sm">{emotion.label}</p>
+                <p className="text-xs opacity-75 mt-0.5">{emotion.description}</p>
+              </div>
             </button>
           ))}
         </div>
-
         {!canPost && (
-          <p className="text-sm text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/30 rounded-md px-3 py-2 text-center">
+          <p className="text-xs text-muted-foreground text-center">
             Your subscription has expired. Renew to create new posts.
           </p>
         )}
       </div>
 
       {/* Quick links */}
-      <div className="flex gap-3 pt-2">
+      <div className="flex gap-3 flex-wrap">
         <button
           onClick={() => navigate({ to: '/posts' })}
           className="text-sm text-muted-foreground hover:text-foreground underline underline-offset-2 transition-colors"

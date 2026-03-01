@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Loader2, CheckCircle2 } from 'lucide-react';
-import { useAdminRegister } from '../hooks/useQueries';
+import { useAdminGenerateInviteCode, useAdminRegister } from '../hooks/useQueries';
 import { Region } from '../backend';
 
 export default function AdminSignup() {
@@ -13,37 +13,40 @@ export default function AdminSignup() {
   const [region, setRegion] = useState<Region>(Region.India);
   const [successMessage, setSuccessMessage] = useState('');
 
+  const generateCode = useAdminGenerateInviteCode();
   const adminRegister = useAdminRegister();
+
+  const isPending = generateCode.isPending || adminRegister.isPending;
+  const error = generateCode.error || adminRegister.error;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setSuccessMessage('');
 
-    adminRegister.mutate(
-      { pseudonym: pseudonym.trim(), region },
-      {
-        onSuccess: () => {
-          setSuccessMessage('Account created successfully.');
-          setPseudonym('');
-          setRegion(Region.India);
-        },
-      }
-    );
+    try {
+      // Generate a fresh invite code, then register with it
+      const inviteCode = await generateCode.mutateAsync();
+      await adminRegister.mutateAsync({ pseudonym: pseudonym.trim(), region, inviteCode });
+      setSuccessMessage('Account created successfully.');
+      setPseudonym('');
+      setRegion(Region.India);
+    } catch {
+      // error shown via error state
+    }
   };
 
-  const errorMessage = adminRegister.error
-    ? adminRegister.error instanceof Error
-      ? adminRegister.error.message
+  const errorMessage = error
+    ? error instanceof Error
+      ? error.message
       : 'An unexpected error occurred.'
     : null;
 
   return (
     <Card className="max-w-md">
       <CardHeader>
-        <CardTitle className="font-serif text-lg">Create Account (Admin Bypass)</CardTitle>
+        <CardTitle className="font-serif text-lg">Create Account (Admin)</CardTitle>
         <CardDescription className="text-sm">
-          Register a new account without an invite code. The account will be created under your
-          principal.
+          Register a new member account. An invite code will be generated and used automatically.
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -58,9 +61,8 @@ export default function AdminSignup() {
               onChange={(e) => {
                 setPseudonym(e.target.value);
                 if (successMessage) setSuccessMessage('');
-                if (adminRegister.isError) adminRegister.reset();
               }}
-              disabled={adminRegister.isPending}
+              disabled={isPending}
               required
             />
           </div>
@@ -71,7 +73,7 @@ export default function AdminSignup() {
               value={region}
               onValueChange={(val) => setRegion(val as Region)}
               className="flex gap-6"
-              disabled={adminRegister.isPending}
+              disabled={isPending}
             >
               <div className="flex items-center gap-2">
                 <RadioGroupItem value={Region.India} id="admin-region-india" />
@@ -90,10 +92,10 @@ export default function AdminSignup() {
 
           <Button
             type="submit"
-            disabled={adminRegister.isPending || !pseudonym.trim()}
+            disabled={isPending || !pseudonym.trim()}
             className="w-full"
           >
-            {adminRegister.isPending ? (
+            {isPending ? (
               <>
                 <Loader2 size={15} className="animate-spin mr-2" />
                 Creating account…

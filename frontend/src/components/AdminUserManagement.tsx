@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useAdminGetAllUsers, useAdminSuspendUser, useAdminUnsuspendUser, useAdminSetSubscriptionStatus } from '../hooks/useQueries';
 import { SubscriptionStatus, type User } from '../backend';
+import { Principal } from '@dfinity/principal';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
@@ -15,7 +16,7 @@ export default function AdminUserManagement() {
 
   const handleSuspend = async (userId: string) => {
     try {
-      await suspendUser.mutateAsync({ userId });
+      await suspendUser.mutateAsync(Principal.fromText(userId));
       setActionErrors(prev => { const n = { ...prev }; delete n[userId]; return n; });
     } catch (err: unknown) {
       setActionErrors(prev => ({ ...prev, [userId]: err instanceof Error ? err.message : 'Action failed.' }));
@@ -24,7 +25,7 @@ export default function AdminUserManagement() {
 
   const handleUnsuspend = async (userId: string) => {
     try {
-      await unsuspendUser.mutateAsync({ userId });
+      await unsuspendUser.mutateAsync(Principal.fromText(userId));
       setActionErrors(prev => { const n = { ...prev }; delete n[userId]; return n; });
     } catch (err: unknown) {
       setActionErrors(prev => ({ ...prev, [userId]: err instanceof Error ? err.message : 'Action failed.' }));
@@ -33,7 +34,7 @@ export default function AdminUserManagement() {
 
   const handleSetSubStatus = async (userId: string, status: SubscriptionStatus) => {
     try {
-      await setSubStatus.mutateAsync({ userId, status });
+      await setSubStatus.mutateAsync({ userId: Principal.fromText(userId), status });
       setActionErrors(prev => { const n = { ...prev }; delete n[userId + '_sub']; return n; });
     } catch (err: unknown) {
       setActionErrors(prev => ({ ...prev, [userId + '_sub']: err instanceof Error ? err.message : 'Action failed.' }));

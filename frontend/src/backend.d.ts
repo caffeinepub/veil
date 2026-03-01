@@ -15,13 +15,6 @@ export interface Flag {
     reason: string;
     postId: string;
 }
-export interface Comment {
-    id: string;
-    content: string;
-    createdAt: Time;
-    author: Principal;
-    postId: string;
-}
 export interface User {
     id: Principal;
     region: Region;
@@ -29,19 +22,36 @@ export interface User {
     createdAt: Time;
     subscriptionStatus: SubscriptionStatus;
     suspended: boolean;
+    hasAcknowledgedEntryMessage: boolean;
+    hasAcknowledgedPublicPostMessage: boolean;
+}
+export interface Comment {
+    id: string;
+    content: string;
+    createdAt: Time;
+    author: Principal;
+    postId: string;
+}
+export interface SeatInfo {
+    maxSeats: bigint;
+    currentSeats: bigint;
 }
 export type Result_1 = {
     __kind__: "ok";
-    ok: string;
+    ok: User;
 } | {
     __kind__: "err";
-    err: string;
+    err: RegistrationError;
 };
 export interface RSVP {
     name: string;
     inviteCode: string;
     timestamp: Time;
     attending: boolean;
+}
+export interface UserProfileUpdate {
+    region: Region;
+    pseudonym: string;
 }
 export interface InviteCode {
     created: Time;
@@ -50,7 +60,7 @@ export interface InviteCode {
 }
 export type Result = {
     __kind__: "ok";
-    ok: User;
+    ok: Post;
 } | {
     __kind__: "err";
     err: string;
@@ -61,13 +71,16 @@ export interface Post {
     content: string;
     createdAt: Time;
     author: Principal;
-    isPrivate: boolean;
+    updatedAt: Time;
+    visibility: Visibility;
 }
 export interface UserProfile {
     region: Region;
     pseudonym: string;
     subscriptionStatus: SubscriptionStatus;
     suspended: boolean;
+    hasAcknowledgedEntryMessage: boolean;
+    hasAcknowledgedPublicPostMessage: boolean;
 }
 export interface Reaction {
     id: string;
@@ -90,6 +103,13 @@ export enum Region {
     India = "India",
     Global = "Global"
 }
+export enum RegistrationError {
+    AnonymousNotAllowed = "AnonymousNotAllowed",
+    CapacityReached = "CapacityReached",
+    InviteCodeUsed = "InviteCodeUsed",
+    AlreadyRegistered = "AlreadyRegistered",
+    InvalidInviteCode = "InvalidInviteCode"
+}
 export enum SubscriptionStatus {
     active = "active",
     expired = "expired",
@@ -105,7 +125,13 @@ export enum Variant_existingUser_anonymous_newUser {
     anonymous = "anonymous",
     newUser = "newUser"
 }
+export enum Visibility {
+    publicView = "publicView",
+    privateView = "privateView"
+}
 export interface backendInterface {
+    acknowledgeEntryMessage(): Promise<void>;
+    acknowledgePublicPostMessage(): Promise<void>;
     addComment(postId: string, content: string): Promise<string>;
     addReaction(postId: string, reactionType: ReactionType): Promise<string>;
     adminClearESPFlag(userId: Principal): Promise<void>;
@@ -114,14 +140,13 @@ export interface backendInterface {
     adminGetAllUsers(): Promise<Array<User>>;
     adminGetESPFlaggedUsers(): Promise<Array<Principal>>;
     adminGetFlaggedPosts(): Promise<Array<Flag>>;
-    adminGetSeatCount(): Promise<bigint>;
     adminGetUserPosts(userId: Principal): Promise<Array<Post>>;
     adminSetSubscriptionStatus(userId: Principal, status: SubscriptionStatus): Promise<void>;
     adminSuspendUser(userId: Principal): Promise<void>;
     adminUnsuspendUser(userId: Principal): Promise<void>;
     assignCallerUserRole(user: Principal, role: UserRole): Promise<void>;
     checkLoginStatus(): Promise<Variant_existingUser_anonymous_newUser>;
-    createPost(emotionType: EmotionType, content: string, isPrivate: boolean): Promise<Result_1>;
+    createPost(emotionType: EmotionType, content: string, visibility: Visibility | null): Promise<Result>;
     flagPost(postId: string, reason: string): Promise<string>;
     generateInviteCode(): Promise<string>;
     getAllRSVPs(): Promise<Array<RSVP>>;
@@ -133,11 +158,13 @@ export interface backendInterface {
     getMyPosts(): Promise<Array<Post>>;
     getPublicPosts(): Promise<Array<Post>>;
     getReactionsForPost(postId: string): Promise<Array<Reaction>>;
-    getUserProfile(user: Principal): Promise<UserProfile | null>;
+    getSeatInfo(): Promise<SeatInfo>;
+    getUserProfile(userId: Principal): Promise<UserProfile | null>;
     isCallerAdmin(): Promise<boolean>;
-    register(pseudonym: string, region: Region, inviteCode: string): Promise<Result>;
+    register(pseudonym: string, region: Region, inviteCode: string): Promise<Result_1>;
     revokeInviteCode(_code: string): Promise<void>;
-    saveCallerUserProfile(profile: UserProfile): Promise<void>;
+    saveCallerUserProfile(profile: UserProfileUpdate): Promise<void>;
     submitRSVP(name: string, attending: boolean, inviteCode: string): Promise<void>;
+    togglePostVisibility(postId: string): Promise<Result>;
     validateInviteCode(code: string): Promise<boolean>;
 }

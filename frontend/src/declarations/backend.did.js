@@ -19,13 +19,18 @@ export const EmotionType = IDL.Variant({
   'broke' : IDL.Null,
 });
 export const Time = IDL.Int;
+export const Visibility = IDL.Variant({
+  'publicView' : IDL.Null,
+  'privateView' : IDL.Null,
+});
 export const Post = IDL.Record({
   'id' : IDL.Text,
   'emotionType' : EmotionType,
   'content' : IDL.Text,
   'createdAt' : Time,
   'author' : IDL.Principal,
-  'isPrivate' : IDL.Bool,
+  'updatedAt' : Time,
+  'visibility' : Visibility,
 });
 export const Region = IDL.Variant({ 'India' : IDL.Null, 'Global' : IDL.Null });
 export const SubscriptionStatus = IDL.Variant({
@@ -40,6 +45,8 @@ export const User = IDL.Record({
   'createdAt' : Time,
   'subscriptionStatus' : SubscriptionStatus,
   'suspended' : IDL.Bool,
+  'hasAcknowledgedEntryMessage' : IDL.Bool,
+  'hasAcknowledgedPublicPostMessage' : IDL.Bool,
 });
 export const Flag = IDL.Record({
   'id' : IDL.Text,
@@ -53,7 +60,7 @@ export const UserRole = IDL.Variant({
   'user' : IDL.Null,
   'guest' : IDL.Null,
 });
-export const Result_1 = IDL.Variant({ 'ok' : IDL.Text, 'err' : IDL.Text });
+export const Result = IDL.Variant({ 'ok' : Post, 'err' : IDL.Text });
 export const RSVP = IDL.Record({
   'name' : IDL.Text,
   'inviteCode' : IDL.Text,
@@ -65,6 +72,8 @@ export const UserProfile = IDL.Record({
   'pseudonym' : IDL.Text,
   'subscriptionStatus' : SubscriptionStatus,
   'suspended' : IDL.Bool,
+  'hasAcknowledgedEntryMessage' : IDL.Bool,
+  'hasAcknowledgedPublicPostMessage' : IDL.Bool,
 });
 export const Comment = IDL.Record({
   'id' : IDL.Text,
@@ -85,10 +94,27 @@ export const Reaction = IDL.Record({
   'reactionType' : ReactionType,
   'postId' : IDL.Text,
 });
-export const Result = IDL.Variant({ 'ok' : User, 'err' : IDL.Text });
+export const SeatInfo = IDL.Record({
+  'maxSeats' : IDL.Nat,
+  'currentSeats' : IDL.Nat,
+});
+export const RegistrationError = IDL.Variant({
+  'AnonymousNotAllowed' : IDL.Null,
+  'CapacityReached' : IDL.Null,
+  'InviteCodeUsed' : IDL.Null,
+  'AlreadyRegistered' : IDL.Null,
+  'InvalidInviteCode' : IDL.Null,
+});
+export const Result_1 = IDL.Variant({ 'ok' : User, 'err' : RegistrationError });
+export const UserProfileUpdate = IDL.Record({
+  'region' : Region,
+  'pseudonym' : IDL.Text,
+});
 
 export const idlService = IDL.Service({
   '_initializeAccessControlWithSecret' : IDL.Func([IDL.Text], [], []),
+  'acknowledgeEntryMessage' : IDL.Func([], [], []),
+  'acknowledgePublicPostMessage' : IDL.Func([], [], []),
   'addComment' : IDL.Func([IDL.Text, IDL.Text], [IDL.Text], []),
   'addReaction' : IDL.Func([IDL.Text, ReactionType], [IDL.Text], []),
   'adminClearESPFlag' : IDL.Func([IDL.Principal], [], []),
@@ -97,7 +123,6 @@ export const idlService = IDL.Service({
   'adminGetAllUsers' : IDL.Func([], [IDL.Vec(User)], ['query']),
   'adminGetESPFlaggedUsers' : IDL.Func([], [IDL.Vec(IDL.Principal)], ['query']),
   'adminGetFlaggedPosts' : IDL.Func([], [IDL.Vec(Flag)], ['query']),
-  'adminGetSeatCount' : IDL.Func([], [IDL.Nat], ['query']),
   'adminGetUserPosts' : IDL.Func([IDL.Principal], [IDL.Vec(Post)], ['query']),
   'adminSetSubscriptionStatus' : IDL.Func(
       [IDL.Principal, SubscriptionStatus],
@@ -118,7 +143,11 @@ export const idlService = IDL.Service({
       ],
       ['query'],
     ),
-  'createPost' : IDL.Func([EmotionType, IDL.Text, IDL.Bool], [Result_1], []),
+  'createPost' : IDL.Func(
+      [EmotionType, IDL.Text, IDL.Opt(Visibility)],
+      [Result],
+      [],
+    ),
   'flagPost' : IDL.Func([IDL.Text, IDL.Text], [IDL.Text], []),
   'generateInviteCode' : IDL.Func([], [IDL.Text], []),
   'getAllRSVPs' : IDL.Func([], [IDL.Vec(RSVP)], ['query']),
@@ -130,16 +159,18 @@ export const idlService = IDL.Service({
   'getMyPosts' : IDL.Func([], [IDL.Vec(Post)], ['query']),
   'getPublicPosts' : IDL.Func([], [IDL.Vec(Post)], ['query']),
   'getReactionsForPost' : IDL.Func([IDL.Text], [IDL.Vec(Reaction)], ['query']),
+  'getSeatInfo' : IDL.Func([], [SeatInfo], ['query']),
   'getUserProfile' : IDL.Func(
       [IDL.Principal],
       [IDL.Opt(UserProfile)],
       ['query'],
     ),
   'isCallerAdmin' : IDL.Func([], [IDL.Bool], ['query']),
-  'register' : IDL.Func([IDL.Text, Region, IDL.Text], [Result], []),
+  'register' : IDL.Func([IDL.Text, Region, IDL.Text], [Result_1], []),
   'revokeInviteCode' : IDL.Func([IDL.Text], [], []),
-  'saveCallerUserProfile' : IDL.Func([UserProfile], [], []),
+  'saveCallerUserProfile' : IDL.Func([UserProfileUpdate], [], []),
   'submitRSVP' : IDL.Func([IDL.Text, IDL.Bool, IDL.Text], [], []),
+  'togglePostVisibility' : IDL.Func([IDL.Text], [Result], []),
   'validateInviteCode' : IDL.Func([IDL.Text], [IDL.Bool], ['query']),
 });
 
@@ -157,13 +188,18 @@ export const idlFactory = ({ IDL }) => {
     'broke' : IDL.Null,
   });
   const Time = IDL.Int;
+  const Visibility = IDL.Variant({
+    'publicView' : IDL.Null,
+    'privateView' : IDL.Null,
+  });
   const Post = IDL.Record({
     'id' : IDL.Text,
     'emotionType' : EmotionType,
     'content' : IDL.Text,
     'createdAt' : Time,
     'author' : IDL.Principal,
-    'isPrivate' : IDL.Bool,
+    'updatedAt' : Time,
+    'visibility' : Visibility,
   });
   const Region = IDL.Variant({ 'India' : IDL.Null, 'Global' : IDL.Null });
   const SubscriptionStatus = IDL.Variant({
@@ -178,6 +214,8 @@ export const idlFactory = ({ IDL }) => {
     'createdAt' : Time,
     'subscriptionStatus' : SubscriptionStatus,
     'suspended' : IDL.Bool,
+    'hasAcknowledgedEntryMessage' : IDL.Bool,
+    'hasAcknowledgedPublicPostMessage' : IDL.Bool,
   });
   const Flag = IDL.Record({
     'id' : IDL.Text,
@@ -191,7 +229,7 @@ export const idlFactory = ({ IDL }) => {
     'user' : IDL.Null,
     'guest' : IDL.Null,
   });
-  const Result_1 = IDL.Variant({ 'ok' : IDL.Text, 'err' : IDL.Text });
+  const Result = IDL.Variant({ 'ok' : Post, 'err' : IDL.Text });
   const RSVP = IDL.Record({
     'name' : IDL.Text,
     'inviteCode' : IDL.Text,
@@ -203,6 +241,8 @@ export const idlFactory = ({ IDL }) => {
     'pseudonym' : IDL.Text,
     'subscriptionStatus' : SubscriptionStatus,
     'suspended' : IDL.Bool,
+    'hasAcknowledgedEntryMessage' : IDL.Bool,
+    'hasAcknowledgedPublicPostMessage' : IDL.Bool,
   });
   const Comment = IDL.Record({
     'id' : IDL.Text,
@@ -223,10 +263,27 @@ export const idlFactory = ({ IDL }) => {
     'reactionType' : ReactionType,
     'postId' : IDL.Text,
   });
-  const Result = IDL.Variant({ 'ok' : User, 'err' : IDL.Text });
+  const SeatInfo = IDL.Record({
+    'maxSeats' : IDL.Nat,
+    'currentSeats' : IDL.Nat,
+  });
+  const RegistrationError = IDL.Variant({
+    'AnonymousNotAllowed' : IDL.Null,
+    'CapacityReached' : IDL.Null,
+    'InviteCodeUsed' : IDL.Null,
+    'AlreadyRegistered' : IDL.Null,
+    'InvalidInviteCode' : IDL.Null,
+  });
+  const Result_1 = IDL.Variant({ 'ok' : User, 'err' : RegistrationError });
+  const UserProfileUpdate = IDL.Record({
+    'region' : Region,
+    'pseudonym' : IDL.Text,
+  });
   
   return IDL.Service({
     '_initializeAccessControlWithSecret' : IDL.Func([IDL.Text], [], []),
+    'acknowledgeEntryMessage' : IDL.Func([], [], []),
+    'acknowledgePublicPostMessage' : IDL.Func([], [], []),
     'addComment' : IDL.Func([IDL.Text, IDL.Text], [IDL.Text], []),
     'addReaction' : IDL.Func([IDL.Text, ReactionType], [IDL.Text], []),
     'adminClearESPFlag' : IDL.Func([IDL.Principal], [], []),
@@ -239,7 +296,6 @@ export const idlFactory = ({ IDL }) => {
         ['query'],
       ),
     'adminGetFlaggedPosts' : IDL.Func([], [IDL.Vec(Flag)], ['query']),
-    'adminGetSeatCount' : IDL.Func([], [IDL.Nat], ['query']),
     'adminGetUserPosts' : IDL.Func([IDL.Principal], [IDL.Vec(Post)], ['query']),
     'adminSetSubscriptionStatus' : IDL.Func(
         [IDL.Principal, SubscriptionStatus],
@@ -260,7 +316,11 @@ export const idlFactory = ({ IDL }) => {
         ],
         ['query'],
       ),
-    'createPost' : IDL.Func([EmotionType, IDL.Text, IDL.Bool], [Result_1], []),
+    'createPost' : IDL.Func(
+        [EmotionType, IDL.Text, IDL.Opt(Visibility)],
+        [Result],
+        [],
+      ),
     'flagPost' : IDL.Func([IDL.Text, IDL.Text], [IDL.Text], []),
     'generateInviteCode' : IDL.Func([], [IDL.Text], []),
     'getAllRSVPs' : IDL.Func([], [IDL.Vec(RSVP)], ['query']),
@@ -276,16 +336,18 @@ export const idlFactory = ({ IDL }) => {
         [IDL.Vec(Reaction)],
         ['query'],
       ),
+    'getSeatInfo' : IDL.Func([], [SeatInfo], ['query']),
     'getUserProfile' : IDL.Func(
         [IDL.Principal],
         [IDL.Opt(UserProfile)],
         ['query'],
       ),
     'isCallerAdmin' : IDL.Func([], [IDL.Bool], ['query']),
-    'register' : IDL.Func([IDL.Text, Region, IDL.Text], [Result], []),
+    'register' : IDL.Func([IDL.Text, Region, IDL.Text], [Result_1], []),
     'revokeInviteCode' : IDL.Func([IDL.Text], [], []),
-    'saveCallerUserProfile' : IDL.Func([UserProfile], [], []),
+    'saveCallerUserProfile' : IDL.Func([UserProfileUpdate], [], []),
     'submitRSVP' : IDL.Func([IDL.Text, IDL.Bool, IDL.Text], [], []),
+    'togglePostVisibility' : IDL.Func([IDL.Text], [Result], []),
     'validateInviteCode' : IDL.Func([IDL.Text], [IDL.Bool], ['query']),
   });
 };

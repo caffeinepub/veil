@@ -1,17 +1,12 @@
 # Specification
 
 ## Summary
-**Goal:** Build VEIL, an invite-only private emotional infrastructure app MVP where authenticated users can post emotional content across three lanes (Happy, Confess, Broke), react to and comment on public posts, and be moderated by an admin dashboard — all with a calm, minimal UI and no gamification.
+**Goal:** Add per-emotion-mode guidance text and tonal UI styling to the PostCreationPage, plus a conditional safety footer for BROKE+PUBLIC posts.
 
 **Planned changes:**
-- Invite-only user registration (max 100 seats) with pseudonym and region, backed by Internet Identity authentication
-- Three emotional post lanes: Happy, Confess, and Broke — each post requires 24+ words and a Public/Private visibility toggle
-- Witnessing-based reactions (Support, Care, Strength) on public posts — non-metric display, no self-reactions, no duplicates
-- Commenting on public posts only; private posts have no comment section
-- Flagging system for authenticated users to flag posts for admin review
-- Emotional Stability Protocol (ESP): if a user posts in the Broke lane more than 3 times in 7 days, flag the account for admin review and show the user a calm supportive message (no metrics shown)
-- Admin dashboard: post management with delete, member management with suspend/unsuspend, invite code management (create/revoke/copy), flagged posts review queue, per-user post history, and seat counter display
-- Frontend pages: Welcome/Landing, Login (Internet Identity), Signup (invite code + pseudonym + region), Dashboard with emotion-lane navigation, Post Creation, My Posts, Community Feed (public posts only), Admin Dashboard
-- Calm, minimal visual theme — muted neutral palette, clean typography, no follower counts, no metric displays, no gamification visuals
+- When HAPPY mode is selected, display guidance text: "Share something real, not something impressive." Style the form area with warm amber/golden color accents, gentle typography, and calm spacing.
+- When CONFESS mode is selected, display guidance text: "This space is for release, not applause." Style the form area with soft, muted neutral tones and quiet typography — no bright accents.
+- When BROKE mode is selected, display guidance text: "Share what feels true right now. You don't have to explain everything." Style the form area with subdued, low-contrast colors conveying safety and calm.
+- When emotion mode is BROKE and visibility is PUBLIC, display a subtle footer beneath the form with the exact text: "Veil is a reflection space. If you are in immediate danger, please contact local emergency services." — small font, muted/low-opacity, non-alarming. Footer does not appear for BROKE+PRIVATE or any other emotion mode.
 
-**User-visible outcome:** Users can register with an invite code, log in via Internet Identity, post emotional content across three lanes, witness others' public posts with non-metric reactions and comments, and be gently supported if they post frequently in the Broke lane — all within a calm, private, minimal interface. Admins can manage users, posts, invite codes, and review flagged content from a dedicated dashboard.
+**User-visible outcome:** On the PostCreationPage, selecting an emotion mode now shows contextual guidance text and shifts the visual tone of the form to match that mode. Users posting publicly in BROKE mode also see a subtle safety reminder at the bottom of the form.

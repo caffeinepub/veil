@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { EmotionType, ReactionType, type Post } from '../backend';
 import {
-  useGetMyReaction,
+  useGetReactionsForPost,
   useAddReaction,
   useGetCommentsForPost,
   useAddComment,
@@ -33,7 +33,7 @@ const reactionConfig = [
 
 export default function PublicPostCard({ post }: PublicPostCardProps) {
   const { identity } = useInternetIdentity();
-  const { data: myReaction, isLoading: reactionLoading } = useGetMyReaction(post.id);
+  const { data: reactions, isLoading: reactionsLoading } = useGetReactionsForPost(post.id);
   const addReaction = useAddReaction();
 
   const { data: comments, isLoading: commentsLoading } = useGetCommentsForPost(post.id);
@@ -51,7 +51,10 @@ export default function PublicPostCard({ post }: PublicPostCardProps) {
 
   const currentUserId = identity?.getPrincipal().toString();
   const isOwner = currentUserId === post.author.toString();
-  const hasReacted = myReaction !== null && myReaction !== undefined;
+
+  // Determine if current user has already reacted and which type
+  const myReaction = reactions?.find(r => r.author.toString() === currentUserId)?.reactionType ?? null;
+  const hasReacted = myReaction !== null;
 
   const createdAt = new Date(Number(post.createdAt / BigInt(1_000_000)));
 
@@ -109,12 +112,12 @@ export default function PublicPostCard({ post }: PublicPostCardProps) {
       {/* Content */}
       <p className="text-sm text-foreground leading-relaxed whitespace-pre-wrap">{post.content}</p>
 
-      {/* Witnessing reactions */}
+      {/* Witnessing reactions — no numeric counts shown */}
       <div className="flex items-center gap-2 pt-1 flex-wrap">
         <span className="text-xs text-muted-foreground mr-1 italic">Witness:</span>
         {reactionConfig.map(r => {
           const isActive = myReaction === r.type;
-          const isDisabled = isOwner || hasReacted || addReaction.isPending || reactionLoading;
+          const isDisabled = isOwner || hasReacted || addReaction.isPending || reactionsLoading;
 
           return (
             <button
@@ -123,7 +126,7 @@ export default function PublicPostCard({ post }: PublicPostCardProps) {
               disabled={isDisabled}
               title={
                 isOwner
-                  ? "You cannot witness your own post"
+                  ? 'You cannot witness your own post'
                   : hasReacted
                   ? "You've already offered your witness"
                   : r.label
@@ -170,7 +173,7 @@ export default function PublicPostCard({ post }: PublicPostCardProps) {
               onClick={() => setShowFlagDialog(true)}
               disabled={isOwner}
               className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-              title={isOwner ? "You cannot flag your own post" : "Flag this post"}
+              title={isOwner ? 'You cannot flag your own post' : 'Flag this post'}
             >
               <Flag size={12} />
               <span>Flag</span>
@@ -182,7 +185,6 @@ export default function PublicPostCard({ post }: PublicPostCardProps) {
       {/* Comments section */}
       {showComments && (
         <div className="space-y-3 pt-1">
-          {/* Existing comments */}
           {commentsLoading ? (
             <div className="flex justify-center py-3">
               <Loader2 size={16} className="animate-spin text-muted-foreground" />

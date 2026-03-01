@@ -1,10 +1,7 @@
 /** @type {import('tailwindcss').Config} */
 export default {
   darkMode: ['class'],
-  content: [
-    './index.html',
-    './src/**/*.{js,ts,jsx,tsx}',
-  ],
+  content: ['./index.html', './src/**/*.{ts,tsx,js,jsx}'],
   theme: {
     extend: {
       fontFamily: {
@@ -45,9 +42,21 @@ export default {
         border: 'oklch(var(--border) / <alpha-value>)',
         input: 'oklch(var(--input) / <alpha-value>)',
         ring: 'oklch(var(--ring) / <alpha-value>)',
+        // Emotion colors
         'emotion-confess': 'oklch(var(--emotion-confess) / <alpha-value>)',
         'emotion-broke': 'oklch(var(--emotion-broke) / <alpha-value>)',
         'emotion-happy': 'oklch(var(--emotion-happy) / <alpha-value>)',
+        // Emotion mode tonal tokens
+        'emotion-happy-bg': 'oklch(var(--emotion-happy-bg) / <alpha-value>)',
+        'emotion-happy-text': 'oklch(var(--emotion-happy-text) / <alpha-value>)',
+        'emotion-happy-accent': 'oklch(var(--emotion-happy-accent) / <alpha-value>)',
+        'emotion-confess-bg': 'oklch(var(--emotion-confess-bg) / <alpha-value>)',
+        'emotion-confess-text': 'oklch(var(--emotion-confess-text) / <alpha-value>)',
+        'emotion-confess-accent': 'oklch(var(--emotion-confess-accent) / <alpha-value>)',
+        'emotion-broke-bg': 'oklch(var(--emotion-broke-bg) / <alpha-value>)',
+        'emotion-broke-text': 'oklch(var(--emotion-broke-text) / <alpha-value>)',
+        'emotion-broke-accent': 'oklch(var(--emotion-broke-accent) / <alpha-value>)',
+        // Status colors
         'status-grace': 'oklch(var(--status-grace) / <alpha-value>)',
         'status-active': 'oklch(var(--status-active) / <alpha-value>)',
         'status-expired': 'oklch(var(--status-expired) / <alpha-value>)',
@@ -58,14 +67,14 @@ export default {
         sm: 'calc(var(--radius) - 4px)',
       },
       boxShadow: {
-        sm: '0 1px 3px 0 oklch(0.22 0.015 60 / 0.06)',
-        DEFAULT: '0 2px 8px 0 oklch(0.22 0.015 60 / 0.08)',
-        md: '0 4px 16px 0 oklch(0.22 0.015 60 / 0.10)',
+        'veil-sm': '0 1px 3px oklch(0.22 0.015 60 / 0.06)',
+        'veil-md': '0 4px 12px oklch(0.22 0.015 60 / 0.08)',
       },
     },
   },
   plugins: [
     require('tailwindcss-animate'),
     require('@tailwindcss/typography'),
+    require('@tailwindcss/container-queries'),
   ],
 };

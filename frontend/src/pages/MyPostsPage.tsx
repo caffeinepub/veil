@@ -1,26 +1,22 @@
+import { useEffect } from 'react';
 import { useNavigate } from '@tanstack/react-router';
-import { useInternetIdentity } from '../hooks/useInternetIdentity';
+import { useAuth } from '../hooks/useAuth';
 import { useGetCallerUserProfile, useGetMyPosts } from '../hooks/useQueries';
 import PostCard from '../components/PostCard';
 import { Button } from '@/components/ui/button';
 import { Loader2, PenLine, Inbox } from 'lucide-react';
-import { useEffect } from 'react';
 
 export default function MyPostsPage() {
   const navigate = useNavigate();
-  const { identity } = useInternetIdentity();
-
-  const ANONYMOUS_PRINCIPAL = '2vxsx-fae';
-  const isAuthenticated = !!identity && identity.getPrincipal().toText() !== ANONYMOUS_PRINCIPAL;
-
+  const { isAuthenticated, isInitializing } = useAuth();
   const { data: userProfile, isLoading: profileLoading, isFetched: profileFetched } = useGetCallerUserProfile();
   const { data: posts, isLoading: postsLoading } = useGetMyPosts();
 
   useEffect(() => {
-    if (!isAuthenticated) {
+    if (!isInitializing && !isAuthenticated) {
       navigate({ to: '/login' });
     }
-  }, [isAuthenticated, navigate]);
+  }, [isAuthenticated, isInitializing, navigate]);
 
   useEffect(() => {
     if (profileFetched && !userProfile && isAuthenticated) {
@@ -28,13 +24,15 @@ export default function MyPostsPage() {
     }
   }, [profileFetched, userProfile, isAuthenticated, navigate]);
 
-  if (!isAuthenticated || profileLoading) {
+  if (isInitializing || profileLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
       </div>
     );
   }
+
+  if (!isAuthenticated) return null;
 
   const sortedPosts = posts ? [...posts].sort((a, b) => Number(b.createdAt - a.createdAt)) : [];
 
@@ -45,9 +43,7 @@ export default function MyPostsPage() {
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-2xl font-serif font-bold text-foreground">My Posts</h1>
-            <p className="text-sm text-muted-foreground mt-1">
-              Your private archive of emotions.
-            </p>
+            <p className="text-sm text-muted-foreground mt-1">Your private archive of emotions.</p>
           </div>
           <Button
             onClick={() => navigate({ to: '/create' })}

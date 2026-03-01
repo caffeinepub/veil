@@ -1,213 +1,107 @@
 {
   "kind": "build_request",
-  "title": "VEIL – Private Emotional Infrastructure App (MVP)",
-  "projectName": "VEIL",
-  "priority": "high",
+  "title": "Emotional mode guidance text and tonal UI per mode",
+  "projectName": "Veil",
+  "priority": "normal",
   "requirements": [
     {
       "id": "REQ-1",
-      "text": "Implement invite-only user registration on the backend. Store invite codes in stable state. Enforce a maximum of 100 registered users (seat counter). Registration requires a valid unused invite code, a pseudonym, and a region. On success, mark the invite code as used and create the user record keyed by their authenticated principal.",
-      "target": "backend",
+      "text": "In the PostCreationPage, when the user selects the HAPPY emotion mode, display the guidance text: \"Share something real, not something impressive.\" The UI surrounding this guidance and the post creation form should adopt a warm, grounded, quietly celebratory tone — achieved through soft warm color accents (e.g., amber/golden hues), gentle typography weight, and calm spacing.",
+      "target": "frontend",
       "source": {
         "messageIds": [
-          "msg-20"
+          "msg-4"
         ],
         "quotes": [
-          "User Registration (Invite-only)",
-          "Seat counter (Max 100 users)"
+          "HAPPY",
+          "Share something real, not something impressive.",
+          "Tone in UI: Warm, grounded, quiet celebration."
         ]
       },
       "acceptanceCriteria": [
-        "Registration fails with a clear error if no valid invite code is provided",
-        "Registration fails once 100 users exist",
-        "Invite codes are marked used and cannot be reused",
-        "User record is stored with principal, pseudonym, region, and createdAt"
+        "Selecting HAPPY mode displays the exact guidance text: \"Share something real, not something impressive.\"",
+        "The guidance text area uses warm/golden color accents that visually differentiate it from other modes.",
+        "The overall form area conveys a warm, grounded aesthetic when HAPPY is active."
       ]
     },
     {
       "id": "REQ-2",
-      "text": "Implement Internet Identity-based login and session management. On login, validate the authenticated principal is not anonymous, check whether a user profile exists, and route to either the dashboard (existing user) or signup (new user). Guard all protected backend calls so anonymous principals are rejected.",
-      "target": "both",
+      "text": "In the PostCreationPage, when the user selects the CONFESS emotion mode, display the guidance text: \"This space is for release, not applause.\" The UI should adopt a gentle, human, witnessing tone — soft neutral/muted tones, quiet typography, no bright or celebratory accents.",
+      "target": "frontend",
       "source": {
         "messageIds": [
-          "msg-20"
+          "msg-4"
         ],
         "quotes": [
-          "Login / Authentication"
+          "CONFESS",
+          "This space is for release, not applause.",
+          "Tone: Gentle, human, witnessing."
         ]
       },
       "acceptanceCriteria": [
-        "Anonymous principals cannot reach any authenticated routes",
-        "Existing users land on the dashboard after login",
-        "New users are routed to the signup/registration page",
-        "Session is restored automatically on page reload"
+        "Selecting CONFESS mode displays the exact guidance text: \"This space is for release, not applause.\"",
+        "The guidance and form area uses muted, gentle color treatment distinct from HAPPY and BROKE modes.",
+        "No bright accents; the visual feel is quiet and human."
       ]
     },
     {
       "id": "REQ-3",
-      "text": "Implement emotional post creation with three emotion lanes: Happy, Confess, and Broke. Each post must have a visibility toggle (Public / Private). Posts require a minimum of 24 words. Store posts with fields: postId, authorPrincipal, emotionType, content, visibility, createdAt. Block post creation for unauthenticated or anonymous users.",
-      "target": "backend",
+      "text": "In the PostCreationPage, when the user selects the BROKE emotion mode, display the guidance text: \"Share what feels true right now. You don't have to explain everything.\" The UI should adopt a tone that is grounded and non-pressuring — subdued, low-contrast color treatment that feels safe and unhurried.",
+      "target": "frontend",
       "source": {
         "messageIds": [
-          "msg-20"
+          "msg-4"
         ],
         "quotes": [
-          "Create Emotional Posts (Happy / Confess / Broke)",
-          "Public & Private Toggle"
+          "BROKE",
+          "Share what feels true right now. You don't have to explain everything.",
+          "Tone"
         ]
       },
       "acceptanceCriteria": [
-        "Posts with fewer than 24 words are rejected",
-        "Posts are stored with the correct emotion type (Happy / Confess / Broke)",
-        "Visibility can be set to Public or Private at creation time",
-        "Anonymous principals cannot create posts"
+        "Selecting BROKE mode displays the exact guidance text: \"Share what feels true right now. You don't have to explain everything.\"",
+        "The form area uses a subdued, low-contrast color treatment distinct from HAPPY and CONFESS.",
+        "The visual tone feels safe and unrushed."
       ]
     },
     {
       "id": "REQ-4",
-      "text": "Implement witnessing-based reactions on public posts. Supported reaction types: Support, Care, Strength. Reactions are non-metric — display them as witnessing gestures, not counts. A user cannot react to their own post. Each user can only apply each reaction type once per post.",
-      "target": "both",
-      "source": {
-        "messageIds": [
-          "msg-20"
-        ],
-        "quotes": [
-          "Reactions (Non-metric, witnessing-based)"
-        ]
-      },
-      "acceptanceCriteria": [
-        "Reaction buttons show Support, Care, and Strength as witnessing actions",
-        "Post owners cannot react to their own posts",
-        "Duplicate reactions from the same user on the same post are rejected",
-        "Reactions are not displayed as a raw numeric count"
-      ]
-    },
-    {
-      "id": "REQ-5",
-      "text": "Implement commenting on public posts only. Comments are tied to a postId and authorPrincipal. Private posts must not allow or display comments. Store comments with commentId, postId, authorPrincipal, content, and createdAt.",
-      "target": "both",
-      "source": {
-        "messageIds": [
-          "msg-20"
-        ],
-        "quotes": [
-          "Commenting (Public posts only)"
-        ]
-      },
-      "acceptanceCriteria": [
-        "Comments can only be submitted on public posts",
-        "Private posts have no visible comment section",
-        "Comments are stored and displayed in chronological order"
-      ]
-    },
-    {
-      "id": "REQ-6",
-      "text": "Implement a flagging system allowing authenticated users to flag any post for review. Store flags with flagId, postId, reporterPrincipal, reason, and createdAt. Flagged posts should be surfaced in the admin dashboard for review.",
-      "target": "both",
-      "source": {
-        "messageIds": [
-          "msg-20"
-        ],
-        "quotes": [
-          "Flagging system"
-        ]
-      },
-      "acceptanceCriteria": [
-        "Any authenticated user can flag a post",
-        "A user cannot flag the same post more than once",
-        "Flagged posts appear in the admin dashboard with flag count and reasons"
-      ]
-    },
-    {
-      "id": "REQ-7",
-      "text": "Implement an admin dashboard accessible only to designated admin principals. The dashboard must include: (1) a list of all public posts with delete capability, (2) member management with suspend/unsuspend and subscription status controls, (3) invite code management (create, revoke, copy), (4) per-user post history with delete capability, (5) flagged posts review queue, (6) current seat count display.",
-      "target": "both",
-      "source": {
-        "messageIds": [
-          "msg-20"
-        ],
-        "quotes": [
-          "Admin Dashboard"
-        ]
-      },
-      "acceptanceCriteria": [
-        "Non-admin users are redirected away from the admin page",
-        "Admin can delete any post",
-        "Admin can suspend or unsuspend any user",
-        "Admin can create and revoke invite codes",
-        "Seat counter is visible showing current users vs max 100",
-        "Flagged posts are listed with flag details"
-      ]
-    },
-    {
-      "id": "REQ-8",
-      "text": "Implement Emotional Stability Protocol (ESP) logic. If a user posts in the 'Broke' lane more than 3 times within a 7-day window, automatically flag their account for admin review and display a supportive, non-alarmist message to the user suggesting they take a pause. The protocol must not expose metrics to the user — only surface the supportive message.",
-      "target": "both",
-      "source": {
-        "messageIds": [
-          "msg-20"
-        ],
-        "quotes": [
-          "Emotional Stability Protocol logic"
-        ]
-      },
-      "acceptanceCriteria": [
-        "Posting in Broke more than 3 times in 7 days triggers the protocol",
-        "A calm, supportive message is shown to the user when triggered",
-        "The user's account is flagged for admin review in the dashboard",
-        "No raw counts or metrics are shown to the user"
-      ]
-    },
-    {
-      "id": "REQ-9",
-      "text": "Build all frontend pages and UI flows for VEIL: Welcome/Landing screen, Login screen (Internet Identity), Signup/Registration screen (invite code + pseudonym + region), Dashboard with emotion-lane navigation buttons (Happy / Confess / Broke), Post Creation page with visibility toggle and word-count validation, My Posts page, Community Feed page (public posts only), and Admin Dashboard page. Apply a calm, minimal visual theme: muted neutral palette, clean typography, no gamification visuals, no bright notification colors, no follower counts, no metric displays.",
+      "text": "In the PostCreationPage, when the selected emotion mode is BROKE and visibility is set to PUBLIC, automatically display a subtle footer beneath the post creation form with the exact text: \"Veil is a reflection space. If you are in immediate danger, please contact local emergency services.\" This footer must be visually subtle — small font size, muted/low-opacity text color, no bold or alarming styling. It must not appear for BROKE+PRIVATE, or for any other emotion mode regardless of visibility.",
       "target": "frontend",
       "source": {
         "messageIds": [
-          "msg-20"
+          "msg-4"
         ],
         "quotes": [
-          "Clean minimal UI",
-          "Calm neutral color palette",
-          "No bright notification colors",
-          "No gamification visuals"
+          "If PUBLIC + BROKE:",
+          "Veil is a reflection space. If you are in immediate danger, please contact local emergency services.",
+          "This must appear visually subtle."
         ]
       },
       "acceptanceCriteria": [
-        "All listed pages are reachable via defined routes",
-        "Unauthenticated users are redirected to the login/welcome screen",
-        "Emotion lane buttons (Happy / Confess / Broke) are present on the dashboard",
-        "Post creation enforces 24-word minimum with live feedback",
-        "Public/private toggle is visible and functional on post creation",
-        "No numeric follower counts, like counts, or gamification elements are present",
-        "Color palette is calm, muted, and neutral throughout"
+        "The safety footer appears only when both emotion mode is BROKE and visibility is PUBLIC.",
+        "The footer text exactly reads: \"Veil is a reflection space. If you are in immediate danger, please contact local emergency services.\"",
+        "The footer uses small font size and muted/low-opacity text — it must not be visually alarming or prominent.",
+        "The footer does not appear for BROKE+PRIVATE posts.",
+        "The footer does not appear for HAPPY or CONFESS modes regardless of visibility."
       ]
     }
   ],
   "constraints": [
-    "All backend logic must remain in a single Motoko actor (backend/main.mo)",
-    "Authentication must use Internet Identity — no JWT or bcrypt (those are incompatible with this platform)",
-    "No PostgreSQL, MongoDB, or external databases — all state lives in Motoko stable variables",
-    "No Next.js, Node.js, or Express — frontend is React + TypeScript + Tailwind, backend is Motoko",
-    "Do not edit files under frontend/src/hooks/useInternetIdentity.ts, frontend/src/hooks/useActor.ts, frontend/src/main.tsx, or frontend/src/components/ui",
-    "Maximum 100 registered users must be enforced in the backend seat counter",
-    "Anonymous principals must be rejected by all authenticated backend functions"
+    "Guidance text strings must match exactly as specified: no paraphrasing.",
+    "The safety footer text must appear verbatim as specified.",
+    "Do not modify immutable frontend paths (hooks, main.tsx, ui components).",
+    "All changes are frontend-only; no backend changes required."
   ],
   "nonGoals": [
-    "Real-time features or WebSockets",
-    "Email notifications or SMS",
-    "External hosting configuration (Vercel, Railway, Supabase)",
-    "Third-party auth providers (JWT, bcrypt, Auth0)",
-    "Mobile app or React Native version",
-    "Paid subscription or Stripe integration in this MVP",
-    "Media uploads (images, audio)",
-    "Direct messaging between users"
+    "Changing the backend data model or post schema.",
+    "Modifying the EmotionBadge component or other shared UI components.",
+    "Adding new emotion modes beyond Happy, Confess, and Broke.",
+    "Displaying the safety footer anywhere other than the PostCreationPage.",
+    "Making the safety footer dismissible or interactive."
   ],
   "imageRequirements": {
-    "required": [
-      "Minimal abstract logo mark for VEIL — a thin translucent veil or gauze texture forming a subtle 'V' silhouette on a dark muted background (veil-logo.dim_256x256.png)",
-      "Calm dark textured background with very subtle noise grain and muted warm-grey tones, suitable as a full-page app backdrop (veil-bg.dim_1440x900.png)"
-    ],
+    "required": [],
     "edits": []
   }
 }
