@@ -11,10 +11,9 @@ import Runtime "mo:core/Runtime";
 import MixinAuthorization "authorization/MixinAuthorization";
 import AccessControl "authorization/access-control";
 import InviteLinksModule "invite-links/invite-links-module";
-import InviteCodeModule "invite-links/invite-links-module";
-import Migration "migration";
 
-(with migration = Migration.run)
+
+
 actor {
   let accessControlState = AccessControl.initState();
   let inviteState = InviteLinksModule.initState();
@@ -911,3 +910,4 @@ actor {
 
   system func preupgrade() { seedDefaultInviteCodes() };
 };
+

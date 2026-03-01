@@ -1,50 +1,53 @@
 {
   "kind": "coverage_report",
   "version": "1.0",
-  "generatedAt": "2026-03-01T05:13:47.656Z",
+  "generatedAt": "2026-03-01T21:57:01.189Z",
   "sources": {
     "buildRequest": true,
     "implementationPlan": true
   },
   "requirements": {
     "total": 3,
-    "implemented": 1,
+    "implemented": 2,
     "items": [
       {
-        "id": "REQ-144",
-        "summary": "In backend/main.mo, perform a comprehensive audit of every public function and every internal iteration over stored Principal values. Add a Principal.isAnonymous(caller) guard at the absolute top of every public function (register, createPost, editPost, deletePost, setPostPrivacy, addReaction, getMyReaction, getMyProfile, getMyPosts, getMySubscriptionStatus, validateInviteCode, isAdmin, adminGetAllPublicPosts, adminGetUserPosts, adminDeletePost, adminSuspendUser, adminUnsuspendUser, adminGetAllUsers, addInviteCode, revokeInviteCode, setSubscriptionStatus, and adminRegister) so that any call from an anonymous principal returns an immediate safe exit (error result, false, or empty array) before any Principal.toBlob, HashMap lookup, or other Principal operation is attempted. Additionally, audit every iteration over the users, posts, and reactions maps where stored Principal keys or values are passed to Principal.toBlob or Principal.equal — add a defensive isAnonymous check before each such operation and skip/remove any anonymous entry rather than trapping.",
-        "status": "unknown",
-        "plannedFiles": [],
-        "matchedFiles": []
-      },
-      {
-        "id": "REQ-145",
-        "summary": "In backend/migration.mo, update the postupgrade cleanup hook so that when iterating over all stored entries in the users map, each Principal key is checked with Principal.isAnonymous before any Principal.toBlob, Principal.equal, or HashMap/TrieMap operation is performed on it. Any entry whose key is the anonymous principal must be silently removed without trapping. After this cleanup, re-seed invite codes VEIL-001 through VEIL-005 as unused entries only if they are absent from the InviteCodes map — never overwriting existing entries.",
-        "status": "unknown",
-        "plannedFiles": [],
-        "matchedFiles": []
-      },
-      {
-        "id": "REQ-146",
-        "summary": "In frontend/src/hooks/useQueries.ts, add an additional layer of defense: before dispatching any actor call, verify both (1) isAuthenticated is true from useInternetIdentity, and (2) the identity's principal is not anonymous (identity.getPrincipal().isAnonymous() === false). If either check fails, all query functions must return early with no result and all mutation functions must throw or resolve without dispatching the actor call. This ensures the frontend never sends a request carrying an anonymous principal to the backend.",
+        "id": "REQ-1",
+        "summary": "In SignupPage.tsx, before calling the backend createUser() function, add a guard that checks whether the authenticated identity/principal is available and is not anonymous. If the principal is missing or anonymous, display an error message ('Authentication required. Please log in before creating an account.') and abort the account creation flow entirely.",
         "status": "implemented",
         "plannedFiles": [
-          "frontend/src/hooks/useQueries.ts"
+          "frontend/src/pages/SignupPage.tsx"
         ],
         "matchedFiles": [
-          "frontend/src/hooks/useQueries.ts"
+          "frontend/src/pages/SignupPage.tsx"
         ]
+      },
+      {
+        "id": "REQ-2",
+        "summary": "In SignupPage.tsx, ensure the Create Account button is disabled (and visually reflects this) when the authenticated identity has not yet fully initialized or when the principal is anonymous. The button should only become enabled once a valid non-anonymous principal is confirmed to be available.",
+        "status": "implemented",
+        "plannedFiles": [
+          "frontend/src/pages/SignupPage.tsx"
+        ],
+        "matchedFiles": [
+          "frontend/src/pages/SignupPage.tsx"
+        ]
+      },
+      {
+        "id": "REQ-3",
+        "summary": "In the backend main.mo createUser() function, add a guard at the entry point to validate that caller is not the anonymous principal (Principal.isAnonymous(caller)). If caller is anonymous, return an error variant instead of attempting to convert the principal to blob or create the user record.",
+        "status": "unknown",
+        "plannedFiles": [],
+        "matchedFiles": []
       }
     ]
   },
   "changedFiles": [
     "backend/main.mo",
-    "backend/migration.mo",
     "build-request.json",
     "feature_evidence.json",
     "frontend-file-summaries.txt",
     "frontend-implementation-plan.json",
-    "frontend/src/hooks/useQueries.ts",
+    "frontend/src/pages/SignupPage.tsx",
     "project_state.json",
     "scratch/component-selection.json",
     "spec.md",

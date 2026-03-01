@@ -2,10 +2,10 @@
   "kind": "feature_evidence_report",
   "features": [
     {
-      "featureId": "feature-in-frontend-src-hooks-usequeries-ts-add-an-additional-layer-of-defense-before-dispatching-any-actor-call-verify-both-1-isauthenticated-is-true-from-useinternetidentity-and-2-the-identity-s-principal-is-not-anonymous-identity-getprincipal-isanonymous-false-if-either-check-fails-all-query-functions-must-return-early-with-no-result-and-all-mutation-functions-must-throw-or-resolve-without-dispatching-the-actor-call-this-ensures-the-frontend-never-sends-a-request-carrying-an-anonymous-principal-to-the-backend",
-      "featureTitle": "In frontend/src/hooks/useQueries.ts, add an additional layer of defense: before dispatching any actor call, verify both (1) isAuthenticated is true from useInternetIdentity, and (2) the identity's principal is not anonymous (identity.getPrincipal().isAnonymous() === false). If either check fails, all query functions must return early with no result and all mutation functions must throw or resolve without dispatching the actor call. This ensures the frontend never sends a request carrying an anonymous principal to the backend.",
+      "featureId": "feature-in-signuppage-tsx-before-calling-the-backend-createuser-function-add-a-guard-that-checks-whether-the-authenticated-identity-principal-is-available-and-is-not-anonymous-if-the-principal-is-missing-or-anonymous-display-an-error-message-authentication-required-please-log-in-before-creating-an-account-and-abort-the-account-creation-flow-entirely",
+      "featureTitle": "In SignupPage.tsx, before calling the backend createUser() function, add a guard that checks whether the authenticated identity/principal is available and is not anonymous. If the principal is missing or anonymous, display an error message ('Authentication required. Please log in before creating an account.') and abort the account creation flow entirely.",
       "files": [
-        "frontend/src/hooks/useQueries.ts"
+        "frontend/src/pages/SignupPage.tsx"
       ],
       "components": [
         "authorization@4.0.0",
@@ -17,7 +17,27 @@
         "github-export-icp-cli@1.0.0"
       ],
       "testIds": [
-        "REQ-146"
+        "REQ-1"
+      ],
+      "confidence": "high"
+    },
+    {
+      "featureId": "feature-in-signuppage-tsx-ensure-the-create-account-button-is-disabled-and-visually-reflects-this-when-the-authenticated-identity-has-not-yet-fully-initialized-or-when-the-principal-is-anonymous-the-button-should-only-become-enabled-once-a-valid-non-anonymous-principal-is-confirmed-to-be-available",
+      "featureTitle": "In SignupPage.tsx, ensure the Create Account button is disabled (and visually reflects this) when the authenticated identity has not yet fully initialized or when the principal is anonymous. The button should only become enabled once a valid non-anonymous principal is confirmed to be available.",
+      "files": [
+        "frontend/src/pages/SignupPage.tsx"
+      ],
+      "components": [
+        "authorization@4.0.0",
+        "invite-links@3.0.0",
+        "core-infrastructure@1.0.2",
+        "shadcn-ui@1.0.0",
+        "build-template-react@1.0.0",
+        "initial-app@1.0.0",
+        "github-export-icp-cli@1.0.0"
+      ],
+      "testIds": [
+        "REQ-2"
       ],
       "confidence": "high"
     }

@@ -1,22 +1,36 @@
 {
   "kind": "implementation_plan",
   "version": "1.0",
-  "title": "Fix RTS blob_of_principal invalid principal error - Frontend Defense Layer",
+  "title": "Fix signup flow to guard against invalid/anonymous principal before account creation",
   "requirements": [
     {
-      "id": "REQ-146",
-      "summary": "Add frontend anonymous principal guard to prevent any actor calls from being dispatched when the identity is anonymous or unauthenticated",
+      "id": "REQ-1",
+      "summary": "Add principal validation guard before account creation in SignupPage to prevent anonymous or missing principals from calling createUser()",
       "acceptanceCriteria": [
-        "No actor call is ever dispatched when the current identity is anonymous or when isAuthenticated is false.",
-        "Queries return undefined/null/empty rather than triggering a backend call when the principal is anonymous.",
-        "Mutations are silently skipped (or throw a client-side error) rather than calling the actor when the principal is anonymous.",
-        "After a successful Internet Identity login with a valid non-anonymous principal, all queries and mutations dispatch correctly."
+        "Clicking 'Create Account' while unauthenticated or with an anonymous principal shows an error message and does NOT call the backend createUser().",
+        "If the principal is valid and non-anonymous, the signup flow proceeds normally and createUser() is called.",
+        "No 'RTS error: blob_of_principal: invalid principal' error occurs when attempting account creation."
       ],
       "file_operations": [
         {
-          "path": "frontend/src/hooks/useQueries.ts",
+          "path": "frontend/src/pages/SignupPage.tsx",
           "operation": "modify",
-          "description": "Add a defensive guard at the top of every query and mutation function that checks (1) isAuthenticated is true from useInternetIdentity and (2) identity.getPrincipal().isAnonymous() === false. If either check fails, queries must return early with no result (undefined/null/empty array) and mutations must throw a client-side error or resolve without dispatching the actor call. Apply this guard to all existing query hooks (useGetCallerUserProfile, useGetUserProfile, useGetCallerUserRole, useIsCallerAdmin, useGetMyProfile, useGetMySubscriptionStatus, useGetSubscriptionStatus, useGetPublicPosts, useGetMyPosts, useAdminGetAllPublicPosts, useAdminGetUserPosts, useAdminGetAllUsers, useGetMyReaction, useGetUserReactionOnPost, useGetInviteCodes, useGetAllRSVPs) and all mutation hooks (useSaveCallerUserProfile, useAssignCallerUserRole, useRegister, useAdminRegister, useValidateInviteCode, useCreatePost, useEditPost, useDeletePost, useSetPostPrivacy, useAddReaction, useAdminDeletePost, useAdminSuspendUser, useAdminUnsuspendUser, useSetSubscriptionStatus, useAddInviteCode, useRevokeInviteCode, useGenerateInviteCode, useSubmitRSVP). Ensure the guard uses Principal.isAnonymous() from @dfinity/principal and never compares principal text representations as strings."
+          "description": "Add a principal validation guard at the beginning of the form submission handler. Before calling the backend register() function, check if identity exists and is not anonymous using identity.getPrincipal().isAnonymous(). If the principal is missing or anonymous, display an error message using toast ('Authentication required. Please log in before creating an account.') and return early without calling the backend. Only proceed with account creation if a valid non-anonymous principal is confirmed."
+        }
+      ]
+    },
+    {
+      "id": "REQ-2",
+      "summary": "Disable the Create Account button until a valid non-anonymous principal is available",
+      "acceptanceCriteria": [
+        "The Create Account button is disabled until identity initialization completes and a valid non-anonymous principal is available.",
+        "Once authenticated with a valid principal, the button becomes enabled and functional."
+      ],
+      "file_operations": [
+        {
+          "path": "frontend/src/pages/SignupPage.tsx",
+          "operation": "modify",
+          "description": "Add logic to disable the Create Account button when the authenticated identity has not fully initialized or when the principal is anonymous. Compute a boolean that checks whether identity exists and identity.getPrincipal().isAnonymous() is false. Use this boolean to set the button's disabled attribute and apply visual styling (e.g., opacity-50 class) to reflect the disabled state. The button should only be enabled once a valid non-anonymous principal is confirmed."
         }
       ]
     }
