@@ -1,25 +1,83 @@
 {
   "kind": "coverage_report",
   "version": "1.0",
-  "generatedAt": "2026-03-01T23:35:43.040Z",
+  "generatedAt": "2026-03-02T00:10:14.097Z",
   "sources": {
     "buildRequest": true,
     "implementationPlan": true
   },
   "requirements": {
-    "total": 3,
-    "implemented": 2,
+    "total": 9,
+    "implemented": 4,
     "items": [
       {
         "id": "REQ-1",
-        "summary": "Add a `reactions` stable table to the backend with fields: id (Text), postId (Text), userId (Principal), reactionText (Text), createdAt (Int). Enforce one reaction per user per post — if a reaction already exists for that user+post pair, return an error. Expose `addReaction(postId: Text, reactionText: Text)` and `getReactionsForPost(postId: Text)` query functions. Do not expose reaction counts in any public-facing query.",
+        "summary": "Extend the backend to support admin-only moderation actions: permanently remove a user (delete their account and all associated posts/comments), suspend a user (toggle suspended status), apply a 24-hour public posting cooldown to a specific user, and remove (delete) any post by postId. All these actions must be restricted to callers with the admin role.",
         "status": "unknown",
         "plannedFiles": [],
         "matchedFiles": []
       },
       {
         "id": "REQ-2",
-        "summary": "Add React Query hooks `useAddReaction` (mutation) and `usePostReactions` (query) in `frontend/src/hooks/useQueries.ts` wired to the new backend `addReaction` and `getReactionsForPost` functions.",
+        "summary": "Add a backend function to retrieve all registered users (for the admin 'View all users' panel), returning each user's id, pseudonym, region, suspended status, subscription status, and cooldownUntil timestamp. Restrict this to admin callers only.",
+        "status": "unknown",
+        "plannedFiles": [],
+        "matchedFiles": []
+      },
+      {
+        "id": "REQ-3",
+        "summary": "Add a backend function to retrieve all flagged posts (status = pending) with their associated flag records (id, postId, flaggedBy, reason, createdAt, status). Restrict to admin callers.",
+        "status": "unknown",
+        "plannedFiles": [],
+        "matchedFiles": []
+      },
+      {
+        "id": "REQ-4",
+        "summary": "Implement the Emotional Monitoring Alert in the backend: track BROKE-emotion post counts per user per day. Expose an admin-only query that returns a list of users who have posted 5 or more BROKE posts within any 3 consecutive calendar days. No automated messages are sent; this is a read-only alert feed for the admin.",
+        "status": "unknown",
+        "plannedFiles": [],
+        "matchedFiles": []
+      },
+      {
+        "id": "REQ-5",
+        "summary": "Update the AdminDashboard frontend to include a dedicated 'All Users' tab that lists every registered user with their pseudonym, region, subscription status, and suspended/cooldown state. Each user row must have action buttons: Suspend/Unsuspend, Apply 24-hr Cooldown, and Permanently Remove User (with a confirmation dialog before destructive actions).",
+        "status": "implemented",
+        "plannedFiles": [
+          "frontend/src/components/AdminDashboard.tsx",
+          "frontend/src/components/AdminAllUsersTab.tsx"
+        ],
+        "matchedFiles": [
+          "frontend/src/components/AdminDashboard.tsx",
+          "frontend/src/components/AdminAllUsersTab.tsx"
+        ]
+      },
+      {
+        "id": "REQ-6",
+        "summary": "Update the AdminDashboard frontend 'Flagged Posts' tab to support a 'Remove Post' action on each flagged post entry, in addition to existing review functionality. Show flag reason, flaggedBy pseudonym, and createdAt. Include a confirmation dialog before removal.",
+        "status": "implemented",
+        "plannedFiles": [
+          "frontend/src/components/AdminFlaggedPosts.tsx"
+        ],
+        "matchedFiles": [
+          "frontend/src/components/AdminFlaggedPosts.tsx"
+        ]
+      },
+      {
+        "id": "REQ-7",
+        "summary": "Add an 'Emotional Monitoring Alerts' section to the AdminDashboard frontend. This section displays a list of users who have triggered the 5-BROKE-in-3-consecutive-days threshold. Each alert card shows the user's pseudonym, the number of BROKE posts, and the date window. No action is taken automatically; the admin can manually choose to suspend, cooldown, or remove the user from the existing user management controls.",
+        "status": "implemented",
+        "plannedFiles": [
+          "frontend/src/components/AdminDashboard.tsx",
+          "frontend/src/components/AdminEmotionalAlertsTab.tsx"
+        ],
+        "matchedFiles": [
+          "frontend/src/components/AdminDashboard.tsx",
+          "frontend/src/components/AdminEmotionalAlertsTab.tsx"
+        ]
+      },
+      {
+        "id": "REQ-8",
+        "summary": "Add all new admin mutation and query hooks to useQueries.ts: useAdminGetAllUsers, useAdminRemoveUser, useAdminSuspendUser, useAdminApplyCooldown, useAdminRemovePost, useAdminGetEmotionalAlerts, and useAdminGetFlaggedPosts (if not already present). These hooks must follow the existing React Query patterns in useQueries.ts.",
         "status": "implemented",
         "plannedFiles": [
           "frontend/src/hooks/useQueries.ts"
@@ -29,29 +87,27 @@
         ]
       },
       {
-        "id": "REQ-3",
-        "summary": "Replace the existing emoji reaction UI in `PublicPostCard.tsx` with emotion-type-specific text reaction buttons. No emojis, no counts, no reaction numbers displayed anywhere. Show only the reaction text options as soft-UI buttons. The available reaction texts depend on the post's emotionType: HAPPY → ['I'm smiling with you.', 'This is beautiful.', 'You deserve this.', 'So happy for you.']; CONFESS → ['I see you.', 'That took courage.', 'You're not alone in this.', 'Thank you for sharing this.']; BROKE → ['I'm holding space for you.', 'You don't have to carry this alone.', 'This sounds heavy.', 'Stay. We're here.']. If the current user has already reacted to the post, show their chosen reaction text highlighted softly (no count). Post owners cannot react to their own posts.",
-        "status": "implemented",
-        "plannedFiles": [
-          "frontend/src/hooks/useQueries.ts",
-          "frontend/src/components/PublicPostCard.tsx"
-        ],
-        "matchedFiles": [
-          "frontend/src/hooks/useQueries.ts",
-          "frontend/src/components/PublicPostCard.tsx"
-        ]
+        "id": "REQ-9",
+        "summary": "Generate a migration module (backend/migration.mo) to handle any schema changes introduced by the new user fields (isSuspended, cooldownUntil) and the new flag/alert tracking structures, ensuring existing user records are migrated with safe default values.",
+        "status": "unknown",
+        "plannedFiles": [],
+        "matchedFiles": []
       }
     ]
   },
   "changedFiles": [
     "backend/main.mo",
+    "backend/migration.mo",
     "build-request.json",
     "feature_evidence.json",
     "frontend-file-summaries.txt",
     "frontend-implementation-plan.json",
     "frontend/src/backend.d.ts",
     "frontend/src/backend.ts",
-    "frontend/src/components/PublicPostCard.tsx",
+    "frontend/src/components/AdminAllUsersTab.tsx",
+    "frontend/src/components/AdminDashboard.tsx",
+    "frontend/src/components/AdminEmotionalAlertsTab.tsx",
+    "frontend/src/components/AdminFlaggedPosts.tsx",
     "frontend/src/declarations/backend.did.d.ts",
     "frontend/src/declarations/backend.did.js",
     "frontend/src/hooks/useQueries.ts",

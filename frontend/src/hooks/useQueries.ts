@@ -7,6 +7,7 @@ import {
   UserProfile,
   SeatInfo,
   Visibility,
+  type Comment,
 } from '../backend';
 import type { Principal } from '@dfinity/principal';
 
@@ -273,11 +274,11 @@ export function useAddTextReaction() {
 export function useGetCommentsForPost(postId: string) {
   const { actor, isFetching } = useActor();
 
-  return useQuery({
+  return useQuery<Comment[]>({
     queryKey: ['comments', postId],
     queryFn: async () => {
       if (!actor) return [];
-      const comments = await actor.getCommentsForPost(postId);
+      const comments = await actor.getCommentsByPost(postId);
       return [...comments].sort((a, b) => Number(a.createdAt - b.createdAt));
     },
     enabled: !!actor && !isFetching && !!postId,
@@ -295,7 +296,61 @@ export function useAddComment() {
     },
     onSuccess: (_data, variables) => {
       queryClient.invalidateQueries({ queryKey: ['comments', variables.postId] });
+      queryClient.invalidateQueries({ queryKey: ['flaggedComments'] });
     },
+  });
+}
+
+export function useFlagComment() {
+  const { actor } = useActor();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (commentId: string) => {
+      if (!actor) throw new Error('Actor not available');
+      return actor.flagComment(commentId);
+    },
+    onSuccess: () => {
+      // Invalidate all comment queries so flagged state refreshes
+      queryClient.invalidateQueries({ queryKey: ['comments'] });
+      queryClient.invalidateQueries({ queryKey: ['flaggedComments'] });
+    },
+  });
+}
+
+export function useDeleteComment() {
+  const { actor } = useActor();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (commentId: string) => {
+      if (!actor) throw new Error('Actor not available');
+      return actor.deleteComment(commentId);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['comments'] });
+      queryClient.invalidateQueries({ queryKey: ['flaggedComments'] });
+    },
+  });
+}
+
+export function useGetFlaggedComments() {
+  const { actor, isFetching } = useActor();
+
+  return useQuery<Comment[]>({
+    queryKey: ['flaggedComments'],
+    queryFn: async () => {
+      if (!actor) return [];
+      // Fetch all public posts, then gather all comments and filter flagged ones
+      const posts = await actor.adminGetAllPosts();
+      const publicPosts = posts.filter(p => p.visibility === 'publicView');
+      const commentArrays = await Promise.all(
+        publicPosts.map(p => actor.getCommentsByPost(p.id).catch(() => [] as Comment[]))
+      );
+      const allComments = commentArrays.flat();
+      return allComments.filter(c => c.flagged);
+    },
+    enabled: !!actor && !isFetching,
   });
 }
 
@@ -352,6 +407,7 @@ export function useAdminGetAllUsers() {
       return actor.adminGetAllUsers();
     },
     enabled: !!actor && !isFetching,
+    staleTime: 30_000,
   });
 }
 
@@ -446,6 +502,88 @@ export function useAdminDeletePost() {
     },
   });
 }
+
+// ─── Admin Moderation (new) ───────────────────────────────────────────────────
+
+export function useAdminRemoveUser() {
+  const { actor } = useActor();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (userId: Principal) => {
+      if (!actor) throw new Error('Actor not available');
+      return actor.adminPermanentlyRemoveUser(userId);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['adminAllUsers'] });
+      queryClient.invalidateQueries({ queryKey: ['seatInfo'] });
+      queryClient.invalidateQueries({ queryKey: ['adminAllPosts'] });
+    },
+  });
+}
+
+export function useAdminToggleUserSuspension() {
+  const { actor } = useActor();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (userId: Principal) => {
+      if (!actor) throw new Error('Actor not available');
+      return actor.adminToggleUserSuspension(userId);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['adminAllUsers'] });
+    },
+  });
+}
+
+export function useAdminApplyCooldown() {
+  const { actor } = useActor();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (userId: Principal) => {
+      if (!actor) throw new Error('Actor not available');
+      return actor.adminApplyPublicPostingCooldown(userId);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['adminAllUsers'] });
+    },
+  });
+}
+
+export function useAdminRemovePost() {
+  const { actor } = useActor();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (postId: string) => {
+      if (!actor) throw new Error('Actor not available');
+      return actor.adminRemovePost(postId);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['adminFlaggedPosts'] });
+      queryClient.invalidateQueries({ queryKey: ['adminAllPosts'] });
+      queryClient.invalidateQueries({ queryKey: ['publicPosts'] });
+    },
+  });
+}
+
+export function useAdminGetEmotionalAlerts() {
+  const { actor, isFetching } = useActor();
+
+  return useQuery<Array<[Principal, bigint]>>({
+    queryKey: ['adminEmotionalAlerts'],
+    queryFn: async () => {
+      if (!actor) return [];
+      return actor.adminGetHighRiskEmotionAlerts();
+    },
+    enabled: !!actor && !isFetching,
+    staleTime: 60_000,
+  });
+}
+
+// ─── Admin Invite Codes ───────────────────────────────────────────────────────
 
 export function useAdminGetInviteCodes() {
   const { actor, isFetching } = useActor();

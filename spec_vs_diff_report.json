@@ -1,60 +1,77 @@
 {
   "kind": "spec_vs_diff_report",
   "version": "1.0",
-  "generatedAt": "2026-03-01T23:35:43.037Z",
-  "summary": "The diff implements a text-based reaction system across backend and frontend. However, the hook names in useQueries.ts diverge from the required names in REQ-2, and the backend exposes functions under different names than specified in REQ-1. REQ-3 appears largely implemented in PublicPostCard.tsx. Several naming discrepancies exist between the spec and the implementation.",
+  "generatedAt": "2026-03-02T00:10:14.092Z",
+  "summary": "The diff implements most of the requested requirements but has several notable gaps. Backend REQ-1, REQ-2, REQ-3, REQ-4 appear partially implemented in main.mo but the truncated diff prevents full verification. REQ-9 migration.mo is present but incomplete — it doesn't actually add isSuspended or cooldownUntil fields. Frontend components for REQ-5, REQ-6, REQ-7 are present. REQ-8 hooks are partially present but useAdminGetAllUsers and useAdminGetFlaggedPosts are not confirmed in the file summary.",
   "missing_requirements": [
     {
-      "id": "REQ-1",
-      "requirement": "Expose `addReaction(postId: Text, reactionText: Text)` and `getReactionsForPost(postId: Text)` as the public backend function names.",
-      "reason": "The backend diff shows a `textReactions` map and a `TextReaction` type, and frontend-file-summaries.txt confirms the implemented functions are named `addTextReaction` and `getTextReactionsForPost`, not `addReaction` and `getReactionsForPost` as required.",
+      "id": "REQ-9",
+      "requirement": "migration.mo adds isSuspended = false and cooldownUntil = null to all existing user records that lack these fields; migration is idempotent.",
+      "reason": "The migration.mo file defines OldUser with a 'suspended: Bool' field but no 'cooldownUntil' field, and the run() function simply returns old.users unchanged without adding any new fields or safe defaults. It does not migrate isSuspended or cooldownUntil as required.",
       "evidence": [
-        "backend/main.mo",
-        "frontend-file-summaries.txt",
-        "frontend/src/hooks/useQueries.ts"
+        "backend/migration.mo"
       ]
     },
     {
-      "id": "REQ-1",
-      "requirement": "The reactions stable table must be named `reactions` per the spec.",
-      "reason": "The backend implements the table as `textReactions` (Map.empty<Text, TextReaction>()) rather than `reactions` as specified. The type is also named `TextReaction` instead of `Reaction` with the required fields.",
+      "id": "REQ-8",
+      "requirement": "All six new hooks defined in useQueries.ts: useAdminGetAllUsers, useAdminRemoveUser, useAdminSuspendUser, useAdminApplyCooldown, useAdminRemovePost, useAdminGetEmotionalAlerts, and useAdminGetFlaggedPosts.",
+      "reason": "The frontend-file-summaries.txt description of useQueries.ts lists only useAdminRemoveUser, useAdminToggleUserSuspension, useAdminApplyCooldown, useAdminRemovePost, and useAdminGetEmotionalAlerts as newly added hooks. useAdminGetAllUsers and useAdminGetFlaggedPosts are not listed among the new additions, making their presence unconfirmed.",
+      "evidence": [
+        "frontend/src/hooks/useQueries.ts",
+        "frontend-file-summaries.txt"
+      ]
+    },
+    {
+      "id": "REQ-2",
+      "requirement": "adminGetAllUsers() returns cooldownUntil timestamp per user.",
+      "reason": "The User type defined in backend/main.mo does not include a cooldownUntil field. Only id, pseudonym, region, subscriptionStatus, createdAt, suspended, hasAcknowledgedEntryMessage, and hasAcknowledgedPublicPostMessage are present. The function cannot return cooldownUntil without this field.",
       "evidence": [
         "backend/main.mo"
       ]
     },
     {
-      "id": "REQ-2",
-      "requirement": "Add hooks named `useAddReaction` (mutation) and `usePostReactions` (query) in frontend/src/hooks/useQueries.ts.",
-      "reason": "The frontend-file-summaries.txt explicitly states the hooks were implemented as `useTextReactionsForPost` and `useAddTextReaction`, not `useAddReaction` and `usePostReactions` as required by REQ-2.",
+      "id": "REQ-5",
+      "requirement": "Each user row shows cooldown expiry (if active).",
+      "reason": "Since the User type in the backend does not include a cooldownUntil field, the frontend cannot display cooldown expiry information even if AdminAllUsersTab.tsx attempts to render it.",
       "evidence": [
-        "frontend/src/hooks/useQueries.ts",
-        "frontend-file-summaries.txt"
+        "backend/main.mo",
+        "frontend/src/components/AdminAllUsersTab.tsx"
+      ]
+    },
+    {
+      "id": "REQ-6",
+      "requirement": "Each flagged post entry shows post content preview, flag reason, reporter pseudonym or anonymized ID, and flag timestamp.",
+      "reason": "The truncated AdminFlaggedPosts.tsx diff shows grouping by postId and flag counts but does not clearly show individual flag reason, reporter pseudonym, or createdAt timestamp being rendered per flag entry.",
+      "evidence": [
+        "frontend/src/components/AdminFlaggedPosts.tsx"
       ]
     }
   ],
   "hallucinated_features": [
     {
-      "description": "A separate legacy `Reaction` type and `reactions` map using emoji/type-based reactions are retained alongside the new `TextReaction` type and `textReactions` map, resulting in two parallel reaction systems in the backend.",
-      "reason": "The spec only requested a single reactions stable table with the TextReaction schema. The diff retains the old `Reaction` type with `reactionType: ReactionType` and a separate `reactions` map, which was not requested.",
+      "description": "AdminDashboard imports and uses useAdminGetESPFlaggedUsers and useAdminClearESPFlag hooks and renders an ESP flagged users management section.",
+      "reason": "The build request does not mention ESP flagged users management, useAdminGetESPFlaggedUsers, or useAdminClearESPFlag. These are not part of any requested requirement.",
       "evidence": [
-        "backend/main.mo"
+        "frontend/src/components/AdminDashboard.tsx"
       ]
     },
     {
-      "description": "Hook names `useTextReactionsForPost` and `useAddTextReaction` and backend function names `getTextReactionsForPost` and `addTextReaction` were introduced instead of the names specified in the build request.",
-      "reason": "The build request specifies exact names: `useAddReaction`, `usePostReactions`, `addReaction`, and `getReactionsForPost`. The implementation uses different names throughout without any stated justification.",
+      "description": "A top-level emotional alert count summary banner is rendered at the top of AdminDashboard outside of the Emotional Monitoring Alerts tab.",
+      "reason": "REQ-7 requests an Emotional Monitoring Alerts tab or section but does not request an additional top-level banner in the main dashboard view. This is an unrequested UI element.",
       "evidence": [
-        "frontend/src/hooks/useQueries.ts",
-        "frontend/src/components/PublicPostCard.tsx",
-        "frontend-file-summaries.txt"
+        "frontend/src/components/AdminDashboard.tsx"
       ]
     }
   ],
-  "confidence": 0.78,
+  "confidence": 0.62,
   "changed_files": [
     "backend/main.mo",
+    "backend/migration.mo",
     "frontend-file-summaries.txt",
-    "frontend/src/components/PublicPostCard.tsx",
+    "frontend/src/components/AdminAllUsersTab.tsx",
+    "frontend/src/components/AdminDashboard.tsx",
+    "frontend/src/components/AdminEmotionalAlertsTab.tsx",
+    "frontend/src/components/AdminFlaggedPosts.tsx",
     "frontend/src/hooks/useQueries.ts",
     "project_state.json"
   ]

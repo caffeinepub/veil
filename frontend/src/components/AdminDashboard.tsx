@@ -6,7 +6,10 @@ import AdminInviteCodes from './AdminInviteCodes';
 import AdminUserPostHistory from './AdminUserPostHistory';
 import AdminSignup from './AdminSignup';
 import AdminFlaggedPosts from './AdminFlaggedPosts';
-import { useAdminGetSeatCount, useAdminGetESPFlaggedUsers, useAdminClearESPFlag } from '../hooks/useQueries';
+import AdminFlaggedComments from './AdminFlaggedComments';
+import AdminAllUsersTab from './AdminAllUsersTab';
+import AdminEmotionalAlertsTab from './AdminEmotionalAlertsTab';
+import { useAdminGetSeatCount, useAdminGetESPFlaggedUsers, useAdminClearESPFlag, useAdminGetEmotionalAlerts } from '../hooks/useQueries';
 import { ArrowLeft, Users, AlertTriangle, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Principal } from '@dfinity/principal';
@@ -15,10 +18,12 @@ export default function AdminDashboard() {
   const navigate = useNavigate();
   const { data: seatInfo, isLoading: seatLoading } = useAdminGetSeatCount();
   const { data: espUsers, isLoading: espLoading } = useAdminGetESPFlaggedUsers();
+  const { data: emotionalAlerts } = useAdminGetEmotionalAlerts();
   const clearESPFlag = useAdminClearESPFlag();
 
   const currentSeats = seatInfo ? Number(seatInfo.currentSeats) : 0;
   const maxSeats = seatInfo ? Number(seatInfo.maxSeats) : 100;
+  const emotionalAlertCount = emotionalAlerts?.length ?? 0;
 
   const handleClearESP = async (principalStr: string) => {
     try {
@@ -29,7 +34,7 @@ export default function AdminDashboard() {
   };
 
   return (
-    <div className="max-w-4xl mx-auto px-4 py-10 space-y-6">
+    <div className="max-w-5xl mx-auto px-4 py-10 space-y-6">
       <div className="flex items-center gap-3">
         <button
           onClick={() => navigate({ to: '/dashboard' })}
@@ -67,6 +72,22 @@ export default function AdminDashboard() {
         )}
       </div>
 
+      {/* Emotional Monitoring Alert Banner */}
+      {emotionalAlertCount > 0 && (
+        <div className="flex items-center gap-3 p-4 rounded-xl border border-amber-300/60 dark:border-amber-700/50 bg-amber-50/60 dark:bg-amber-950/20">
+          <AlertTriangle size={16} className="text-amber-600 dark:text-amber-400 shrink-0" />
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-medium text-amber-800 dark:text-amber-300">
+              Emotional Monitoring Alert
+            </p>
+            <p className="text-xs text-amber-700 dark:text-amber-400 mt-0.5">
+              {emotionalAlertCount} user{emotionalAlertCount !== 1 ? 's have' : ' has'} posted 5+ BROKE posts in the last 3 days.
+              Review in the <strong>Alerts</strong> tab.
+            </p>
+          </div>
+        </div>
+      )}
+
       {/* ESP Flagged Users */}
       {!espLoading && espUsers && espUsers.length > 0 && (
         <div className="p-4 bg-card border border-border rounded-xl space-y-3">
@@ -99,15 +120,45 @@ export default function AdminDashboard() {
         </div>
       )}
 
-      <Tabs defaultValue="posts">
-        <TabsList className="grid grid-cols-6 w-full">
-          <TabsTrigger value="posts">Posts</TabsTrigger>
-          <TabsTrigger value="members">Members</TabsTrigger>
-          <TabsTrigger value="codes">Invites</TabsTrigger>
-          <TabsTrigger value="history">History</TabsTrigger>
-          <TabsTrigger value="flagged">Flagged</TabsTrigger>
-          <TabsTrigger value="signup">Signup</TabsTrigger>
+      <Tabs defaultValue="users">
+        <TabsList className="flex flex-wrap h-auto gap-1 w-full justify-start bg-muted/50 p-1 rounded-xl">
+          <TabsTrigger value="users" className="text-xs">All Users</TabsTrigger>
+          <TabsTrigger value="alerts" className="text-xs relative">
+            Alerts
+            {emotionalAlertCount > 0 && (
+              <span className="ml-1.5 inline-flex items-center justify-center w-4 h-4 text-[10px] font-bold rounded-full bg-amber-500 text-white">
+                {emotionalAlertCount}
+              </span>
+            )}
+          </TabsTrigger>
+          <TabsTrigger value="flagged" className="text-xs">Flagged</TabsTrigger>
+          <TabsTrigger value="comments" className="text-xs">Comments</TabsTrigger>
+          <TabsTrigger value="codes" className="text-xs">Invites</TabsTrigger>
+          <TabsTrigger value="posts" className="text-xs">Posts</TabsTrigger>
+          <TabsTrigger value="members" className="text-xs">Members</TabsTrigger>
+          <TabsTrigger value="history" className="text-xs">History</TabsTrigger>
+          <TabsTrigger value="signup" className="text-xs">Signup</TabsTrigger>
         </TabsList>
+
+        <TabsContent value="users" className="mt-4">
+          <AdminAllUsersTab />
+        </TabsContent>
+
+        <TabsContent value="alerts" className="mt-4">
+          <AdminEmotionalAlertsTab />
+        </TabsContent>
+
+        <TabsContent value="flagged" className="mt-4">
+          <AdminFlaggedPosts />
+        </TabsContent>
+
+        <TabsContent value="comments" className="mt-4">
+          <AdminFlaggedComments />
+        </TabsContent>
+
+        <TabsContent value="codes" className="mt-4">
+          <AdminInviteCodes />
+        </TabsContent>
 
         <TabsContent value="posts" className="mt-4">
           <AdminPublicPostsList />
@@ -117,16 +168,8 @@ export default function AdminDashboard() {
           <AdminUserManagement />
         </TabsContent>
 
-        <TabsContent value="codes" className="mt-4">
-          <AdminInviteCodes />
-        </TabsContent>
-
         <TabsContent value="history" className="mt-4">
           <AdminUserPostHistory />
-        </TabsContent>
-
-        <TabsContent value="flagged" className="mt-4">
-          <AdminFlaggedPosts />
         </TabsContent>
 
         <TabsContent value="signup" className="mt-4">

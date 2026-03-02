@@ -1,47 +1,86 @@
 {
   "kind": "implementation_plan",
   "version": "1.0",
-  "title": "Unified Emotion-Based Text Reaction System",
+  "title": "Admin Dashboard with Moderation Tools and Emotional Monitoring Alerts",
   "requirements": [
     {
-      "id": "REQ-2",
-      "summary": "Add React Query hooks for text reactions",
+      "id": "REQ-5",
+      "summary": "Add 'All Users' tab to AdminDashboard with user management actions (suspend, cooldown, remove)",
       "acceptanceCriteria": [
-        "useAddReaction mutation calls backend addTextReaction and invalidates the post reactions cache on success.",
-        "usePostReactions query fetches reactions for a given postId.",
-        "Both hooks use the actor from useActor."
+        "All Users tab renders a list of all users fetched from adminGetAllUsers().",
+        "Each row shows pseudonym, region, subscription status, suspended badge (if applicable), and cooldown expiry (if active).",
+        "Suspend/Unsuspend button toggles suspended status and invalidates the user list query.",
+        "Apply 24-hr Cooldown button calls adminApplyCooldown and shows a success toast.",
+        "Permanently Remove User button opens a confirmation dialog; on confirm, calls adminRemoveUser and removes the user from the list.",
+        "All mutation buttons are disabled while a request is in-flight."
       ],
       "file_operations": [
         {
-          "path": "frontend/src/hooks/useQueries.ts",
+          "path": "frontend/src/components/AdminDashboard.tsx",
           "operation": "modify",
-          "description": "Add useAddTextReaction mutation hook that calls actor.addTextReaction(postId, reactionText) and invalidates ['textReactions', postId] on success. Add useTextReactionsForPost query hook that calls actor.getTextReactionsForPost(postId) with queryKey ['textReactions', postId]. Both hooks depend on actor from useActor and handle loading/error states."
+          "description": "Add a new 'All Users' tab to the existing Tabs component. Include tab trigger and content section that renders the AdminAllUsersTab component (to be created). Wire this tab into the existing tab structure alongside User Management, Invite Codes, Flagged Posts, and Flagged Comments tabs."
+        },
+        {
+          "path": "frontend/src/components/AdminAllUsersTab.tsx",
+          "operation": "create",
+          "description": "Create AdminAllUsersTab component that fetches all users via useAdminGetAllUsers hook. Display a table or list showing each user's pseudonym, region, subscription status, suspended badge (if suspended is true), and cooldown expiry timestamp (if present). For each user row, include action buttons: Suspend/Unsuspend (using useAdminToggleUserSuspension), Apply 24-hr Cooldown (using useAdminApplyCooldown), and Permanently Remove User (using useAdminRemoveUser with a confirmation dialog). All buttons must be disabled during mutation loading states. Use toast notifications for success/error feedback."
         }
       ]
     },
     {
-      "id": "REQ-3",
-      "summary": "Replace emoji reactions with emotion-type-specific text reaction buttons in PublicPostCard",
+      "id": "REQ-6",
+      "summary": "Update AdminFlaggedPosts tab to support 'Remove Post' action with confirmation dialog",
       "acceptanceCriteria": [
-        "HAPPY posts show exactly the 4 HAPPY reaction text options as buttons.",
-        "CONFESS posts show exactly the 4 CONFESS reaction text options as buttons.",
-        "BROKE posts show exactly the 4 BROKE reaction text options as buttons.",
-        "No emoji characters appear in the reaction UI.",
-        "No reaction counts or numbers are displayed anywhere on the card.",
-        "A user who has already reacted sees their chosen reaction text softly highlighted; the other options are inactive.",
-        "Post owners do not see reaction buttons on their own posts.",
-        "Clicking a reaction button calls useAddReaction; on success the selected reaction is visually confirmed with soft styling only."
+        "Flagged Posts tab fetches data from adminGetFlaggedPosts().",
+        "Each entry shows post content preview, flag reason, reporter pseudonym (or anonymized ID), and flag timestamp.",
+        "A 'Remove Post' button opens a confirmation dialog; on confirm, calls adminRemovePost(postId).",
+        "After removal, the flagged post entry disappears from the list and a success toast is shown."
+      ],
+      "file_operations": [
+        {
+          "path": "frontend/src/components/AdminFlaggedPosts.tsx",
+          "operation": "modify",
+          "description": "Add a 'Remove Post' button to each flagged post entry in the existing component. When clicked, open a confirmation dialog (using shadcn/ui AlertDialog). On confirmation, call useAdminRemovePost mutation hook with the postId. After successful removal, invalidate the flagged posts query and display a success toast. Ensure the button is disabled during the mutation loading state."
+        }
+      ]
+    },
+    {
+      "id": "REQ-7",
+      "summary": "Add 'Emotional Monitoring Alerts' section to AdminDashboard showing users exceeding 5-BROKE-in-3-days threshold",
+      "acceptanceCriteria": [
+        "A clearly labeled 'Emotional Monitoring Alerts' tab or section is visible only in the AdminDashboard.",
+        "Fetches data from adminGetEmotionalAlerts() via a React Query hook.",
+        "Each alert card displays: user pseudonym, BROKE post count, and the 3-day window dates.",
+        "If no alerts are present, a 'No active alerts' empty state is shown.",
+        "No automated action buttons are shown; admin must navigate to All Users tab to act.",
+        "Alert cards use a visually distinct soft-warning style (e.g., amber/yellow tone) to indicate concern without alarm."
+      ],
+      "file_operations": [
+        {
+          "path": "frontend/src/components/AdminDashboard.tsx",
+          "operation": "modify",
+          "description": "Add a new 'Emotional Monitoring Alerts' tab to the existing Tabs component. Include tab trigger and content section that renders the AdminEmotionalAlertsTab component (to be created). Wire this tab into the existing tab structure."
+        },
+        {
+          "path": "frontend/src/components/AdminEmotionalAlertsTab.tsx",
+          "operation": "create",
+          "description": "Create AdminEmotionalAlertsTab component that fetches emotional monitoring alerts via useAdminGetEmotionalAlerts hook. Display each alert in a card with amber/yellow soft-warning styling. Show user pseudonym, BROKE post count, and the 3-day date window for each alert. If no alerts exist, render an empty state message ('No active alerts'). Do not include any action buttons; include a note directing admins to the All Users tab for manual intervention."
+        }
+      ]
+    },
+    {
+      "id": "REQ-8",
+      "summary": "Add admin mutation and query hooks to useQueries.ts for all new backend capabilities",
+      "acceptanceCriteria": [
+        "All six new hooks are defined in useQueries.ts.",
+        "Mutation hooks call invalidateQueries on the relevant query keys after success.",
+        "Query hooks use appropriate staleTime and are keyed consistently with existing conventions."
       ],
       "file_operations": [
         {
           "path": "frontend/src/hooks/useQueries.ts",
           "operation": "modify",
-          "description": "Replace existing useAddReaction and useReactionsForPost hooks with new implementations. Rename useAddReaction to useAddTextReaction and update it to call actor.addTextReaction(postId, reactionText) instead of addReaction. Rename useReactionsForPost to useTextReactionsForPost and update it to call actor.getTextReactionsForPost(postId) and use queryKey ['textReactions', postId]. Remove old reaction hooks that use ReactionType enum. Ensure both hooks invalidate the correct query keys on mutation success."
-        },
-        {
-          "path": "frontend/src/components/PublicPostCard.tsx",
-          "operation": "modify",
-          "description": "Remove all emoji-based reaction UI and counts. Replace with emotion-type-specific text reaction buttons. Define reaction text maps: HAPPY → ['I'm smiling with you.', 'This is beautiful.', 'You deserve this.', 'So happy for you.']; CONFESS → ['I see you.', 'That took courage.', 'You're not alone in this.', 'Thank you for sharing this.']; BROKE → ['I'm holding space for you.', 'You don't have to carry this alone.', 'This sounds heavy.', 'Stay. We're here.']. Use useTextReactionsForPost to fetch reactions. Use useAddTextReaction mutation when a button is clicked. Show post owner's buttons only if current user is not the post author (compare userId from useAuth with post.author). If current user has already reacted (check TextReaction.userId matches current user), highlight their chosen text softly with subtle background color and disable other buttons. Do not display any reaction counts or numbers. Use soft UI styling (subtle borders, muted hover states) for reaction buttons. Ensure each button shows only the reaction text with no emoji characters."
+          "description": "Add the following React Query hooks following existing patterns: useAdminGetAllUsers (query hook for adminGetAllUsers backend method), useAdminRemoveUser (mutation hook for adminPermanentlyRemoveUser, invalidates 'adminAllUsers' query key on success), useAdminToggleUserSuspension (mutation hook for adminToggleUserSuspension, invalidates 'adminAllUsers' on success), useAdminApplyCooldown (mutation hook for adminApplyPublicPostingCooldown, invalidates 'adminAllUsers' on success), useAdminRemovePost (mutation hook for adminRemovePost, invalidates 'adminFlaggedPosts' and 'adminAllPosts' on success), useAdminGetEmotionalAlerts (query hook for adminGetHighRiskEmotionAlerts backend method), and ensure useAdminGetFlaggedPosts exists (query hook for adminGetFlaggedPosts if not already present). All hooks must use the actor from useActor and handle errors appropriately."
         }
       ]
     }

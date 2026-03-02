@@ -1,17 +1,15 @@
 # Specification
 
 ## Summary
-**Goal:** Replace the existing emoji reaction system with an emotion-type-specific text reaction system — no emojis, no counts, one reaction per user per post.
+**Goal:** Extend the Veil admin dashboard with full moderation tools — user management, flagged post removal, and an emotional monitoring alert system — backed by admin-restricted backend functions.
 
 **Planned changes:**
-- Add a `reactions` table to the backend with fields: id, postId, userId, reactionText, createdAt; enforce one reaction per user per post
-- Expose `addReaction(postId, reactionText)` and `getReactionsForPost(postId)` backend functions; no aggregate counts returned
-- Add `useAddReaction` mutation hook and `usePostReactions` query hook in `useQueries.ts`
-- Replace emoji reaction UI in `PublicPostCard.tsx` with text-only reaction buttons based on the post's emotionType:
-  - HAPPY → 4 HAPPY-specific phrases
-  - CONFESS → 4 CONFESS-specific phrases
-  - BROKE → 4 BROKE-specific phrases
-- If the user has already reacted, highlight their chosen reaction softly and deactivate other options
-- Hide reaction buttons entirely for post owners viewing their own posts
+- Add backend functions: `adminRemoveUser`, `adminSuspendUser`, `adminApplyCooldown`, `adminRemovePost`, `adminGetAllUsers`, `adminGetFlaggedPosts`, and `adminGetEmotionalAlerts`, all restricted to admin-role callers
+- Add `isSuspended` and `cooldownUntil` fields to user records; create a migration module (`backend/migration.mo`) to backfill existing users with safe defaults
+- Track BROKE-emotion post counts per user per day to support the 5-BROKE-in-3-consecutive-days alert threshold
+- Add an "All Users" tab to the AdminDashboard listing every user with pseudonym, region, subscription status, suspended badge, and cooldown expiry, with Suspend/Unsuspend, Apply 24-hr Cooldown, and Permanently Remove User (confirmation dialog) action buttons
+- Update the "Flagged Posts" tab to show flag reason, reporter, timestamp, and a "Remove Post" button with a confirmation dialog
+- Add an "Emotional Monitoring Alerts" tab showing alert cards (pseudonym, BROKE post count, 3-day window) in a soft amber/warning style; no automated actions are triggered
+- Add React Query hooks to `useQueries.ts`: `useAdminGetAllUsers`, `useAdminRemoveUser`, `useAdminSuspendUser`, `useAdminApplyCooldown`, `useAdminRemovePost`, `useAdminGetFlaggedPosts`, and `useAdminGetEmotionalAlerts`
 
-**User-visible outcome:** Users can respond to posts with emotion-appropriate text phrases instead of emojis. No counts or numbers are shown anywhere. Each user can react once per post, with soft visual confirmation of their chosen reaction.
+**User-visible outcome:** Admins can view and manage all users, remove flagged posts, and monitor emotionally at-risk users from a dedicated dashboard, with confirmation dialogs protecting destructive actions.

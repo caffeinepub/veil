@@ -35,8 +35,9 @@ export interface User {
 export interface Comment {
     id: string;
     content: string;
-    createdAt: Time;
-    author: Principal;
+    userId: Principal;
+    createdAt: bigint;
+    flagged: boolean;
     postId: string;
 }
 export interface SeatInfo {
@@ -142,25 +143,34 @@ export interface backendInterface {
     addComment(postId: string, content: string): Promise<string>;
     addReaction(postId: string, reactionType: ReactionType): Promise<string>;
     addTextReaction(postId: string, reactionText: string): Promise<string>;
+    adminApplyPublicPostingCooldown(userId: Principal): Promise<void>;
     adminClearESPFlag(userId: Principal): Promise<void>;
     adminDeletePost(postId: string): Promise<void>;
+    adminGetAllFlaggedPostsWithRecords(): Promise<Array<[string, Array<Flag>]>>;
     adminGetAllPosts(): Promise<Array<Post>>;
     adminGetAllUsers(): Promise<Array<User>>;
+    adminGetAllUsersExtended(): Promise<Array<[Principal, UserProfile]>>;
     adminGetESPFlaggedUsers(): Promise<Array<Principal>>;
     adminGetFlaggedPosts(): Promise<Array<Flag>>;
+    adminGetHighRiskEmotionAlerts(): Promise<Array<[Principal, bigint]>>;
     adminGetUserPosts(userId: Principal): Promise<Array<Post>>;
+    adminPermanentlyRemoveUser(userId: Principal): Promise<void>;
+    adminRemovePost(postId: string): Promise<void>;
     adminSetSubscriptionStatus(userId: Principal, status: SubscriptionStatus): Promise<void>;
     adminSuspendUser(userId: Principal): Promise<void>;
+    adminToggleUserSuspension(userId: Principal): Promise<boolean>;
     adminUnsuspendUser(userId: Principal): Promise<void>;
     assignCallerUserRole(user: Principal, role: UserRole): Promise<void>;
     checkLoginStatus(): Promise<Variant_existingUser_anonymous_newUser>;
     createPost(emotionType: EmotionType, content: string, visibility: Visibility | null): Promise<Result>;
+    deleteComment(commentId: string): Promise<void>;
+    flagComment(commentId: string): Promise<void>;
     flagPost(postId: string, reason: string): Promise<string>;
     generateInviteCode(): Promise<string>;
     getAllRSVPs(): Promise<Array<RSVP>>;
     getCallerUserProfile(): Promise<UserProfile | null>;
     getCallerUserRole(): Promise<UserRole>;
-    getCommentsForPost(postId: string): Promise<Array<Comment>>;
+    getCommentsByPost(postId: string): Promise<Array<Comment>>;
     getESPStatus(): Promise<boolean>;
     getInviteCodes(): Promise<Array<InviteCode>>;
     getMyPosts(): Promise<Array<Post>>;

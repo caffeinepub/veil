@@ -1,87 +1,202 @@
 {
   "kind": "build_request",
-  "title": "Unified Emotion-Based Text Reaction System",
+  "title": "Admin Dashboard with Moderation Tools and Emotional Monitoring Alerts",
   "projectName": "Veil",
   "priority": "normal",
   "requirements": [
     {
       "id": "REQ-1",
-      "text": "Add a `reactions` stable table to the backend with fields: id (Text), postId (Text), userId (Principal), reactionText (Text), createdAt (Int). Enforce one reaction per user per post — if a reaction already exists for that user+post pair, return an error. Expose `addReaction(postId: Text, reactionText: Text)` and `getReactionsForPost(postId: Text)` query functions. Do not expose reaction counts in any public-facing query.",
+      "text": "Extend the backend to support admin-only moderation actions: permanently remove a user (delete their account and all associated posts/comments), suspend a user (toggle suspended status), apply a 24-hour public posting cooldown to a specific user, and remove (delete) any post by postId. All these actions must be restricted to callers with the admin role.",
       "target": "backend",
       "source": {
         "messageIds": [
-          "msg-3"
+          "msg-20"
         ],
         "quotes": [
-          "Store reactions table: id, postId, userId, reactionText, createdAt",
-          "One reaction per user per post."
+          "Remove post",
+          "Suspend user",
+          "Permanently remove user",
+          "Apply 24-hour public posting cooldown"
         ]
       },
       "acceptanceCriteria": [
-        "A user can submit exactly one reaction per post; a second attempt returns an error.",
-        "getReactionsForPost returns the list of reaction texts without counts or user identities exposed beyond ownership.",
-        "addReaction persists the reaction with a timestamp.",
-        "No aggregate count field is returned in any query response."
+        "adminRemoveUser(userId) deletes the user record and all posts/comments authored by that user.",
+        "adminSuspendUser(userId) sets a suspended flag on the user; suspended users cannot post or comment.",
+        "adminApplyCooldown(userId) sets a cooldownUntil timestamp 24 hours from now; user cannot make public posts until the cooldown expires.",
+        "adminRemovePost(postId) deletes the post and associated comments/flags.",
+        "All four functions return an error variant if the caller is not admin."
       ]
     },
     {
       "id": "REQ-2",
-      "text": "Add React Query hooks `useAddReaction` (mutation) and `usePostReactions` (query) in `frontend/src/hooks/useQueries.ts` wired to the new backend `addReaction` and `getReactionsForPost` functions.",
-      "target": "frontend",
+      "text": "Add a backend function to retrieve all registered users (for the admin 'View all users' panel), returning each user's id, pseudonym, region, suspended status, subscription status, and cooldownUntil timestamp. Restrict this to admin callers only.",
+      "target": "backend",
       "source": {
         "messageIds": [
-          "msg-3"
+          "msg-20"
         ],
         "quotes": [
-          "Store reactions table"
+          "View all users"
         ]
       },
       "acceptanceCriteria": [
-        "useAddReaction mutation calls backend addReaction and invalidates the post reactions cache on success.",
-        "usePostReactions query fetches reactions for a given postId.",
-        "Both hooks use the actor from useActor."
+        "adminGetAllUsers() returns a list of all users with at minimum: userId, pseudonym, region, isSuspended, subscriptionStatus, cooldownUntil.",
+        "Returns an error or empty list with an error if caller is not admin."
       ]
     },
     {
       "id": "REQ-3",
-      "text": "Replace the existing emoji reaction UI in `PublicPostCard.tsx` with emotion-type-specific text reaction buttons. No emojis, no counts, no reaction numbers displayed anywhere. Show only the reaction text options as soft-UI buttons. The available reaction texts depend on the post's emotionType: HAPPY → ['I'm smiling with you.', 'This is beautiful.', 'You deserve this.', 'So happy for you.']; CONFESS → ['I see you.', 'That took courage.', 'You're not alone in this.', 'Thank you for sharing this.']; BROKE → ['I'm holding space for you.', 'You don't have to carry this alone.', 'This sounds heavy.', 'Stay. We're here.']. If the current user has already reacted to the post, show their chosen reaction text highlighted softly (no count). Post owners cannot react to their own posts.",
-      "target": "frontend",
+      "text": "Add a backend function to retrieve all flagged posts (status = pending) with their associated flag records (id, postId, flaggedBy, reason, createdAt, status). Restrict to admin callers.",
+      "target": "backend",
       "source": {
         "messageIds": [
-          "msg-3"
+          "msg-20"
         ],
         "quotes": [
-          "No emojis.",
-          "No counts displayed.",
-          "No reaction numbers shown anywhere.",
-          "Reactions depend on emotionType.",
-          "No animation stacking.",
-          "Soft UI feedback only."
+          "View flagged posts"
         ]
       },
       "acceptanceCriteria": [
-        "HAPPY posts show exactly the 4 HAPPY reaction text options as buttons.",
-        "CONFESS posts show exactly the 4 CONFESS reaction text options as buttons.",
-        "BROKE posts show exactly the 4 BROKE reaction text options as buttons.",
-        "No emoji characters appear in the reaction UI.",
-        "No reaction counts or numbers are displayed anywhere on the card.",
-        "A user who has already reacted sees their chosen reaction text softly highlighted; the other options are inactive.",
-        "Post owners do not see reaction buttons on their own posts.",
-        "Clicking a reaction button calls useAddReaction; on success the selected reaction is visually confirmed with soft styling only."
+        "adminGetFlaggedPosts() returns all flag records with status 'pending', including the associated post content.",
+        "Only accessible to admin callers."
+      ]
+    },
+    {
+      "id": "REQ-4",
+      "text": "Implement the Emotional Monitoring Alert in the backend: track BROKE-emotion post counts per user per day. Expose an admin-only query that returns a list of users who have posted 5 or more BROKE posts within any 3 consecutive calendar days. No automated messages are sent; this is a read-only alert feed for the admin.",
+      "target": "backend",
+      "source": {
+        "messageIds": [
+          "msg-20"
+        ],
+        "quotes": [
+          "If user posts 5 BROKE posts within 3 consecutive days: Trigger soft alert in dashboard. No auto message sent. Admin manually decides action."
+        ]
+      },
+      "acceptanceCriteria": [
+        "adminGetEmotionalAlerts() returns a list of { userId, pseudonym, brokePostCount, windowDates } for users matching the 5-BROKE-in-3-consecutive-days threshold.",
+        "No message or notification is sent to the flagged user.",
+        "Alert resets or is suppressed if the user no longer meets the threshold.",
+        "Only accessible to admin callers."
+      ]
+    },
+    {
+      "id": "REQ-5",
+      "text": "Update the AdminDashboard frontend to include a dedicated 'All Users' tab that lists every registered user with their pseudonym, region, subscription status, and suspended/cooldown state. Each user row must have action buttons: Suspend/Unsuspend, Apply 24-hr Cooldown, and Permanently Remove User (with a confirmation dialog before destructive actions).",
+      "target": "frontend",
+      "source": {
+        "messageIds": [
+          "msg-20"
+        ],
+        "quotes": [
+          "View all users",
+          "Suspend user",
+          "Permanently remove user",
+          "Apply 24-hour public posting cooldown"
+        ]
+      },
+      "acceptanceCriteria": [
+        "All Users tab renders a list of all users fetched from adminGetAllUsers().",
+        "Each row shows pseudonym, region, subscription status, suspended badge (if applicable), and cooldown expiry (if active).",
+        "Suspend/Unsuspend button toggles suspended status and invalidates the user list query.",
+        "Apply 24-hr Cooldown button calls adminApplyCooldown and shows a success toast.",
+        "Permanently Remove User button opens a confirmation dialog; on confirm, calls adminRemoveUser and removes the user from the list.",
+        "All mutation buttons are disabled while a request is in-flight."
+      ]
+    },
+    {
+      "id": "REQ-6",
+      "text": "Update the AdminDashboard frontend 'Flagged Posts' tab to support a 'Remove Post' action on each flagged post entry, in addition to existing review functionality. Show flag reason, flaggedBy pseudonym, and createdAt. Include a confirmation dialog before removal.",
+      "target": "frontend",
+      "source": {
+        "messageIds": [
+          "msg-20"
+        ],
+        "quotes": [
+          "View flagged posts",
+          "Remove post"
+        ]
+      },
+      "acceptanceCriteria": [
+        "Flagged Posts tab fetches data from adminGetFlaggedPosts().",
+        "Each entry shows post content preview, flag reason, reporter pseudonym (or anonymized ID), and flag timestamp.",
+        "A 'Remove Post' button opens a confirmation dialog; on confirm, calls adminRemovePost(postId).",
+        "After removal, the flagged post entry disappears from the list and a success toast is shown."
+      ]
+    },
+    {
+      "id": "REQ-7",
+      "text": "Add an 'Emotional Monitoring Alerts' section to the AdminDashboard frontend. This section displays a list of users who have triggered the 5-BROKE-in-3-consecutive-days threshold. Each alert card shows the user's pseudonym, the number of BROKE posts, and the date window. No action is taken automatically; the admin can manually choose to suspend, cooldown, or remove the user from the existing user management controls.",
+      "target": "frontend",
+      "source": {
+        "messageIds": [
+          "msg-20"
+        ],
+        "quotes": [
+          "Emotional Monitoring Alert",
+          "If user posts 5 BROKE posts within 3 consecutive days: Trigger soft alert in dashboard. No auto message sent. Admin manually decides action."
+        ]
+      },
+      "acceptanceCriteria": [
+        "A clearly labeled 'Emotional Monitoring Alerts' tab or section is visible only in the AdminDashboard.",
+        "Fetches data from adminGetEmotionalAlerts() via a React Query hook.",
+        "Each alert card displays: user pseudonym, BROKE post count, and the 3-day window dates.",
+        "If no alerts are present, a 'No active alerts' empty state is shown.",
+        "No automated action buttons are shown; admin must navigate to All Users tab to act.",
+        "Alert cards use a visually distinct soft-warning style (e.g., amber/yellow tone) to indicate concern without alarm."
+      ]
+    },
+    {
+      "id": "REQ-8",
+      "text": "Add all new admin mutation and query hooks to useQueries.ts: useAdminGetAllUsers, useAdminRemoveUser, useAdminSuspendUser, useAdminApplyCooldown, useAdminRemovePost, useAdminGetEmotionalAlerts, and useAdminGetFlaggedPosts (if not already present). These hooks must follow the existing React Query patterns in useQueries.ts.",
+      "target": "frontend",
+      "source": {
+        "messageIds": [
+          "msg-20"
+        ],
+        "quotes": [
+          "Admin can:",
+          "Admin sees:"
+        ]
+      },
+      "acceptanceCriteria": [
+        "All six new hooks are defined in useQueries.ts.",
+        "Mutation hooks call invalidateQueries on the relevant query keys after success.",
+        "Query hooks use appropriate staleTime and are keyed consistently with existing conventions."
+      ]
+    },
+    {
+      "id": "REQ-9",
+      "text": "Generate a migration module (backend/migration.mo) to handle any schema changes introduced by the new user fields (isSuspended, cooldownUntil) and the new flag/alert tracking structures, ensuring existing user records are migrated with safe default values.",
+      "target": "backend",
+      "source": {
+        "messageIds": [
+          "msg-20"
+        ],
+        "quotes": [
+          "Suspend user",
+          "Apply 24-hour public posting cooldown"
+        ]
+      },
+      "acceptanceCriteria": [
+        "migration.mo adds isSuspended = false and cooldownUntil = null to all existing user records that lack these fields.",
+        "Existing posts, comments, and flag records are preserved unchanged.",
+        "Migration is idempotent — running it twice produces the same result."
       ]
     }
   ],
   "constraints": [
-    "No emoji characters anywhere in the reaction system.",
-    "No reaction counts or aggregate numbers exposed in UI or API responses.",
-    "One reaction per user per post — enforced at the backend level.",
-    "Do not modify files under frontend/src/hooks/useInternetIdentity.ts, frontend/src/hooks/useActor.ts, frontend/src/main.tsx, or frontend/src/components/ui."
+    "All admin actions must verify the caller has the admin role before executing; return an error variant for unauthorized callers.",
+    "Emotional monitoring alerts are read-only; no automated messages or notifications are sent to users.",
+    "Destructive actions (remove user, remove post) must be confirmed via a dialog before executing.",
+    "Do not modify files in frontend/src/hooks/useInternetIdentity.ts, frontend/src/hooks/useActor.ts, frontend/src/main.tsx, or frontend/src/components/ui."
   ],
   "nonGoals": [
-    "Reaction editing or deletion by users.",
-    "Displaying which users reacted to a post.",
-    "Animated stacking or reaction count badges.",
-    "Reactions on private posts."
+    "Automated messaging or notifications to users flagged by emotional monitoring.",
+    "Email or push notification integrations.",
+    "Admin ability to edit or modify post content.",
+    "Any role other than admin accessing these moderation features.",
+    "Real-time dashboard updates via WebSockets."
   ],
   "imageRequirements": {
     "required": [],

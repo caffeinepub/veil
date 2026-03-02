@@ -13,12 +13,15 @@ import Nat "mo:core/Nat";
 import InviteLinksModule "invite-links/invite-links-module";
 import MixinAuthorization "authorization/MixinAuthorization";
 import AccessControl "authorization/access-control";
+import Migration "migration";
 
+(with migration = Migration.run)
 actor {
   let accessControlState = AccessControl.initState();
   let inviteState = InviteLinksModule.initState();
   include MixinAuthorization(accessControlState);
 
+  // Persistent Variables
   let users = Map.empty<Principal, User>();
   let posts = Map.empty<Text, Post>();
   let reactions = Map.empty<Text, Reaction>();
@@ -28,6 +31,9 @@ actor {
   let inviteCodes = Map.empty<Text, InviteCode>();
   let espFlaggedUsers = Map.empty<Principal, Bool>();
   let lastToggleTime = Map.empty<Text, Time.Time>();
+  let emotionalAlertCounts = Map.empty<Principal, List.List<(Time.Time, Nat)>>();
+
+  // Types
 
   public type Region = {
     #India;
@@ -97,9 +103,10 @@ actor {
   public type Comment = {
     id : Text;
     postId : Text;
-    author : Principal;
+    userId : Principal;
     content : Text;
-    createdAt : Time.Time;
+    createdAt : Int;
+    flagged : Bool;
   };
 
   public type InviteCode = {
@@ -774,9 +781,10 @@ actor {
         let comment : Comment = {
           id = commentId;
           postId;
-          author = caller;
+          userId = caller;
           content;
           createdAt = Time.now();
+          flagged = false;
         };
         comments.add(commentId, comment);
         commentId;
@@ -787,7 +795,7 @@ actor {
     };
   };
 
-  public query ({ caller }) func getCommentsForPost(postId : Text) : async [Comment] {
+  public query ({ caller }) func getCommentsByPost(postId : Text) : async [Comment] {
     if (caller.isAnonymous()) {
       Runtime.trap("Anonymous principals cannot view comments");
     };
@@ -797,12 +805,46 @@ actor {
         if (post.visibility == #privateView) {
           Runtime.trap("Cannot view comments on a private post");
         };
-        comments.values().filter(func(c : Comment) : Bool {
+        let postComments = comments.values().filter(func(c : Comment) : Bool {
           c.postId == postId;
         }).toArray();
+
+        postComments.sort(
+          func(a, b) {
+            if (a.createdAt < b.createdAt) { #less } else if (a.createdAt > b.createdAt) { #greater } else {
+              #equal;
+            };
+          }
+        );
       };
       case (null) {
         Runtime.trap("Post does not exist");
+      };
+    };
+  };
+
+  public shared ({ caller }) func flagComment(commentId : Text) : async () {
+    requireRegisteredUser(caller);
+    switch (comments.get(commentId)) {
+      case (?comment) {
+        if (comment.flagged) {
+          Runtime.trap("Comment is already flagged");
+        };
+        let updatedComment : Comment = { comment with flagged = true };
+        comments.add(commentId, updatedComment);
+      };
+      case (null) {
+        Runtime.trap("Comment does not exist");
+      };
+    };
+  };
+
+  public shared ({ caller }) func deleteComment(commentId : Text) : async () {
+    requireAdmin(caller);
+    switch (comments.get(commentId)) {
+      case (?_) { comments.remove(commentId) };
+      case (null) {
+        Runtime.trap("Comment does not exist");
       };
     };
   };
@@ -971,5 +1013,213 @@ actor {
       case (?_) { #existingUser };
       case (null) { #newUser };
     };
+  };
+
+  // ------------ ADMIN MODERATION ------------
+
+  public shared ({ caller }) func adminPermanentlyRemoveUser(userId : Principal) : async () {
+    if (not AccessControl.isAdmin(accessControlState, caller)) {
+      Runtime.trap("Unauthorized: Only admins can perform this action");
+    };
+
+    switch (users.get(userId)) {
+      case (null) { Runtime.trap("User does not exist") };
+      case (?_) {
+        // Remove all posts by user
+        let userPosts = posts.values().filter(
+          func(p) { p.author == userId }
+        ).toArray();
+        for (post in userPosts.values()) {
+          posts.remove(post.id);
+        };
+
+        // Remove all comments by user
+        for ((_, comment) in comments.entries()) {
+          if (comment.userId == userId) {
+            comments.remove(comment.id);
+          };
+        };
+
+        // Remove all direct reactions
+        for ((_, reaction) in reactions.entries()) {
+          if (reaction.author == userId) {
+            reactions.remove(reaction.id);
+          };
+        };
+
+        // Remove all text reactions
+        for ((_, tReaction) in textReactions.entries()) {
+          if (tReaction.userId == userId) {
+            textReactions.remove(tReaction.id);
+          };
+        };
+
+        // Remove user flags (where they are reporter)
+        for ((_, flag) in flags.entries()) {
+          if (flag.reporter == userId) {
+            flags.remove(flag.id);
+          };
+        };
+
+        // Remove user record
+        users.remove(userId);
+      };
+    };
+  };
+
+  public shared ({ caller }) func adminToggleUserSuspension(userId : Principal) : async Bool {
+    if (not AccessControl.isAdmin(accessControlState, caller)) {
+      Runtime.trap("Unauthorized: Only admins can perform this action");
+    };
+
+    switch (users.get(userId)) {
+      case (null) { Runtime.trap("User does not exist") };
+      case (?user) {
+        let updated : User = { user with suspended = (not user.suspended) };
+        users.add(userId, updated);
+        updated.suspended;
+      };
+    };
+  };
+
+  public shared ({ caller }) func adminApplyPublicPostingCooldown(userId : Principal) : async () {
+    if (not AccessControl.isAdmin(accessControlState, caller)) {
+      Runtime.trap("Unauthorized: Only admins can perform this action");
+    };
+
+    switch (users.get(userId)) {
+      case (null) { Runtime.trap("User does not exist") };
+      case (?user) {
+        let now = Time.now();
+        let updated : User = {
+          id = user.id;
+          pseudonym = user.pseudonym;
+          region = user.region;
+          subscriptionStatus = user.subscriptionStatus;
+          createdAt = user.createdAt;
+          suspended = user.suspended;
+          hasAcknowledgedEntryMessage = user.hasAcknowledgedEntryMessage;
+          hasAcknowledgedPublicPostMessage = user.hasAcknowledgedPublicPostMessage;
+        };
+        users.add(userId, updated);
+      };
+    };
+  };
+
+  public shared ({ caller }) func adminRemovePost(postId : Text) : async () {
+    if (not AccessControl.isAdmin(accessControlState, caller)) {
+      Runtime.trap("Unauthorized: Only admins can perform this action");
+    };
+    switch (posts.get(postId)) {
+      case (null) { Runtime.trap("Post does not exist") };
+      case (?_) {
+        posts.remove(postId); // Remove post
+      };
+    };
+  };
+
+  public query ({ caller }) func adminGetAllUsersExtended() : async [(Principal, UserProfile)] {
+    if (not AccessControl.isAdmin(accessControlState, caller)) {
+      Runtime.trap("Unauthorized: Only admins can perform this action");
+    };
+
+    users.toArray().map(func((userId, user)) {
+      (
+        userId,
+        {
+          pseudonym = user.pseudonym;
+          region = user.region;
+          subscriptionStatus = user.subscriptionStatus;
+          suspended = user.suspended;
+          hasAcknowledgedEntryMessage = user.hasAcknowledgedEntryMessage;
+          hasAcknowledgedPublicPostMessage = user.hasAcknowledgedPublicPostMessage;
+        },
+      );
+    });
+  };
+
+  public query ({ caller }) func adminGetAllFlaggedPostsWithRecords() : async [(Text, [Flag])] {
+    if (not AccessControl.isAdmin(accessControlState, caller)) {
+      Runtime.trap("Unauthorized: Only admins can perform this action");
+    };
+
+    let flaggedPosts = posts.entries().filter(
+      func((_, p)) { p.visibility == #publicView }
+    );
+
+    flaggedPosts.toArray().map(func((postId, _)) {
+      let postFlags = flags.values().filter(func(f) { f.postId == postId }).toArray();
+      (postId, postFlags);
+    });
+  };
+
+  func processPostForEmotionalMonitoring(post : Post) {
+    if (post.emotionType != #broke) { return };
+
+    // Only process posts from the last 3 days
+    let now = Time.now();
+    let threeDaysAgo = now - (3 * 24 * 60 * 60 * 1_000_000_000);
+
+    // Keep only records from the last 3 days
+    let currentCounts = switch (emotionalAlertCounts.get(post.author)) {
+      case (?counts) {
+        counts.filter(
+          func((timestamp, _)) {
+            timestamp >= threeDaysAgo;
+          }
+        );
+      };
+      case (null) {
+        List.empty<(Time.Time, Nat)>();
+      };
+    };
+
+    // Add the current post
+    currentCounts.add((now, 1));
+
+    // Update state
+    emotionalAlertCounts.add(post.author, currentCounts);
+
+    // Check for emotional alert (3 posts within 3 days)
+    let brokePostCount = currentCounts.toArray().size();
+    if (brokePostCount >= 3) {
+      let newPostCount = brokePostCount + 1;
+      if (newPostCount >= 5) {
+        addPermanentFlag(post.author);
+      };
+    };
+  };
+
+  func addPermanentFlag(_user : Principal) {};
+
+  public query ({ caller }) func adminGetHighRiskEmotionAlerts() : async [(Principal, Nat)] {
+    if (not AccessControl.isAdmin(accessControlState, caller)) {
+      Runtime.trap("Unauthorized: Only admins can perform this action");
+    };
+
+    let now = Time.now();
+    let threeDaysAgo = now - (3 * 24 * 60 * 60 * 1_000_000_000);
+    let highRiskUsers = List.empty<(Principal, Nat)>();
+
+    for ((userId, dailyCounts) in emotionalAlertCounts.entries()) {
+      let recentCounts = matchListByTime(dailyCounts, threeDaysAgo);
+      let postCount = recentCounts.toArray().size();
+
+      if (postCount >= 3) {
+        highRiskUsers.add((userId, postCount));
+      };
+    };
+
+    highRiskUsers.toArray();
+  };
+
+  func matchListByTime(list : List.List<(Time.Time, Nat)>, minTime : Time.Time) : List.List<(Time.Time, Nat)> {
+    let matchingEntries = List.empty<(Time.Time, Nat)>();
+    for ((timestamp, _) in list.values()) {
+      if (timestamp >= minTime) {
+        matchingEntries.add((timestamp, 1));
+      };
+    };
+    matchingEntries;
   };
 };

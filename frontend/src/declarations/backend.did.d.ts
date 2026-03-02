@@ -13,8 +13,9 @@ import type { Principal } from '@icp-sdk/core/principal';
 export interface Comment {
   'id' : string,
   'content' : string,
-  'createdAt' : Time,
-  'author' : Principal,
+  'userId' : Principal,
+  'createdAt' : bigint,
+  'flagged' : boolean,
   'postId' : string,
 }
 export type EmotionType = { 'confess' : null } |
@@ -111,18 +112,28 @@ export interface _SERVICE {
   'addComment' : ActorMethod<[string, string], string>,
   'addReaction' : ActorMethod<[string, ReactionType], string>,
   'addTextReaction' : ActorMethod<[string, string], string>,
+  'adminApplyPublicPostingCooldown' : ActorMethod<[Principal], undefined>,
   'adminClearESPFlag' : ActorMethod<[Principal], undefined>,
   'adminDeletePost' : ActorMethod<[string], undefined>,
+  'adminGetAllFlaggedPostsWithRecords' : ActorMethod<
+    [],
+    Array<[string, Array<Flag>]>
+  >,
   'adminGetAllPosts' : ActorMethod<[], Array<Post>>,
   'adminGetAllUsers' : ActorMethod<[], Array<User>>,
+  'adminGetAllUsersExtended' : ActorMethod<[], Array<[Principal, UserProfile]>>,
   'adminGetESPFlaggedUsers' : ActorMethod<[], Array<Principal>>,
   'adminGetFlaggedPosts' : ActorMethod<[], Array<Flag>>,
+  'adminGetHighRiskEmotionAlerts' : ActorMethod<[], Array<[Principal, bigint]>>,
   'adminGetUserPosts' : ActorMethod<[Principal], Array<Post>>,
+  'adminPermanentlyRemoveUser' : ActorMethod<[Principal], undefined>,
+  'adminRemovePost' : ActorMethod<[string], undefined>,
   'adminSetSubscriptionStatus' : ActorMethod<
     [Principal, SubscriptionStatus],
     undefined
   >,
   'adminSuspendUser' : ActorMethod<[Principal], undefined>,
+  'adminToggleUserSuspension' : ActorMethod<[Principal], boolean>,
   'adminUnsuspendUser' : ActorMethod<[Principal], undefined>,
   'assignCallerUserRole' : ActorMethod<[Principal, UserRole], undefined>,
   'checkLoginStatus' : ActorMethod<
@@ -132,12 +143,14 @@ export interface _SERVICE {
       { 'newUser' : null }
   >,
   'createPost' : ActorMethod<[EmotionType, string, [] | [Visibility]], Result>,
+  'deleteComment' : ActorMethod<[string], undefined>,
+  'flagComment' : ActorMethod<[string], undefined>,
   'flagPost' : ActorMethod<[string, string], string>,
   'generateInviteCode' : ActorMethod<[], string>,
   'getAllRSVPs' : ActorMethod<[], Array<RSVP>>,
   'getCallerUserProfile' : ActorMethod<[], [] | [UserProfile]>,
   'getCallerUserRole' : ActorMethod<[], UserRole>,
-  'getCommentsForPost' : ActorMethod<[string], Array<Comment>>,
+  'getCommentsByPost' : ActorMethod<[string], Array<Comment>>,
   'getESPStatus' : ActorMethod<[], boolean>,
   'getInviteCodes' : ActorMethod<[], Array<InviteCode>>,
   'getMyPosts' : ActorMethod<[], Array<Post>>,

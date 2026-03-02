@@ -1,4 +1,4 @@
-import { useAdminGetFlaggedPosts, useAdminDeletePost } from '../hooks/useQueries';
+import { useAdminGetFlaggedPosts, useAdminRemovePost } from '../hooks/useQueries';
 import { type Flag } from '../backend';
 import { Button } from '@/components/ui/button';
 import {
@@ -14,21 +14,22 @@ import {
 } from '@/components/ui/alert-dialog';
 import { Loader2, Flag as FlagIcon, Trash2 } from 'lucide-react';
 import { useState } from 'react';
+import { toast } from 'sonner';
 
 export default function AdminFlaggedPosts() {
   const { data: flags, isLoading } = useAdminGetFlaggedPosts();
-  const deletePost = useAdminDeletePost();
-  const [deleteErrors, setDeleteErrors] = useState<Record<string, string>>({});
+  const removePost = useAdminRemovePost();
+  const [removeErrors, setRemoveErrors] = useState<Record<string, string>>({});
 
-  const handleDelete = async (postId: string) => {
+  const handleRemove = async (postId: string) => {
     try {
-      await deletePost.mutateAsync(postId);
-      setDeleteErrors(prev => { const n = { ...prev }; delete n[postId]; return n; });
+      await removePost.mutateAsync(postId);
+      setRemoveErrors(prev => { const n = { ...prev }; delete n[postId]; return n; });
+      toast.success('Post removed successfully.');
     } catch (err: unknown) {
-      setDeleteErrors(prev => ({
-        ...prev,
-        [postId]: err instanceof Error ? err.message : 'Failed to delete post.',
-      }));
+      const msg = err instanceof Error ? err.message : 'Failed to remove post.';
+      setRemoveErrors(prev => ({ ...prev, [postId]: msg }));
+      toast.error(msg);
     }
   };
 
@@ -78,24 +79,32 @@ export default function AdminFlaggedPosts() {
                 <Button
                   size="sm"
                   variant="ghost"
-                  disabled={deletePost.isPending}
+                  disabled={removePost.isPending}
                   className="text-muted-foreground hover:text-foreground shrink-0"
                 >
-                  <Trash2 size={13} className="mr-1" />
-                  Delete Post
+                  {removePost.isPending ? (
+                    <Loader2 size={13} className="animate-spin mr-1" />
+                  ) : (
+                    <Trash2 size={13} className="mr-1" />
+                  )}
+                  Remove Post
                 </Button>
               </AlertDialogTrigger>
               <AlertDialogContent>
                 <AlertDialogHeader>
-                  <AlertDialogTitle>Delete this post?</AlertDialogTitle>
+                  <AlertDialogTitle>Remove this post?</AlertDialogTitle>
                   <AlertDialogDescription>
-                    This action cannot be undone. The post and all its flags will be permanently removed.
+                    This will permanently remove the post from the community feed.
+                    This action cannot be undone.
                   </AlertDialogDescription>
                 </AlertDialogHeader>
                 <AlertDialogFooter>
                   <AlertDialogCancel>Cancel</AlertDialogCancel>
-                  <AlertDialogAction onClick={() => handleDelete(postId)}>
-                    Delete
+                  <AlertDialogAction
+                    onClick={() => handleRemove(postId)}
+                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                  >
+                    Remove Post
                   </AlertDialogAction>
                 </AlertDialogFooter>
               </AlertDialogContent>
@@ -106,7 +115,7 @@ export default function AdminFlaggedPosts() {
           <div className="space-y-1.5">
             {postFlags.map((flag: Flag) => (
               <div key={flag.id} className="bg-muted/30 rounded-lg px-3 py-2 space-y-0.5">
-                <p className="text-xs text-foreground">{flag.reason}</p>
+                <p className="text-xs text-foreground font-medium">{flag.reason}</p>
                 <p className="text-xs text-muted-foreground">
                   Reported by {flag.reporter.toString().slice(0, 12)}… ·{' '}
                   {new Date(Number(flag.createdAt / BigInt(1_000_000))).toLocaleDateString()}
@@ -115,8 +124,8 @@ export default function AdminFlaggedPosts() {
             ))}
           </div>
 
-          {deleteErrors[postId] && (
-            <p className="text-xs text-amber-700 dark:text-amber-400">{deleteErrors[postId]}</p>
+          {removeErrors[postId] && (
+            <p className="text-xs text-amber-700 dark:text-amber-400">{removeErrors[postId]}</p>
           )}
         </div>
       ))}
