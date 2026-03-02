@@ -1,228 +1,193 @@
-import { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useNavigate } from '@tanstack/react-router';
-import { useAuth } from '../hooks/useAuth';
-import {
-  useCreatePost,
-  useGetCallerUserProfile,
-  useAcknowledgeEntryMessage,
-  useAcknowledgePublicPostMessage,
-} from '../hooks/useQueries';
+import { useCreatePost } from '../hooks/useQueries';
 import { EmotionType, Visibility } from '../backend';
-import { toast } from 'sonner';
+import { countWords, needsMinimumWords, hasMinimumWords } from '../utils/wordCounter';
 import EntryProtectionModal from '../components/EntryProtectionModal';
 import PublicPostWarningModal from '../components/PublicPostWarningModal';
-import SubscriptionBanner from '../components/SubscriptionBanner';
-import { canCreatePost } from '../utils/subscriptionHelpers';
-import { hasMinimumWords, needsMinimumWords, countWords } from '../utils/wordCounter';
+import EmotionBadge from '../components/EmotionBadge';
+import { Button } from '@/components/ui/button';
+import { Textarea } from '@/components/ui/textarea';
+import { Label } from '@/components/ui/label';
+import { Switch } from '@/components/ui/switch';
+import { Loader2, AlertTriangle } from 'lucide-react';
 
-const EMOTION_OPTIONS = [
-  {
-    type: EmotionType.confess,
-    label: 'Confess',
-    description: 'Something you need to say out loud.',
-    guidance: 'Take your time. Write at least 24 words.',
-  },
-  {
-    type: EmotionType.broke,
-    label: 'Broke',
-    description: 'Something that is weighing on you.',
-    guidance: 'You are safe here. Write what you need to.',
-  },
-  {
-    type: EmotionType.happy,
-    label: 'Happy',
-    description: 'Something that brought you lightness.',
-    guidance: 'Share what made you feel this way. At least 24 words.',
-  },
-];
+const EMOTION_TYPES: EmotionType[] = [EmotionType.happy, EmotionType.confess, EmotionType.broke];
 
 export default function PostCreationPage() {
-  const { isAuthenticated, isInitializing } = useAuth();
   const navigate = useNavigate();
-  const { data: profile, isLoading: profileLoading } = useGetCallerUserProfile();
   const createPost = useCreatePost();
-  const acknowledgeEntry = useAcknowledgeEntryMessage();
-  const acknowledgePublicPost = useAcknowledgePublicPostMessage();
 
-  const [selectedEmotion, setSelectedEmotion] = useState<EmotionType>(EmotionType.confess);
+  const [acknowledged, setAcknowledged] = useState(false);
+  const [showPublicWarning, setShowPublicWarning] = useState(false);
+  const [publicWarningAcknowledged, setPublicWarningAcknowledged] = useState(false);
+
+  const [emotionType, setEmotionType] = useState<EmotionType>(EmotionType.confess);
   const [content, setContent] = useState('');
   const [isPublic, setIsPublic] = useState(false);
-  const [showPublicWarning, setShowPublicWarning] = useState(false);
-  const [pendingSubmit, setPendingSubmit] = useState(false);
-
-  useEffect(() => {
-    if (!isInitializing && !isAuthenticated) {
-      navigate({ to: '/login' });
-    }
-  }, [isAuthenticated, isInitializing, navigate]);
-
-  if (isInitializing || profileLoading) {
-    return (
-      <div className="flex items-center justify-center min-h-[calc(100vh-3rem)]">
-        <p className="text-sm text-muted-foreground">Loading…</p>
-      </div>
-    );
-  }
-
-  if (!isAuthenticated || !profile) return null;
-
-  const canPost = canCreatePost(profile.subscriptionStatus);
-  const needsEntryAck = !profile.hasAcknowledgedEntryMessage;
+  const [error, setError] = useState('');
 
   const wordCount = countWords(content);
-  const needsMinWords = needsMinimumWords(selectedEmotion);
-  const meetsMinWords = !needsMinWords || hasMinimumWords(content);
-  const maxChars = 1000;
+  const requiresMinWords = needsMinimumWords(emotionType);
+  const meetsWordCount = !requiresMinWords || hasMinimumWords(content);
 
-  const handleAcknowledgeEntry = async () => {
-    await acknowledgeEntry.mutateAsync();
-  };
-
-  const handleAcknowledgePublicPost = async () => {
-    await acknowledgePublicPost.mutateAsync();
-    if (pendingSubmit) {
-      setPendingSubmit(false);
-      await submitPost();
+  const handleVisibilityToggle = (checked: boolean) => {
+    setIsPublic(checked);
+    if (checked && !publicWarningAcknowledged) {
+      setShowPublicWarning(true);
     }
   };
 
-  const submitPost = async () => {
-    try {
-      await createPost.mutateAsync({
-        emotionType: selectedEmotion,
-        content: content.trim(),
-        visibility: isPublic ? Visibility.publicView : Visibility.privateView,
-      });
-      toast.success('Your entry has been saved.');
-      setContent('');
-      setIsPublic(false);
-      navigate({ to: '/posts' });
-    } catch (err: any) {
-      toast.error(err?.message || 'Could not save entry.');
-    }
+  const handlePublicWarningAcknowledge = () => {
+    setPublicWarningAcknowledged(true);
+    setShowPublicWarning(false);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!content.trim() || !meetsMinWords) return;
+    setError('');
 
-    if (isPublic && !profile.hasAcknowledgedPublicPostMessage) {
-      setPendingSubmit(true);
+    if (!content.trim()) {
+      setError('Please write something before submitting.');
+      return;
+    }
+
+    if (!meetsWordCount) {
+      setError('Please write at least 24 words before submitting.');
+      return;
+    }
+
+    if (isPublic && !publicWarningAcknowledged) {
       setShowPublicWarning(true);
       return;
     }
 
-    await submitPost();
+    try {
+      await createPost.mutateAsync({
+        emotionType,
+        content: content.trim(),
+        visibility: isPublic ? Visibility.publicView : Visibility.privateView,
+      });
+      navigate({ to: '/posts' });
+    } catch (err: unknown) {
+      setError((err as Error)?.message ?? 'Failed to create post.');
+    }
   };
 
-  const currentOption = EMOTION_OPTIONS.find((o) => o.type === selectedEmotion);
-
   return (
-    <div className="max-w-2xl mx-auto px-5 py-10 flex flex-col gap-8">
-      {needsEntryAck && (
-        <EntryProtectionModal open={needsEntryAck} onAcknowledge={handleAcknowledgeEntry} />
-      )}
-      {showPublicWarning && (
-        <PublicPostWarningModal
-          open={showPublicWarning}
-          onAcknowledge={() => {
-            setShowPublicWarning(false);
-            handleAcknowledgePublicPost();
-          }}
-        />
-      )}
+    <>
+      <EntryProtectionModal open={!acknowledged} onAcknowledge={() => setAcknowledged(true)} />
+      <PublicPostWarningModal
+        open={showPublicWarning}
+        onAcknowledge={handlePublicWarningAcknowledge}
+      />
 
-      {!canPost && profile.region && (
-        <SubscriptionBanner region={profile.region} />
-      )}
+      <main className="max-w-2xl mx-auto px-4 py-10 space-y-8">
+        <div className="space-y-1">
+          <h1 className="text-2xl font-serif font-semibold text-foreground">New Entry</h1>
+          <p className="text-sm text-muted-foreground">Express yourself honestly and safely.</p>
+        </div>
 
-      <div className="flex flex-col gap-2">
-        <h1 className="font-serif text-xl font-medium text-foreground">Write</h1>
-        <p className="text-sm text-muted-foreground">
-          This is your private space. Take your time.
-        </p>
-      </div>
-
-      <form onSubmit={handleSubmit} className="flex flex-col gap-6">
-        {/* Emotion selector */}
-        <div className="flex flex-col gap-2">
-          <p className="text-xs text-muted-foreground">How are you feeling?</p>
-          <div className="flex gap-2 flex-wrap">
-            {EMOTION_OPTIONS.map((opt) => (
-              <button
-                key={opt.type}
-                type="button"
-                onClick={() => setSelectedEmotion(opt.type)}
-                className={`px-4 py-2 rounded-xl text-sm border transition-all ${
-                  selectedEmotion === opt.type
-                    ? 'bg-secondary text-secondary-foreground border-border'
-                    : 'bg-transparent text-muted-foreground border-border hover:text-foreground'
-                }`}
-              >
-                {opt.label}
-              </button>
-            ))}
+        <form onSubmit={handleSubmit} className="space-y-6">
+          {/* Emotion Type Selector */}
+          <div className="space-y-2">
+            <Label>Emotional Mode</Label>
+            <div className="flex gap-2 flex-wrap">
+              {EMOTION_TYPES.map((et) => (
+                <button
+                  key={et}
+                  type="button"
+                  onClick={() => setEmotionType(et)}
+                  className={`rounded-full border px-3 py-1.5 text-sm transition-all ${
+                    emotionType === et
+                      ? 'ring-2 ring-offset-1 ring-ring border-transparent'
+                      : 'border-border hover:border-muted-foreground'
+                  }`}
+                >
+                  <EmotionBadge emotionType={et} />
+                </button>
+              ))}
+            </div>
           </div>
-          {currentOption && (
-            <p className="text-xs text-muted-foreground">{currentOption.guidance}</p>
+
+          {/* Broke Guidance Callout */}
+          {emotionType === EmotionType.broke && (
+            <div className="rounded-xl border border-emotion-broke/30 bg-emotion-broke/10 px-4 py-3 flex gap-3 items-start">
+              <AlertTriangle className="h-4 w-4 mt-0.5 shrink-0 text-emotion-broke" />
+              <div className="space-y-1">
+                <p className="text-sm font-medium text-emotion-broke">Genuine Distress Mode</p>
+                <p className="text-xs text-muted-foreground leading-relaxed">
+                  This mode is for moments of real pain. Before you write, take three slow breaths.
+                  You are safe here. If you are in crisis, please reach out to a trusted person or
+                  a crisis line in your region.
+                </p>
+              </div>
+            </div>
           )}
-        </div>
 
-        {/* Content area */}
-        <div className="flex flex-col gap-2">
-          <textarea
-            value={content}
-            onChange={(e) => setContent(e.target.value)}
-            placeholder="Write here…"
-            maxLength={maxChars}
-            rows={8}
-            disabled={!canPost}
-            className="w-full bg-muted border border-border rounded-xl px-4 py-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring resize-none leading-relaxed disabled:opacity-40"
-          />
-          <div className="flex items-center justify-between">
-            <p className="text-xs text-muted-foreground">
-              {needsMinWords && !meetsMinWords && content.length > 0
-                ? `${wordCount} / 24 words minimum`
-                : ''}
-            </p>
-            <p className="text-xs text-muted-foreground">
-              {content.length} / {maxChars}
-            </p>
-          </div>
-        </div>
-
-        {/* Visibility toggle */}
-        <div className="flex items-center justify-between py-3 border-t border-border">
-          <div className="flex flex-col gap-0.5">
-            <p className="text-sm text-foreground">Share with community</p>
-            <p className="text-xs text-muted-foreground">
-              {isPublic ? 'Visible to all members.' : 'Only visible to you.'}
-            </p>
-          </div>
-          <button
-            type="button"
-            onClick={() => setIsPublic((v) => !v)}
-            disabled={!canPost}
-            className={`relative w-10 h-5 rounded-full border transition-colors disabled:opacity-40 ${
-              isPublic ? 'bg-secondary border-border' : 'bg-muted border-border'
-            }`}
-          >
-            <span
-              className={`absolute top-0.5 w-4 h-4 rounded-full bg-foreground transition-all ${
-                isPublic ? 'left-5' : 'left-0.5'
-              }`}
+          {/* Content Textarea */}
+          <div className="space-y-2">
+            <Label htmlFor="content">Your Entry</Label>
+            <Textarea
+              id="content"
+              value={content}
+              onChange={(e) => setContent(e.target.value)}
+              placeholder="Write freely…"
+              rows={8}
+              maxLength={1000}
+              className="resize-none"
             />
-          </button>
-        </div>
+            <div className="flex justify-between text-xs text-muted-foreground">
+              <span>
+                {wordCount} word{wordCount !== 1 ? 's' : ''}
+                {requiresMinWords && (
+                  <span className={meetsWordCount ? 'text-green-600 ml-1' : 'text-destructive ml-1'}>
+                    {meetsWordCount ? '(minimum met)' : '(24 words minimum)'}
+                  </span>
+                )}
+              </span>
+              <span>{content.length}/1000 characters</span>
+            </div>
+          </div>
 
-        <button
-          type="submit"
-          disabled={createPost.isPending || !content.trim() || !meetsMinWords || !canPost}
-          className="w-full py-3 rounded-xl bg-secondary text-secondary-foreground text-sm font-medium hover:opacity-80 disabled:opacity-40"
-        >
-          {createPost.isPending ? 'Saving…' : 'Save entry'}
-        </button>
-      </form>
-    </div>
+          {/* Visibility Toggle */}
+          <div className="flex items-center justify-between rounded-xl border border-border px-4 py-3">
+            <div className="space-y-0.5">
+              <Label htmlFor="visibility-toggle" className="cursor-pointer">
+                Share publicly
+              </Label>
+              <p className="text-xs text-muted-foreground">
+                {isPublic ? 'Visible to all community members' : 'Only visible to you'}
+              </p>
+            </div>
+            <Switch
+              id="visibility-toggle"
+              checked={isPublic}
+              onCheckedChange={handleVisibilityToggle}
+            />
+          </div>
+
+          {error && (
+            <p className="text-sm text-destructive bg-destructive/10 rounded-lg px-3 py-2">{error}</p>
+          )}
+
+          <Button
+            type="submit"
+            variant="secondary"
+            className="w-full"
+            disabled={createPost.isPending || !meetsWordCount || !content.trim()}
+          >
+            {createPost.isPending ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Saving…
+              </>
+            ) : (
+              'Save Entry'
+            )}
+          </Button>
+        </form>
+      </main>
+    </>
   );
 }

@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { useAdminGetUserPosts, useAdminRemovePost } from '../hooks/useQueries';
+import { useAdminRemovePost } from '../hooks/useQueries';
+import { useActor } from '../hooks/useActor';
 import { EmotionType, Visibility, type Post } from '../backend';
 import EmotionBadge from './EmotionBadge';
 import { Button } from '@/components/ui/button';
@@ -21,22 +22,26 @@ import { toast } from 'sonner';
 export default function AdminUserPostHistory() {
   const [principalInput, setPrincipalInput] = useState('');
   const [searchedPrincipal, setSearchedPrincipal] = useState<Principal | null>(null);
-  const getUserPosts = useAdminGetUserPosts();
-  const removePost = useAdminRemovePost();
   const [posts, setPosts] = useState<Post[]>([]);
+  const [isFetching, setIsFetching] = useState(false);
   const [deleteErrors, setDeleteErrors] = useState<Record<string, string>>({});
+  const { actor } = useActor();
+  const removePost = useAdminRemovePost();
 
   const handleSearch = async () => {
-    if (!principalInput.trim()) return;
+    if (!principalInput.trim() || !actor) return;
     try {
       const principal = Principal.fromText(principalInput.trim());
       setSearchedPrincipal(principal);
-      const result = await getUserPosts.mutateAsync(principal);
+      setIsFetching(true);
+      const result = await actor.adminGetUserPosts(principal);
       const sorted = [...result].sort((a, b) => Number(b.createdAt - a.createdAt));
       setPosts(sorted);
     } catch (err: unknown) {
       toast.error(err instanceof Error ? err.message : 'Invalid principal or fetch failed.');
       setPosts([]);
+    } finally {
+      setIsFetching(false);
     }
   };
 
@@ -73,10 +78,10 @@ export default function AdminUserPostHistory() {
           size="sm"
           variant="outline"
           onClick={handleSearch}
-          disabled={getUserPosts.isPending || !principalInput.trim()}
+          disabled={isFetching || !principalInput.trim()}
           className="gap-1.5 rounded-xl"
         >
-          {getUserPosts.isPending ? (
+          {isFetching ? (
             <Loader2 size={13} className="animate-spin" />
           ) : (
             <Search size={13} />
@@ -86,7 +91,7 @@ export default function AdminUserPostHistory() {
       </div>
 
       {/* Results */}
-      {searchedPrincipal && !getUserPosts.isPending && (
+      {searchedPrincipal && !isFetching && (
         <>
           {posts.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-10 gap-2 text-center">

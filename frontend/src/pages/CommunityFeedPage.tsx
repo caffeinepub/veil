@@ -1,72 +1,59 @@
-import { useEffect } from 'react';
-import { useNavigate } from '@tanstack/react-router';
-import { useAuth } from '../hooks/useAuth';
-import { useGetCallerUserProfile, useGetPublicPosts } from '../hooks/useQueries';
+import React from 'react';
+import { useGetPublicPosts } from '../hooks/useQueries';
 import PublicPostCard from '../components/PublicPostCard';
 import { Skeleton } from '@/components/ui/skeleton';
-import { ScrollText } from 'lucide-react';
+import { Users } from 'lucide-react';
+import { useAuth } from '../hooks/useAuth';
+import { Navigate } from '@tanstack/react-router';
 
 export default function CommunityFeedPage() {
-  const navigate = useNavigate();
   const { isAuthenticated, isInitializing } = useAuth();
-  const { data: profile, isLoading: profileLoading, isFetched: profileFetched } = useGetCallerUserProfile();
-  const { data: posts, isLoading: postsLoading } = useGetPublicPosts();
+  const { data: posts, isLoading, isError } = useGetPublicPosts();
 
-  useEffect(() => {
-    if (!isInitializing && !isAuthenticated) {
-      navigate({ to: '/login' });
-    }
-  }, [isAuthenticated, isInitializing, navigate]);
-
-  useEffect(() => {
-    if (profileFetched && !profile && isAuthenticated) {
-      navigate({ to: '/signup' });
-    }
-  }, [profileFetched, profile, isAuthenticated, navigate]);
-
-  if (isInitializing || profileLoading) {
+  if (isInitializing) {
     return (
-      <div className="max-w-2xl mx-auto px-4 py-10 space-y-4">
-        <Skeleton className="h-8 w-48" />
-        {[1, 2, 3].map((i) => (
-          <Skeleton key={i} className="h-40 w-full rounded-xl" />
-        ))}
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <div className="h-8 w-8 animate-spin rounded-full border-2 border-muted-foreground border-t-transparent" />
       </div>
     );
   }
 
-  if (!isAuthenticated || !profile) return null;
-
-  // Posts are already sorted newest-first by useGetPublicPosts
-  const sortedPosts = posts ?? [];
+  if (!isAuthenticated) {
+    return <Navigate to="/login" />;
+  }
 
   return (
-    <main className="max-w-2xl mx-auto px-4 py-8 space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-serif font-semibold text-foreground">Community Feed</h1>
-          <p className="text-sm text-muted-foreground mt-0.5">Shared voices — newest first</p>
-        </div>
-        <div className="flex items-center gap-1.5 text-xs text-muted-foreground bg-muted px-3 py-1.5 rounded-full">
-          <ScrollText className="w-3.5 h-3.5" />
-          Chronological
-        </div>
+    <main className="max-w-2xl mx-auto px-4 py-10 space-y-8">
+      <div className="space-y-1">
+        <h1 className="text-2xl font-serif font-semibold text-foreground">Community</h1>
+        <p className="text-sm text-muted-foreground">Public entries from the VEIL community.</p>
       </div>
 
-      {postsLoading ? (
+      {isLoading && (
         <div className="space-y-4">
           {[1, 2, 3].map((i) => (
-            <Skeleton key={i} className="h-40 w-full rounded-xl" />
+            <Skeleton key={i} className="h-48 w-full rounded-xl" />
           ))}
         </div>
-      ) : sortedPosts.length === 0 ? (
-        <div className="text-center py-16 text-muted-foreground">
-          <p className="text-lg font-medium">No public posts yet</p>
-          <p className="text-sm mt-1">Be the first to share something with the community.</p>
+      )}
+
+      {isError && (
+        <div className="rounded-xl border border-destructive/20 bg-destructive/5 px-4 py-3 text-sm text-destructive">
+          Failed to load community posts. Please try again.
         </div>
-      ) : (
+      )}
+
+      {!isLoading && !isError && posts?.length === 0 && (
+        <div className="text-center py-16 space-y-3">
+          <Users className="h-10 w-10 text-muted-foreground mx-auto" />
+          <p className="text-muted-foreground">No public entries yet.</p>
+          <p className="text-sm text-muted-foreground">Be the first to share with the community.</p>
+        </div>
+      )}
+
+      {!isLoading && !isError && posts && posts.length > 0 && (
         <div className="space-y-4">
-          {sortedPosts.map((post) => (
+          {posts.map((post) => (
             <PublicPostCard key={post.id} post={post} />
           ))}
         </div>

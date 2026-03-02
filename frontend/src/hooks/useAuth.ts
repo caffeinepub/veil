@@ -1,34 +1,18 @@
 import { useInternetIdentity } from './useInternetIdentity';
-import { useIsCallerAdmin } from './useQueries';
 import { useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from '@tanstack/react-router';
+import { useIsCallerAdmin } from './useQueries';
 import { clearAuthCookie } from '../utils/cookies';
 
-export interface AuthState {
-  isAuthenticated: boolean;
-  isInitializing: boolean;
-  userId: string | null;
-  role: 'admin' | 'user' | null;
-  logout: () => Promise<void>;
-}
-
-export function useAuth(): AuthState {
-  const { identity, clear, isInitializing } = useInternetIdentity();
+export function useAuth() {
+  const { identity, clear, isInitializing, loginStatus } = useInternetIdentity();
   const queryClient = useQueryClient();
   const navigate = useNavigate();
-
-  const ANONYMOUS_PRINCIPAL = '2vxsx-fae';
-  const isAuthenticated =
-    !!identity && identity.getPrincipal().toText() !== ANONYMOUS_PRINCIPAL;
-
-  const userId = isAuthenticated ? identity!.getPrincipal().toText() : null;
-
   const { data: isAdmin } = useIsCallerAdmin();
-  const role: 'admin' | 'user' | null = !isAuthenticated
-    ? null
-    : isAdmin
-    ? 'admin'
-    : 'user';
+
+  const isAuthenticated = !!identity;
+  const userId = identity?.getPrincipal().toString() ?? null;
+  const role = isAuthenticated ? (isAdmin ? 'admin' : 'user') : null;
 
   const logout = async () => {
     clearAuthCookie();
@@ -39,9 +23,12 @@ export function useAuth(): AuthState {
 
   return {
     isAuthenticated,
-    isInitializing: isInitializing ?? false,
+    isInitializing,
     userId,
+    identity,
     role,
+    isAdmin: !!isAdmin,
     logout,
+    loginStatus,
   };
 }

@@ -1,7 +1,8 @@
-import { useState } from 'react';
+import React, { useState } from 'react';
 import { useAdminGetAllUsers, useAdminSuspendUser, useAdminUnsuspendUser, useAdminApplyCooldown, useAdminRemoveUser } from '../hooks/useQueries';
-import { Principal } from '@dfinity/principal';
-import { toast } from 'sonner';
+import { Button } from '@/components/ui/button';
+import { Skeleton } from '@/components/ui/skeleton';
+import { Badge } from '@/components/ui/badge';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -13,149 +14,114 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
+import { Loader2, UserX, UserCheck, Clock, Trash2 } from 'lucide-react';
+import type { User } from '../backend';
 
 export default function AdminAllUsersTab() {
-  const { data: users = [], isLoading } = useAdminGetAllUsers();
+  const { data: users, isLoading } = useAdminGetAllUsers();
   const suspendUser = useAdminSuspendUser();
   const unsuspendUser = useAdminUnsuspendUser();
   const applyCooldown = useAdminApplyCooldown();
   const removeUser = useAdminRemoveUser();
-  const [actioningId, setActioningId] = useState<string | null>(null);
+  const [pendingId, setPendingId] = useState<string | null>(null);
 
-  const handleSuspend = async (userId: string) => {
-    setActioningId(userId + '-suspend');
+  const handleAction = async (action: () => Promise<unknown>, id: string) => {
+    setPendingId(id);
     try {
-      const principal = Principal.fromText(userId);
-      await suspendUser.mutateAsync(principal);
-      toast.success('User suspended.');
-    } catch {
-      toast.error('Could not suspend user.');
+      await action();
     } finally {
-      setActioningId(null);
-    }
-  };
-
-  const handleUnsuspend = async (userId: string) => {
-    setActioningId(userId + '-unsuspend');
-    try {
-      const principal = Principal.fromText(userId);
-      await unsuspendUser.mutateAsync(principal);
-      toast.success('User unsuspended.');
-    } catch {
-      toast.error('Could not unsuspend user.');
-    } finally {
-      setActioningId(null);
-    }
-  };
-
-  const handleCooldown = async (userId: string) => {
-    setActioningId(userId + '-cooldown');
-    try {
-      const principal = Principal.fromText(userId);
-      await applyCooldown.mutateAsync(principal);
-      toast.success('Cooldown applied.');
-    } catch {
-      toast.error('Could not apply cooldown.');
-    } finally {
-      setActioningId(null);
-    }
-  };
-
-  const handleRemove = async (userId: string) => {
-    setActioningId(userId + '-remove');
-    try {
-      const principal = Principal.fromText(userId);
-      await removeUser.mutateAsync(principal);
-      toast.success('User removed.');
-    } catch {
-      toast.error('Could not remove user.');
-    } finally {
-      setActioningId(null);
+      setPendingId(null);
     }
   };
 
   if (isLoading) {
-    return <p className="text-sm text-muted-foreground py-6 text-center">Loading…</p>;
+    return (
+      <div className="space-y-3">
+        {[1, 2, 3].map((i) => <Skeleton key={i} className="h-24 w-full rounded-xl" />)}
+      </div>
+    );
   }
 
-  if (users.length === 0) {
-    return <p className="text-sm text-muted-foreground py-6 text-center">No users yet.</p>;
+  if (!users || users.length === 0) {
+    return <p className="text-sm text-muted-foreground py-4">No users found.</p>;
   }
 
   return (
-    <div className="flex flex-col gap-3">
-      {users.map((user) => {
-        const userId = user.id.toString();
+    <div className="space-y-3">
+      {users.map((user: User) => {
+        const uid = user.id.toString();
+        const isPending = pendingId === uid;
         return (
-          <div
-            key={userId}
-            className="bg-card rounded-xl border border-border shadow-soft p-4 flex flex-col gap-3"
-          >
-            <div className="flex items-start justify-between gap-3">
-              <div className="flex flex-col gap-0.5">
-                <p className="text-sm text-foreground font-medium">{user.pseudonym}</p>
-                <p className="text-xs text-muted-foreground font-mono">{userId.slice(0, 16)}…</p>
+          <div key={uid} className="rounded-xl border border-border bg-card shadow-card px-4 py-3 space-y-2">
+            <div className="flex items-start justify-between gap-2">
+              <div className="space-y-0.5 min-w-0">
+                <p className="font-medium text-sm text-foreground truncate">{user.pseudonym}</p>
+                <p className="text-xs text-muted-foreground font-mono truncate">{uid}</p>
               </div>
-              <div className="flex items-center gap-2">
-                {user.suspended && (
-                  <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs bg-muted text-muted-foreground">
-                    suspended
-                  </span>
-                )}
-                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs bg-muted text-muted-foreground capitalize">
+              <div className="flex items-center gap-1.5 shrink-0">
+                <Badge variant={user.suspended ? 'destructive' : 'secondary'} className="text-xs">
+                  {user.suspended ? 'Suspended' : 'Active'}
+                </Badge>
+                <Badge variant="outline" className="text-xs capitalize">
                   {user.subscriptionStatus}
-                </span>
+                </Badge>
               </div>
             </div>
 
-            <div className="flex flex-wrap gap-2 pt-1 border-t border-border">
+            <div className="flex flex-wrap gap-2">
               {user.suspended ? (
-                <button
-                  onClick={() => handleUnsuspend(userId)}
-                  disabled={actioningId === userId + '-unsuspend'}
-                  className="text-xs text-muted-foreground hover:text-foreground disabled:opacity-40"
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="h-7 text-xs gap-1"
+                  disabled={isPending}
+                  onClick={() => handleAction(() => unsuspendUser.mutateAsync(user.id), uid)}
                 >
-                  {actioningId === userId + '-unsuspend' ? 'Updating…' : 'Unsuspend'}
-                </button>
+                  {isPending ? <Loader2 className="h-3 w-3 animate-spin" /> : <UserCheck className="h-3 w-3" />}
+                  Unsuspend
+                </Button>
               ) : (
-                <button
-                  onClick={() => handleSuspend(userId)}
-                  disabled={actioningId === userId + '-suspend'}
-                  className="text-xs text-muted-foreground hover:text-foreground disabled:opacity-40"
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="h-7 text-xs gap-1"
+                  disabled={isPending}
+                  onClick={() => handleAction(() => suspendUser.mutateAsync(user.id), uid)}
                 >
-                  {actioningId === userId + '-suspend' ? 'Updating…' : 'Suspend'}
-                </button>
+                  {isPending ? <Loader2 className="h-3 w-3 animate-spin" /> : <UserX className="h-3 w-3" />}
+                  Suspend
+                </Button>
               )}
-              <button
-                onClick={() => handleCooldown(userId)}
-                disabled={actioningId === userId + '-cooldown'}
-                className="text-xs text-muted-foreground hover:text-foreground disabled:opacity-40"
+
+              <Button
+                size="sm"
+                variant="outline"
+                className="h-7 text-xs gap-1"
+                disabled={isPending}
+                onClick={() => handleAction(() => applyCooldown.mutateAsync(user.id), uid)}
               >
-                {actioningId === userId + '-cooldown' ? 'Applying…' : '24h cooldown'}
-              </button>
+                {isPending ? <Loader2 className="h-3 w-3 animate-spin" /> : <Clock className="h-3 w-3" />}
+                Cooldown
+              </Button>
+
               <AlertDialog>
                 <AlertDialogTrigger asChild>
-                  <button
-                    disabled={actioningId === userId + '-remove'}
-                    className="text-xs text-muted-foreground hover:text-foreground disabled:opacity-40"
-                  >
+                  <Button size="sm" variant="ghost" className="h-7 text-xs gap-1 text-muted-foreground hover:text-destructive" disabled={isPending}>
+                    <Trash2 className="h-3 w-3" />
                     Remove
-                  </button>
+                  </Button>
                 </AlertDialogTrigger>
-                <AlertDialogContent className="rounded-2xl">
+                <AlertDialogContent>
                   <AlertDialogHeader>
-                    <AlertDialogTitle className="font-serif">Remove {user.pseudonym}?</AlertDialogTitle>
+                    <AlertDialogTitle>Remove User</AlertDialogTitle>
                     <AlertDialogDescription>
-                      This will permanently remove the user and all their content. This cannot be undone.
+                      This will permanently remove <strong>{user.pseudonym}</strong> and all their content. This action cannot be undone.
                     </AlertDialogDescription>
                   </AlertDialogHeader>
                   <AlertDialogFooter>
-                    <AlertDialogCancel className="rounded-xl">Cancel</AlertDialogCancel>
-                    <AlertDialogAction
-                      className="rounded-xl bg-secondary text-secondary-foreground hover:opacity-80"
-                      onClick={() => handleRemove(userId)}
-                    >
-                      Remove
+                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                    <AlertDialogAction onClick={() => handleAction(() => removeUser.mutateAsync(user.id), uid)}>
+                      Remove Permanently
                     </AlertDialogAction>
                   </AlertDialogFooter>
                 </AlertDialogContent>

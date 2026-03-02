@@ -1,10 +1,7 @@
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-} from '@/components/ui/dialog';
+import React from 'react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
+import { Globe } from 'lucide-react';
 
 interface PublicPostWarningModalProps {
   open: boolean;
@@ -13,34 +10,31 @@ interface PublicPostWarningModalProps {
 
 export default function PublicPostWarningModal({ open, onAcknowledge }: PublicPostWarningModalProps) {
   return (
-    <Dialog
-      open={open}
-      onOpenChange={() => {
-        // Non-dismissible
-      }}
-    >
+    <Dialog open={open} onOpenChange={() => {}}>
       <DialogContent
-        className="rounded-2xl bg-card border border-border shadow-soft-lg max-w-md"
+        className="rounded-2xl max-w-md shadow-lg"
         onPointerDownOutside={(e) => e.preventDefault()}
         onEscapeKeyDown={(e) => e.preventDefault()}
-        onInteractOutside={(e) => e.preventDefault()}
       >
-        <DialogHeader className="gap-3">
-          <DialogTitle className="font-serif text-lg font-medium text-foreground">
-            Sharing with the community
-          </DialogTitle>
-          <DialogDescription className="text-sm text-muted-foreground leading-relaxed">
-            Public posts are witnessed by a small, private circle. Your pseudonym is not shown,
-            but your words are visible to all members. Take a moment before sharing.
+        <DialogHeader className="space-y-3">
+          <div className="flex justify-center">
+            <Globe className="h-10 w-10 text-muted-foreground" />
+          </div>
+          <DialogTitle className="text-center font-serif text-xl">Sharing Publicly</DialogTitle>
+          <DialogDescription className="text-center text-sm leading-relaxed">
+            You are about to share this entry with the entire VEIL community. While pseudonyms protect
+            your identity, the content will be visible to all members. Please ensure you are comfortable
+            with this before proceeding.
           </DialogDescription>
         </DialogHeader>
-        <div className="mt-4">
-          <button
+        <div className="pt-2">
+          <Button
             onClick={onAcknowledge}
-            className="w-full py-2.5 rounded-xl bg-secondary text-secondary-foreground text-sm font-medium hover:opacity-80"
+            variant="secondary"
+            className="w-full"
           >
-            I understand
-          </button>
+            I understand — share publicly
+          </Button>
         </div>
       </DialogContent>
     </Dialog>

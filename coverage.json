@@ -1,130 +1,214 @@
 {
   "kind": "coverage_report",
   "version": "1.0",
-  "generatedAt": "2026-03-02T01:09:40.081Z",
+  "generatedAt": "2026-03-02T01:28:50.653Z",
   "sources": {
     "buildRequest": true,
     "implementationPlan": true
   },
   "requirements": {
-    "total": 10,
-    "implemented": 0,
+    "total": 11,
+    "implemented": 10,
     "items": [
       {
         "id": "REQ-1",
-        "summary": "On the Signup page, display the remaining available seat count fetched from the backend so users can see how many spots are left in the closed ecosystem before registering.",
-        "status": "missing",
+        "summary": "Ensure the full Internet Identity authentication flow is working end-to-end: login via Internet Identity, session persistence, logout, and role detection (admin vs. member). The LoginPage must redirect authenticated users to the community feed, and ProtectedRoute/AdminRoute guards must correctly block unauthenticated or unauthorized access.",
+        "status": "implemented",
         "plannedFiles": [
-          "frontend/src/pages/SignupPage.tsx"
+          "frontend/src/hooks/useAuth.ts",
+          "frontend/src/components/ProtectedRoute.tsx",
+          "frontend/src/components/AdminRoute.tsx",
+          "frontend/src/pages/LoginPage.tsx",
+          "frontend/src/components/Header.tsx"
         ],
-        "matchedFiles": []
+        "matchedFiles": [
+          "frontend/src/hooks/useAuth.ts",
+          "frontend/src/components/ProtectedRoute.tsx",
+          "frontend/src/components/AdminRoute.tsx",
+          "frontend/src/pages/LoginPage.tsx"
+        ]
       },
       {
         "id": "REQ-10",
-        "summary": "Remove or hide all gamification elements, engagement metrics, popularity indicators, streak counters, leaderboards, and growth-oriented UI from every page. The interface must reflect containment and witnessing — not performance or engagement optimization.",
-        "status": "missing",
+        "summary": "Wire up all React Query hooks in useQueries.ts to correctly call every corresponding backend Motoko actor method (user registration, login check, post CRUD, reactions, comments, flagging, admin operations, invite code management, seat count). Ensure query keys are consistent, mutations invalidate relevant queries, and error states are surfaced to the UI.",
+        "status": "implemented",
         "plannedFiles": [
-          "frontend/src/components/PublicPostCard.tsx",
-          "frontend/src/pages/CommunityFeedPage.tsx",
+          "frontend/src/hooks/useQueries.ts",
           "frontend/src/pages/DashboardPage.tsx",
-          "frontend/src/pages/MyPostsPage.tsx",
-          "frontend/src/components/Header.tsx",
-          "frontend/src/index.css",
-          "frontend/tailwind.config.js"
+          "frontend/src/pages/CommunityFeedPage.tsx",
+          "frontend/src/pages/MyPostsPage.tsx"
         ],
+        "matchedFiles": [
+          "frontend/src/hooks/useQueries.ts",
+          "frontend/src/pages/DashboardPage.tsx",
+          "frontend/src/pages/CommunityFeedPage.tsx",
+          "frontend/src/pages/MyPostsPage.tsx"
+        ]
+      },
+      {
+        "id": "REQ-11",
+        "summary": "Ensure the backend Motoko actor in backend/main.mo implements all required methods fully and correctly: createUser (with invite code validation and seat enforcement), createPost, getPublicPosts, getUserPosts, addReaction, addComment, flagPost, flagComment, getFlags, admin methods (removePost, removeComment, suspendUser, unsuspendUser, applyCooldown, removeUser, updateSubscription, getUserHistory, sendCheckIn, sendCrisisResources, publishPromptPost), invite code methods (generateInviteCode, revokeInviteCode, listInviteCodes), getRemainingSeats, getEmotionalAlerts, and getCrisisRiskPosts. All state must be persisted in stable variables.",
+        "status": "unknown",
+        "plannedFiles": [],
         "matchedFiles": []
       },
       {
         "id": "REQ-2",
-        "summary": "Ensure the registration flow requires a valid invite code. A user who submits an invalid or already-used invite code must see a clear error. A user with a valid code must be able to complete registration with a pseudonym and proceed to login.",
-        "status": "missing",
+        "summary": "Ensure fully functional post creation: users can select an emotion type (happy, confess, broke), write content subject to a 24-word minimum for applicable emotion types, toggle public/private visibility, acknowledge the entry protection modal, acknowledge the public post warning modal when posting publicly, and successfully submit the post to the backend. After submission, redirect the user to their posts list.",
+        "status": "implemented",
+        "plannedFiles": [
+          "frontend/src/pages/PostCreationPage.tsx",
+          "frontend/src/components/EntryProtectionModal.tsx",
+          "frontend/src/components/PublicPostWarningModal.tsx",
+          "frontend/src/components/EmotionBadge.tsx",
+          "frontend/src/utils/wordCounter.ts",
+          "frontend/src/pages/MyPostsPage.tsx"
+        ],
+        "matchedFiles": [
+          "frontend/src/pages/PostCreationPage.tsx",
+          "frontend/src/components/EntryProtectionModal.tsx",
+          "frontend/src/components/PublicPostWarningModal.tsx",
+          "frontend/src/components/EmotionBadge.tsx",
+          "frontend/src/pages/MyPostsPage.tsx"
+        ]
+      },
+      {
+        "id": "REQ-3",
+        "summary": "Implement emotional mode guidance in the post creation flow: when the user selects the 'broke' emotion type, display contextual guidance text advising them that this mode is for moments of genuine distress and offering a brief grounding prompt. Guidance should be visually distinct (e.g., a highlighted callout) and appear inline without blocking composition.",
+        "status": "implemented",
+        "plannedFiles": [
+          "frontend/src/pages/PostCreationPage.tsx"
+        ],
+        "matchedFiles": [
+          "frontend/src/pages/PostCreationPage.tsx"
+        ]
+      },
+      {
+        "id": "REQ-4",
+        "summary": "Ensure the reaction system is fully functional on public posts in the community feed: authenticated users (who are not the post's author) can add a text reaction to a post, and reactions are persisted in the backend. Each post card must display the current list of reactions. Users cannot react to their own posts.",
+        "status": "implemented",
+        "plannedFiles": [
+          "frontend/src/components/PublicPostCard.tsx",
+          "frontend/src/hooks/useQueries.ts"
+        ],
+        "matchedFiles": [
+          "frontend/src/components/PublicPostCard.tsx",
+          "frontend/src/hooks/useQueries.ts"
+        ]
+      },
+      {
+        "id": "REQ-5",
+        "summary": "Ensure the comment system is fully functional on public posts: authenticated users (who are not the post's author) can add a comment, comments are persisted in the backend, and the comment list is displayed on each PublicPostCard. Authors cannot comment on their own posts.",
+        "status": "implemented",
+        "plannedFiles": [
+          "frontend/src/components/PublicPostCard.tsx",
+          "frontend/src/hooks/useQueries.ts"
+        ],
+        "matchedFiles": [
+          "frontend/src/components/PublicPostCard.tsx",
+          "frontend/src/hooks/useQueries.ts"
+        ]
+      },
+      {
+        "id": "REQ-6",
+        "summary": "Ensure the flagging system is fully functional on public posts: authenticated users (who are not the post's author) can flag a post for review. Flagged posts must be tracked in the backend with a report count. The flag action should be available on PublicPostCard for non-authors only.",
+        "status": "implemented",
+        "plannedFiles": [
+          "frontend/src/components/PublicPostCard.tsx",
+          "frontend/src/components/AdminFlaggedPosts.tsx",
+          "frontend/src/components/AdminFlaggedComments.tsx",
+          "frontend/src/hooks/useQueries.ts"
+        ],
+        "matchedFiles": [
+          "frontend/src/components/PublicPostCard.tsx",
+          "frontend/src/components/AdminFlaggedPosts.tsx",
+          "frontend/src/components/AdminFlaggedComments.tsx",
+          "frontend/src/hooks/useQueries.ts"
+        ]
+      },
+      {
+        "id": "REQ-7",
+        "summary": "Ensure the admin dashboard is fully functional with all tabs operational: Public Posts list (with remove action), User Management (suspend/unsuspend/cooldown/remove), Invite Codes (generate/copy/revoke), Flagged Content (posts and comments with remove actions), Emotional Alerts (users with 5+ 'broke' posts in 3 consecutive days), and Crisis Risk (posts flagged for crisis with check-in and resource actions). The ecosystem silence banner should appear when no public posts exist in the last 5 days, allowing admins to publish a prompt post.",
+        "status": "implemented",
+        "plannedFiles": [
+          "frontend/src/components/AdminDashboard.tsx",
+          "frontend/src/components/AdminPublicPostsList.tsx",
+          "frontend/src/components/AdminAllUsersTab.tsx",
+          "frontend/src/components/AdminInviteCodes.tsx",
+          "frontend/src/components/AdminEmotionalAlertsTab.tsx",
+          "frontend/src/components/AdminCrisisRiskTab.tsx",
+          "frontend/src/hooks/useQueries.ts"
+        ],
+        "matchedFiles": [
+          "frontend/src/components/AdminDashboard.tsx",
+          "frontend/src/components/AdminPublicPostsList.tsx",
+          "frontend/src/components/AdminAllUsersTab.tsx",
+          "frontend/src/components/AdminInviteCodes.tsx",
+          "frontend/src/components/AdminEmotionalAlertsTab.tsx",
+          "frontend/src/components/AdminCrisisRiskTab.tsx",
+          "frontend/src/hooks/useQueries.ts"
+        ]
+      },
+      {
+        "id": "REQ-8",
+        "summary": "Ensure invite code logic is fully functional: admins can generate invite codes from the admin dashboard, codes are stored in the backend with used/unused status, and new users can register only by providing a valid unused invite code on the SignupPage. After a code is used during registration, it must be marked as consumed and cannot be reused.",
+        "status": "implemented",
+        "plannedFiles": [
+          "frontend/src/pages/SignupPage.tsx",
+          "frontend/src/components/AdminInviteCodes.tsx",
+          "frontend/src/hooks/useQueries.ts"
+        ],
+        "matchedFiles": [
+          "frontend/src/pages/SignupPage.tsx",
+          "frontend/src/components/AdminInviteCodes.tsx",
+          "frontend/src/hooks/useQueries.ts"
+        ]
+      },
+      {
+        "id": "REQ-9",
+        "summary": "Ensure the seat counter is functional on the SignupPage: display the number of remaining available seats (total capacity minus registered users) so prospective members know availability before registering. Seat count must be fetched live from the backend.",
+        "status": "implemented",
         "plannedFiles": [
           "frontend/src/pages/SignupPage.tsx",
           "frontend/src/hooks/useQueries.ts"
         ],
-        "matchedFiles": []
-      },
-      {
-        "id": "REQ-3",
-        "summary": "Ensure the login flow uses Internet Identity exclusively. After authenticating, the user must be redirected to the main feed or dashboard. Unauthenticated users attempting to access protected pages must be redirected to the login page.",
-        "status": "missing",
-        "plannedFiles": [
-          "frontend/src/pages/LoginPage.tsx",
-          "frontend/src/components/ProtectedRoute.tsx",
-          "frontend/src/hooks/useInternetIdentity.ts"
-        ],
-        "matchedFiles": []
-      },
-      {
-        "id": "REQ-4",
-        "summary": "On the post creation page, provide a 'Happy' emotion option. The user must be able to write content, select 'Happy' as the emotion, and submit the post. The post creation UI must include a Public/Private visibility toggle. The default state must be Private. If the user toggles to Public, a confirmation warning modal must be shown before the post is submitted publicly.",
-        "status": "missing",
-        "plannedFiles": [
-          "frontend/src/pages/PostCreationPage.tsx",
-          "frontend/src/pages/DashboardPage.tsx",
-          "frontend/src/components/PublicPostWarningModal.tsx"
-        ],
-        "matchedFiles": []
-      },
-      {
-        "id": "REQ-5",
-        "summary": "The Community Feed page must display all public posts in chronological order. After a user creates a public 'Happy' post, it must appear in the feed immediately (or on refresh) without requiring any additional action.",
-        "status": "missing",
-        "plannedFiles": [
-          "frontend/src/pages/CommunityFeedPage.tsx",
-          "frontend/src/components/PublicPostCard.tsx"
-        ],
-        "matchedFiles": []
-      },
-      {
-        "id": "REQ-6",
-        "summary": "On each public post card in the Community Feed, display a set of predefined text reactions (e.g., 'I feel this', 'You are not alone'). Any authenticated user must be able to select a reaction. Reaction counts must NOT be displayed — reactions serve as witnessing gestures, not engagement metrics.",
-        "status": "missing",
-        "plannedFiles": [
-          "frontend/src/components/PublicPostCard.tsx",
+        "matchedFiles": [
+          "frontend/src/pages/SignupPage.tsx",
           "frontend/src/hooks/useQueries.ts"
-        ],
-        "matchedFiles": []
-      },
-      {
-        "id": "REQ-7",
-        "summary": "On each public post card in the Community Feed, display a comments section. Any authenticated user must be able to submit a text comment on a post. Comments must appear under the post in submission order. No upvotes, likes, or sorting by popularity.",
-        "status": "missing",
-        "plannedFiles": [
-          "frontend/src/components/PublicPostCard.tsx",
-          "frontend/src/hooks/useQueries.ts"
-        ],
-        "matchedFiles": []
-      },
-      {
-        "id": "REQ-8",
-        "summary": "On public post cards authored by other users, display a 'Flag' or 'Report' button. An authenticated user must be able to flag a post from another account. The flag action must be submitted to the backend and recorded against the post.",
-        "status": "missing",
-        "plannedFiles": [
-          "frontend/src/components/PublicPostCard.tsx",
-          "frontend/src/hooks/useQueries.ts"
-        ],
-        "matchedFiles": []
-      },
-      {
-        "id": "REQ-9",
-        "summary": "The Admin panel must include a 'Flagged Posts' tab listing all posts that have been reported by users. Each entry must show the post content and a button for the admin to permanently remove the post. No popularity metrics or report counts visible to the admin beyond the post content.",
-        "status": "missing",
-        "plannedFiles": [
-          "frontend/src/components/AdminDashboard.tsx",
-          "frontend/src/components/AdminFlaggedPosts.tsx",
-          "frontend/src/hooks/useQueries.ts"
-        ],
-        "matchedFiles": []
+        ]
       }
     ]
   },
   "changedFiles": [
     "backend/main.mo",
-    "backend/migration.mo",
     "build-request.json",
     "feature_evidence.json",
+    "frontend-file-summaries.txt",
     "frontend-implementation-plan.json",
+    "frontend/src/components/AdminAllUsersTab.tsx",
+    "frontend/src/components/AdminCrisisRiskTab.tsx",
+    "frontend/src/components/AdminDashboard.tsx",
+    "frontend/src/components/AdminEmotionalAlertsTab.tsx",
+    "frontend/src/components/AdminFlaggedComments.tsx",
+    "frontend/src/components/AdminFlaggedPosts.tsx",
+    "frontend/src/components/AdminInviteCodes.tsx",
+    "frontend/src/components/AdminPublicPostsList.tsx",
+    "frontend/src/components/AdminRoute.tsx",
+    "frontend/src/components/AdminSignup.tsx",
+    "frontend/src/components/AdminUserPostHistory.tsx",
+    "frontend/src/components/EmotionBadge.tsx",
+    "frontend/src/components/EntryProtectionModal.tsx",
+    "frontend/src/components/ProtectedRoute.tsx",
+    "frontend/src/components/PublicPostCard.tsx",
+    "frontend/src/components/PublicPostWarningModal.tsx",
+    "frontend/src/hooks/useAuth.ts",
+    "frontend/src/hooks/useQueries.ts",
+    "frontend/src/pages/CommunityFeedPage.tsx",
+    "frontend/src/pages/DashboardPage.tsx",
+    "frontend/src/pages/LoginPage.tsx",
+    "frontend/src/pages/MyPostsPage.tsx",
+    "frontend/src/pages/PostCreationPage.tsx",
+    "frontend/src/pages/SignupPage.tsx",
     "project_state.json",
     "scratch/component-selection.json",
     "spec.md",

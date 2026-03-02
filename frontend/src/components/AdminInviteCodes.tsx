@@ -1,96 +1,108 @@
-import { useState } from 'react';
-import { useAdminGetInviteCodes, useAdminGenerateInviteCode, useAdminRevokeInviteCode } from '../hooks/useQueries';
+import React from 'react';
+import { useGetInviteCodes, useGenerateInviteCode, useRevokeInviteCode } from '../hooks/useQueries';
+import { Button } from '@/components/ui/button';
+import { Skeleton } from '@/components/ui/skeleton';
+import { Badge } from '@/components/ui/badge';
+import { Loader2, Plus, Copy, XCircle } from 'lucide-react';
 import { toast } from 'sonner';
-import { Copy, Check } from 'lucide-react';
 
 export default function AdminInviteCodes() {
-  const { data: codes = [], isLoading } = useAdminGetInviteCodes();
-  const generateCode = useAdminGenerateInviteCode();
-  const revokeCode = useAdminRevokeInviteCode();
-  const [copiedCode, setCopiedCode] = useState<string | null>(null);
-  const [revokingCode, setRevokingCode] = useState<string | null>(null);
+  const { data: codes, isLoading } = useGetInviteCodes();
+  const generateCode = useGenerateInviteCode();
+  const revokeCode = useRevokeInviteCode();
 
   const handleGenerate = async () => {
     try {
-      await generateCode.mutateAsync();
-      toast.success('Invite code generated.');
-    } catch {
-      toast.error('Could not generate code.');
+      const code = await generateCode.mutateAsync();
+      toast.success(`New invite code generated: ${code}`);
+    } catch (err: unknown) {
+      toast.error((err as Error)?.message ?? 'Failed to generate code.');
     }
   };
 
-  const handleCopy = async (code: string) => {
-    const url = `${window.location.origin}/signup?invite=${code}`;
-    await navigator.clipboard.writeText(url);
-    setCopiedCode(code);
-    setTimeout(() => setCopiedCode(null), 2000);
+  const handleCopy = (code: string) => {
+    const url = `${window.location.origin}/signup?code=${encodeURIComponent(code)}`;
+    navigator.clipboard.writeText(url);
+    toast.success('Invite link copied to clipboard.');
   };
 
   const handleRevoke = async (code: string) => {
-    setRevokingCode(code);
     try {
-      await revokeCode.mutateAsync({ code });
-      toast.success('Code revoked.');
-    } catch {
-      toast.error('Could not revoke code.');
-    } finally {
-      setRevokingCode(null);
+      await revokeCode.mutateAsync(code);
+      toast.success('Invite code revoked.');
+    } catch (err: unknown) {
+      toast.error((err as Error)?.message ?? 'Failed to revoke code.');
     }
   };
 
-  if (isLoading) {
-    return <p className="text-sm text-muted-foreground py-6 text-center">Loading…</p>;
-  }
-
   return (
-    <div className="flex flex-col gap-4">
-      <div className="flex justify-end">
-        <button
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <p className="text-sm text-muted-foreground">
+          {codes?.filter((c) => !c.used).length ?? 0} unused code{(codes?.filter((c) => !c.used).length ?? 0) !== 1 ? 's' : ''}
+        </p>
+        <Button
+          size="sm"
+          variant="secondary"
           onClick={handleGenerate}
           disabled={generateCode.isPending}
-          className="text-sm px-4 py-2 rounded-xl bg-secondary text-secondary-foreground hover:opacity-80 disabled:opacity-40"
+          className="gap-1.5"
         >
-          {generateCode.isPending ? 'Generating…' : 'Generate code'}
-        </button>
+          {generateCode.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Plus className="h-3.5 w-3.5" />}
+          Generate Code
+        </Button>
       </div>
 
-      {codes.length === 0 ? (
-        <p className="text-sm text-muted-foreground py-4 text-center">No invite codes yet.</p>
-      ) : (
-        <div className="flex flex-col gap-2">
+      {isLoading && (
+        <div className="space-y-2">
+          {[1, 2, 3].map((i) => <Skeleton key={i} className="h-14 w-full rounded-xl" />)}
+        </div>
+      )}
+
+      {!isLoading && (!codes || codes.length === 0) && (
+        <p className="text-sm text-muted-foreground py-4">No invite codes yet.</p>
+      )}
+
+      {!isLoading && codes && codes.length > 0 && (
+        <div className="space-y-2">
           {codes.map((ic) => (
             <div
               key={ic.code}
-              className="bg-card rounded-xl border border-border shadow-soft p-3 flex items-center justify-between gap-3"
+              className="rounded-xl border border-border bg-card px-4 py-3 flex items-center justify-between gap-3"
             >
-              <div className="flex items-center gap-3">
-                <code className="text-xs font-mono text-foreground">{ic.code}</code>
-                {ic.used && (
-                  <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs bg-muted text-muted-foreground">
-                    used
-                  </span>
-                )}
+              <div className="flex items-center gap-3 min-w-0">
+                <code className="text-xs font-mono text-foreground truncate">{ic.code}</code>
+                <Badge variant={ic.used ? 'secondary' : 'outline'} className="text-xs shrink-0">
+                  {ic.used ? 'Used' : 'Available'}
+                </Badge>
               </div>
-              <div className="flex items-center gap-2">
-                {!ic.used && (
-                  <>
-                    <button
-                      onClick={() => handleCopy(ic.code)}
-                      className="text-muted-foreground hover:text-foreground"
-                      title="Copy invite link"
-                    >
-                      {copiedCode === ic.code ? <Check size={14} /> : <Copy size={14} />}
-                    </button>
-                    <button
-                      onClick={() => handleRevoke(ic.code)}
-                      disabled={revokingCode === ic.code}
-                      className="text-xs text-muted-foreground hover:text-foreground disabled:opacity-40"
-                    >
-                      {revokingCode === ic.code ? 'Revoking…' : 'Revoke'}
-                    </button>
-                  </>
-                )}
-              </div>
+              {!ic.used && (
+                <div className="flex items-center gap-1 shrink-0">
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="h-7 w-7 p-0"
+                    onClick={() => handleCopy(ic.code)}
+                    title="Copy invite link"
+                  >
+                    <Copy className="h-3.5 w-3.5" />
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="h-7 w-7 p-0 text-muted-foreground hover:text-destructive"
+                    onClick={() => handleRevoke(ic.code)}
+                    disabled={revokeCode.isPending}
+                    title="Revoke code"
+                  >
+                    {revokeCode.isPending ? (
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    ) : (
+                      <XCircle className="h-3.5 w-3.5" />
+                    )}
+                  </Button>
+                </div>
+              )}
             </div>
           ))}
         </div>

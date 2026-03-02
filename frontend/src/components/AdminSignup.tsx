@@ -1,13 +1,13 @@
 import { useState } from 'react';
-import { useAdminRegister, useAdminGenerateInviteCode } from '../hooks/useQueries';
+import { useRegister, useGenerateInviteCode } from '../hooks/useQueries';
 import { Region } from '../backend';
 import { toast } from 'sonner';
 
 export default function AdminSignup() {
   const [pseudonym, setPseudonym] = useState('');
   const [region, setRegion] = useState<Region>(Region.Global);
-  const adminRegister = useAdminRegister();
-  const generateCode = useAdminGenerateInviteCode();
+  const adminRegister = useRegister();
+  const generateCode = useGenerateInviteCode();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

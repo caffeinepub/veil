@@ -1,117 +1,176 @@
-import { useState } from 'react';
-import { useNavigate, Link } from '@tanstack/react-router';
-import { useRegister, useGetSeatInfo } from '../hooks/useQueries';
+import React, { useState, useEffect } from 'react';
+import { useNavigate } from '@tanstack/react-router';
+import { useRegister, useGetSeatInfo, useValidateInviteCode } from '../hooks/useQueries';
 import { Region } from '../backend';
 import { getPersistedUrlParameter } from '../utils/urlParams';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Loader2, Users } from 'lucide-react';
 
 export default function SignupPage() {
   const navigate = useNavigate();
-  const register = useRegister();
-  const { data: seatInfo } = useGetSeatInfo();
-
   const [pseudonym, setPseudonym] = useState('');
   const [region, setRegion] = useState<Region>(Region.Global);
-  const [inviteCode, setInviteCode] = useState(getPersistedUrlParameter('invite') || '');
+  const [inviteCode, setInviteCode] = useState('');
   const [error, setError] = useState('');
+
+  const { data: seatInfo, isLoading: seatLoading } = useGetSeatInfo();
+  const { data: isCodeValid, isLoading: validatingCode } = useValidateInviteCode(inviteCode);
+  const registerMutation = useRegister();
+
+  useEffect(() => {
+    // Try 'code' param first (from invite link), then 'invite' as fallback
+    const code = getPersistedUrlParameter('code') ?? getPersistedUrlParameter('invite');
+    if (code) setInviteCode(code);
+  }, []);
+
+  const remainingSeats = seatInfo
+    ? Number(seatInfo.maxSeats) - Number(seatInfo.currentSeats)
+    : null;
+  const noSeatsLeft = remainingSeats !== null && remainingSeats <= 0;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
 
-    if (!pseudonym.trim()) {
-      setError('Please enter a display name.');
+    if (!inviteCode.trim()) {
+      setError('An invite code is required to register.');
       return;
     }
-    if (!inviteCode.trim()) {
-      setError('An invite code is required.');
+
+    if (isCodeValid === false) {
+      setError('This invite code is invalid or has already been used.');
+      return;
+    }
+
+    if (!pseudonym.trim()) {
+      setError('Please enter a pseudonym.');
       return;
     }
 
     try {
-      // useRegister throws on error, returns User on success
-      await register.mutateAsync({
-        pseudonym: pseudonym.trim(),
-        region,
-        inviteCode: inviteCode.trim(),
-      });
+      await registerMutation.mutateAsync({ pseudonym: pseudonym.trim(), region, inviteCode: inviteCode.trim() });
       navigate({ to: '/login' });
-    } catch (err: any) {
-      setError(err?.message || 'Registration failed. Please try again.');
+    } catch (err: unknown) {
+      const e = err as Error;
+      const msg = e?.message ?? 'Registration failed';
+      if (msg.includes('CapacityReached')) {
+        setError('No seats remaining. Registration is currently closed.');
+      } else if (msg.includes('AlreadyRegistered')) {
+        setError('This identity is already registered. Please sign in.');
+      } else if (msg.includes('InvalidInviteCode') || msg.includes('InviteCodeUsed')) {
+        setError('This invite code is invalid or has already been used.');
+      } else {
+        setError(msg);
+      }
     }
   };
 
-  const seatsLeft = seatInfo
-    ? Number(seatInfo.maxSeats) - Number(seatInfo.currentSeats)
-    : null;
-
   return (
-    <div className="min-h-[calc(100vh-3rem)] flex items-center justify-center px-5">
-      <div className="w-full max-w-sm flex flex-col gap-8">
-        <div className="flex flex-col gap-2">
-          <h1 className="font-serif text-2xl font-medium text-foreground">Request access</h1>
+    <div className="min-h-screen flex flex-col items-center justify-center bg-background px-4">
+      <div className="w-full max-w-sm space-y-8">
+        <div className="text-center space-y-2">
+          <img
+            src="/assets/generated/veil-logo.dim_256x256.png"
+            alt="VEIL"
+            className="h-14 w-14 mx-auto rounded-2xl object-cover"
+          />
+          <h1 className="text-2xl font-serif font-semibold text-foreground">Request Access</h1>
           <p className="text-sm text-muted-foreground">
-            Veil is a small, private community. An invite code is required.
+            VEIL is invite-only. Enter your invite code to create an account.
           </p>
-          {seatsLeft !== null && (
-            <p className="text-xs text-muted-foreground">
-              {seatsLeft} {seatsLeft === 1 ? 'seat' : 'seats'} remaining.
-            </p>
+        </div>
+
+        {/* Seat Counter */}
+        <div className="flex items-center gap-2 justify-center text-sm text-muted-foreground bg-muted/40 rounded-xl px-4 py-3">
+          <Users className="h-4 w-4 shrink-0" />
+          {seatLoading ? (
+            <span>Checking availability…</span>
+          ) : noSeatsLeft ? (
+            <span className="text-destructive font-medium">No seats remaining — registration is closed.</span>
+          ) : (
+            <span>
+              <span className="font-semibold text-foreground">{remainingSeats}</span> of{' '}
+              <span className="font-semibold text-foreground">{seatInfo ? Number(seatInfo.maxSeats) : '—'}</span> seats remaining
+            </span>
           )}
         </div>
 
-        <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-          <div className="flex flex-col gap-1.5">
-            <label className="text-xs text-muted-foreground">Anonymous display name</label>
-            <input
-              value={pseudonym}
-              onChange={(e) => setPseudonym(e.target.value)}
-              placeholder="e.g. quiet_river"
-              required
-              className="text-sm bg-muted border border-border rounded-xl px-3 py-2.5 text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-            />
-          </div>
-
-          <div className="flex flex-col gap-1.5">
-            <label className="text-xs text-muted-foreground">Region</label>
-            <select
-              value={region}
-              onChange={(e) => setRegion(e.target.value as Region)}
-              className="text-sm bg-muted border border-border rounded-xl px-3 py-2.5 text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-            >
-              <option value={Region.Global}>Global</option>
-              <option value={Region.India}>India</option>
-            </select>
-          </div>
-
-          <div className="flex flex-col gap-1.5">
-            <label className="text-xs text-muted-foreground">Invite code</label>
-            <input
+        <form onSubmit={handleSubmit} className="space-y-5">
+          <div className="space-y-1.5">
+            <Label htmlFor="inviteCode">Invite Code</Label>
+            <Input
+              id="inviteCode"
               value={inviteCode}
               onChange={(e) => setInviteCode(e.target.value)}
               placeholder="Enter your invite code"
-              required
-              className="text-sm bg-muted border border-border rounded-xl px-3 py-2.5 text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+              disabled={noSeatsLeft || registerMutation.isPending}
+              className="font-mono"
+            />
+            {inviteCode.length > 0 && !validatingCode && (
+              <p className={`text-xs ${isCodeValid ? 'text-green-600' : 'text-destructive'}`}>
+                {isCodeValid ? '✓ Valid invite code' : '✗ Invalid or used code'}
+              </p>
+            )}
+          </div>
+
+          <div className="space-y-1.5">
+            <Label htmlFor="pseudonym">Pseudonym</Label>
+            <Input
+              id="pseudonym"
+              value={pseudonym}
+              onChange={(e) => setPseudonym(e.target.value)}
+              placeholder="Choose a pseudonym"
+              disabled={noSeatsLeft || registerMutation.isPending}
+              maxLength={32}
             />
           </div>
 
+          <div className="space-y-1.5">
+            <Label htmlFor="region">Region</Label>
+            <Select
+              value={region}
+              onValueChange={(v) => setRegion(v as Region)}
+              disabled={noSeatsLeft || registerMutation.isPending}
+            >
+              <SelectTrigger id="region">
+                <SelectValue placeholder="Select region" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value={Region.Global}>Global</SelectItem>
+                <SelectItem value={Region.India}>India</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
           {error && (
-            <p className="text-sm text-muted-foreground">{error}</p>
+            <p className="text-sm text-destructive bg-destructive/10 rounded-lg px-3 py-2">{error}</p>
           )}
 
-          <button
+          <Button
             type="submit"
-            disabled={register.isPending}
-            className="w-full py-3 rounded-xl bg-secondary text-secondary-foreground text-sm font-medium hover:opacity-80 disabled:opacity-40"
+            className="w-full"
+            variant="secondary"
+            disabled={noSeatsLeft || registerMutation.isPending || isCodeValid === false}
           >
-            {register.isPending ? 'Joining…' : 'Join Veil'}
-          </button>
+            {registerMutation.isPending ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Creating account…
+              </>
+            ) : (
+              'Create Account'
+            )}
+          </Button>
         </form>
 
-        <p className="text-xs text-muted-foreground text-center">
-          Already a member?{' '}
-          <Link to="/login" className="text-foreground hover:opacity-70">
+        <p className="text-center text-xs text-muted-foreground">
+          Already have an account?{' '}
+          <a href="/login" className="underline underline-offset-2 hover:text-foreground transition-colors">
             Sign in
-          </Link>
+          </a>
         </p>
       </div>
     </div>

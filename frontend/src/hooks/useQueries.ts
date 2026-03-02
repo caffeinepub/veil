@@ -1,26 +1,24 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useActor } from './useActor';
+import { useInternetIdentity } from './useInternetIdentity';
 import type {
   Post,
+  User,
   UserProfile,
+  UserProfileUpdate,
   Comment,
-  Flag,
   Reaction,
   TextReaction,
+  Flag,
+  SeatInfo,
   DirectMessage,
-  User,
+  RSVP,
+  InviteCode,
 } from '../backend';
-import {
-  EmotionType,
-  ReviewFlag,
-  Visibility,
-  SubscriptionStatus,
-  MessageType,
-  Region,
-} from '../backend';
-import { Principal } from '@dfinity/principal';
+import { Region, ReactionType, SubscriptionStatus, Visibility, MessageType, EmotionType } from '../backend';
+import type { Principal } from '@dfinity/principal';
 
-// ─── Auth / Profile ──────────────────────────────────────────────────────────
+// ─── Auth / Profile ───────────────────────────────────────────────────────────
 
 export function useGetCallerUserProfile() {
   const { actor, isFetching: actorFetching } = useActor();
@@ -47,7 +45,7 @@ export function useSaveCallerUserProfile() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async (profile: { pseudonym: string; region: Region }) => {
+    mutationFn: async (profile: UserProfileUpdate) => {
       if (!actor) throw new Error('Actor not available');
       return actor.saveCallerUserProfile(profile);
     },
@@ -59,6 +57,7 @@ export function useSaveCallerUserProfile() {
 
 export function useIsCallerAdmin() {
   const { actor, isFetching } = useActor();
+  const { identity } = useInternetIdentity();
 
   return useQuery<boolean>({
     queryKey: ['isCallerAdmin'],
@@ -66,7 +65,21 @@ export function useIsCallerAdmin() {
       if (!actor) return false;
       return actor.isCallerAdmin();
     },
-    enabled: !!actor && !isFetching,
+    enabled: !!actor && !isFetching && !!identity,
+  });
+}
+
+export function useCheckLoginStatus() {
+  const { actor, isFetching } = useActor();
+  const { identity } = useInternetIdentity();
+
+  return useQuery({
+    queryKey: ['loginStatus'],
+    queryFn: async () => {
+      if (!actor) throw new Error('Actor not available');
+      return actor.checkLoginStatus();
+    },
+    enabled: !!actor && !isFetching && !!identity,
   });
 }
 
@@ -100,35 +113,20 @@ export function useAcknowledgePublicPostMessage() {
   });
 }
 
-export function useCheckLoginStatus() {
-  const { actor, isFetching } = useActor();
-
-  return useQuery({
-    queryKey: ['loginStatus'],
-    queryFn: async () => {
-      if (!actor) throw new Error('Actor not available');
-      return actor.checkLoginStatus();
-    },
-    enabled: !!actor && !isFetching,
-  });
-}
-
-// ─── Seat Info ────────────────────────────────────────────────────────────────
+// ─── Registration / Seats ─────────────────────────────────────────────────────
 
 export function useGetSeatInfo() {
-  const { actor, isFetching } = useActor();
+  const { actor } = useActor();
 
-  return useQuery({
+  return useQuery<SeatInfo>({
     queryKey: ['seatInfo'],
     queryFn: async () => {
       if (!actor) throw new Error('Actor not available');
       return actor.getSeatInfo();
     },
-    enabled: !!actor && !isFetching,
+    enabled: !!actor,
   });
 }
-
-// ─── Registration ─────────────────────────────────────────────────────────────
 
 export function useRegister() {
   const { actor } = useActor();
@@ -147,14 +145,28 @@ export function useRegister() {
       if (!actor) throw new Error('Actor not available');
       const result = await actor.register(pseudonym, region, inviteCode);
       if (result.__kind__ === 'err') {
-        throw new Error(String(result.err));
+        throw new Error(result.err);
       }
       return result.ok;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['currentUserProfile'] });
       queryClient.invalidateQueries({ queryKey: ['seatInfo'] });
+      queryClient.invalidateQueries({ queryKey: ['currentUserProfile'] });
+      queryClient.invalidateQueries({ queryKey: ['loginStatus'] });
     },
+  });
+}
+
+export function useValidateInviteCode(code: string) {
+  const { actor } = useActor();
+
+  return useQuery<boolean>({
+    queryKey: ['validateInviteCode', code],
+    queryFn: async () => {
+      if (!actor) throw new Error('Actor not available');
+      return actor.validateInviteCode(code);
+    },
+    enabled: !!actor && code.length > 0,
   });
 }
 
@@ -162,29 +174,29 @@ export function useRegister() {
 
 export function useGetPublicPosts() {
   const { actor, isFetching } = useActor();
+  const { identity } = useInternetIdentity();
 
   return useQuery<Post[]>({
-    queryKey: ['publicPosts'],
+    queryKey: ['posts', 'public'],
     queryFn: async () => {
       if (!actor) return [];
-      const posts = await actor.getPublicPosts();
-      return [...posts].sort((a, b) => Number(b.createdAt - a.createdAt));
+      return actor.getPublicPosts();
     },
-    enabled: !!actor && !isFetching,
+    enabled: !!actor && !isFetching && !!identity,
   });
 }
 
 export function useGetMyPosts() {
   const { actor, isFetching } = useActor();
+  const { identity } = useInternetIdentity();
 
   return useQuery<Post[]>({
-    queryKey: ['myPosts'],
+    queryKey: ['posts', 'my'],
     queryFn: async () => {
       if (!actor) return [];
-      const posts = await actor.getMyPosts();
-      return [...posts].sort((a, b) => Number(b.createdAt - a.createdAt));
+      return actor.getMyPosts();
     },
-    enabled: !!actor && !isFetching,
+    enabled: !!actor && !isFetching && !!identity,
   });
 }
 
@@ -210,10 +222,8 @@ export function useCreatePost() {
       return result.ok;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['myPosts'] });
-      queryClient.invalidateQueries({ queryKey: ['publicPosts'] });
-      queryClient.invalidateQueries({ queryKey: ['adminAllPosts'] });
-      queryClient.invalidateQueries({ queryKey: ['ecosystemSilence'] });
+      queryClient.invalidateQueries({ queryKey: ['posts', 'my'] });
+      queryClient.invalidateQueries({ queryKey: ['posts', 'public'] });
     },
   });
 }
@@ -232,37 +242,49 @@ export function useTogglePostVisibility() {
       return result.ok;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['myPosts'] });
-      queryClient.invalidateQueries({ queryKey: ['publicPosts'] });
-      queryClient.invalidateQueries({ queryKey: ['adminAllPosts'] });
-      queryClient.invalidateQueries({ queryKey: ['ecosystemSilence'] });
+      queryClient.invalidateQueries({ queryKey: ['posts', 'my'] });
+      queryClient.invalidateQueries({ queryKey: ['posts', 'public'] });
     },
   });
 }
 
-/** @deprecated Use useAdminRemovePost instead */
-export function useDeletePost() {
+// Alias for backward compat
+export const useDeletePost = useTogglePostVisibility;
+
+// ─── Reactions ────────────────────────────────────────────────────────────────
+
+export function useGetReactionsForPost(postId: string) {
+  const { actor, isFetching } = useActor();
+  const { identity } = useInternetIdentity();
+
+  return useQuery<Reaction[]>({
+    queryKey: ['reactions', postId],
+    queryFn: async () => {
+      if (!actor) return [];
+      return actor.getReactionsForPost(postId);
+    },
+    enabled: !!actor && !isFetching && !!identity && !!postId,
+  });
+}
+
+export function useAddReaction() {
   const { actor } = useActor();
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async (postId: string) => {
+    mutationFn: async ({ postId, reactionType }: { postId: string; reactionType: ReactionType }) => {
       if (!actor) throw new Error('Actor not available');
-      return actor.adminDeletePost(postId);
+      return actor.addReaction(postId, reactionType);
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['myPosts'] });
-      queryClient.invalidateQueries({ queryKey: ['publicPosts'] });
-      queryClient.invalidateQueries({ queryKey: ['adminAllPosts'] });
+    onSuccess: (_data, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['reactions', variables.postId] });
     },
   });
 }
 
-// ─── Text Reactions ───────────────────────────────────────────────────────────
-
-/** Alias kept for backward compatibility */
-export function useTextReactionsForPost(postId: string) {
+export function useGetTextReactionsForPost(postId: string) {
   const { actor, isFetching } = useActor();
+  const { identity } = useInternetIdentity();
 
   return useQuery<TextReaction[]>({
     queryKey: ['textReactions', postId],
@@ -270,13 +292,12 @@ export function useTextReactionsForPost(postId: string) {
       if (!actor) return [];
       return actor.getTextReactionsForPost(postId);
     },
-    enabled: !!actor && !isFetching && !!postId,
+    enabled: !!actor && !isFetching && !!identity && !!postId,
   });
 }
 
-export function useGetTextReactionsForPost(postId: string) {
-  return useTextReactionsForPost(postId);
-}
+// Alias
+export const useTextReactionsForPost = useGetTextReactionsForPost;
 
 export function useAddTextReaction() {
   const { actor } = useActor();
@@ -293,54 +314,24 @@ export function useAddTextReaction() {
   });
 }
 
-export function useGetReactionsForPost(postId: string) {
-  const { actor, isFetching } = useActor();
-
-  return useQuery<Reaction[]>({
-    queryKey: ['reactions', postId],
-    queryFn: async () => {
-      if (!actor) return [];
-      return actor.getReactionsForPost(postId);
-    },
-    enabled: !!actor && !isFetching && !!postId,
-  });
-}
-
-export function useAddReaction() {
-  const { actor } = useActor();
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: async (params: { postId: string; reactionType: any }) => {
-      if (!actor) throw new Error('Actor not available');
-      return actor.addReaction(params.postId, params.reactionType);
-    },
-    onSuccess: (_data, variables) => {
-      queryClient.invalidateQueries({ queryKey: ['reactions', variables.postId] });
-    },
-  });
-}
-
 // ─── Comments ─────────────────────────────────────────────────────────────────
-
-/** Alias kept for backward compatibility */
-export function useGetCommentsForPost(postId: string) {
-  return useGetCommentsByPost(postId);
-}
 
 export function useGetCommentsByPost(postId: string) {
   const { actor, isFetching } = useActor();
+  const { identity } = useInternetIdentity();
 
   return useQuery<Comment[]>({
     queryKey: ['comments', postId],
     queryFn: async () => {
       if (!actor) return [];
-      const comments = await actor.getCommentsByPost(postId);
-      return [...comments].sort((a, b) => Number(a.createdAt - b.createdAt));
+      return actor.getCommentsByPost(postId);
     },
-    enabled: !!actor && !isFetching && !!postId,
+    enabled: !!actor && !isFetching && !!identity && !!postId,
   });
 }
+
+// Alias
+export const useGetCommentsForPost = useGetCommentsByPost;
 
 export function useAddComment() {
   const { actor } = useActor();
@@ -353,7 +344,6 @@ export function useAddComment() {
     },
     onSuccess: (_data, variables) => {
       queryClient.invalidateQueries({ queryKey: ['comments', variables.postId] });
-      queryClient.invalidateQueries({ queryKey: ['flaggedComments'] });
     },
   });
 }
@@ -368,8 +358,7 @@ export function useFlagComment() {
       return actor.flagComment(commentId);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['comments'] });
-      queryClient.invalidateQueries({ queryKey: ['flaggedComments'] });
+      queryClient.invalidateQueries({ queryKey: ['admin', 'flaggedComments'] });
     },
   });
 }
@@ -384,28 +373,9 @@ export function useDeleteComment() {
       return actor.deleteComment(commentId);
     },
     onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin', 'flaggedComments'] });
       queryClient.invalidateQueries({ queryKey: ['comments'] });
-      queryClient.invalidateQueries({ queryKey: ['flaggedComments'] });
     },
-  });
-}
-
-export function useGetFlaggedComments() {
-  const { actor, isFetching } = useActor();
-
-  return useQuery<Comment[]>({
-    queryKey: ['flaggedComments'],
-    queryFn: async () => {
-      if (!actor) return [];
-      const posts = await actor.adminGetAllPosts();
-      const publicPosts = posts.filter((p) => p.visibility === Visibility.publicView);
-      const commentArrays = await Promise.all(
-        publicPosts.map((p) => actor.getCommentsByPost(p.id).catch(() => [] as Comment[]))
-      );
-      const allComments = commentArrays.flat();
-      return allComments.filter((c) => c.flagged);
-    },
-    enabled: !!actor && !isFetching,
   });
 }
 
@@ -421,23 +391,8 @@ export function useFlagPost() {
       return actor.flagPost(postId, reason);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['adminFlaggedPosts'] });
+      queryClient.invalidateQueries({ queryKey: ['admin', 'flaggedPosts'] });
     },
-  });
-}
-
-// ─── ESP ──────────────────────────────────────────────────────────────────────
-
-export function useGetESPStatus() {
-  const { actor, isFetching } = useActor();
-
-  return useQuery<boolean>({
-    queryKey: ['espStatus'],
-    queryFn: async () => {
-      if (!actor) return false;
-      return actor.getESPStatus();
-    },
-    enabled: !!actor && !isFetching,
   });
 }
 
@@ -445,82 +400,71 @@ export function useGetESPStatus() {
 
 export function useAdminGetAllPosts() {
   const { actor, isFetching } = useActor();
+  const { identity } = useInternetIdentity();
 
   return useQuery<Post[]>({
-    queryKey: ['adminAllPosts'],
+    queryKey: ['admin', 'allPosts'],
     queryFn: async () => {
       if (!actor) return [];
       return actor.adminGetAllPosts();
     },
-    enabled: !!actor && !isFetching,
-  });
-}
-
-export function useAdminGetFlaggedPosts() {
-  const { actor, isFetching } = useActor();
-
-  return useQuery<Flag[]>({
-    queryKey: ['adminFlaggedPosts'],
-    queryFn: async () => {
-      if (!actor) return [];
-      return actor.adminGetFlaggedPosts();
-    },
-    enabled: !!actor && !isFetching,
-  });
-}
-
-export function useAdminGetAllFlaggedPostsWithRecords() {
-  const { actor, isFetching } = useActor();
-
-  return useQuery<Array<[string, Flag[]]>>({
-    queryKey: ['flaggedPostsWithRecords'],
-    queryFn: async () => {
-      if (!actor) return [];
-      return actor.adminGetAllFlaggedPostsWithRecords();
-    },
-    enabled: !!actor && !isFetching,
+    enabled: !!actor && !isFetching && !!identity,
   });
 }
 
 export function useAdminGetAllUsers() {
   const { actor, isFetching } = useActor();
+  const { identity } = useInternetIdentity();
 
   return useQuery<User[]>({
-    queryKey: ['adminAllUsers'],
+    queryKey: ['admin', 'allUsers'],
     queryFn: async () => {
       if (!actor) return [];
       return actor.adminGetAllUsers();
     },
-    enabled: !!actor && !isFetching,
-    staleTime: 30_000,
+    enabled: !!actor && !isFetching && !!identity,
   });
 }
 
 export function useAdminGetAllUsersExtended() {
   const { actor, isFetching } = useActor();
+  const { identity } = useInternetIdentity();
 
   return useQuery<Array<[Principal, UserProfile]>>({
-    queryKey: ['adminAllUsersExtended'],
+    queryKey: ['admin', 'allUsersExtended'],
     queryFn: async () => {
       if (!actor) return [];
       return actor.adminGetAllUsersExtended();
     },
-    enabled: !!actor && !isFetching,
+    enabled: !!actor && !isFetching && !!identity,
   });
 }
 
-/**
- * Returns a mutation (not a query) so callers can imperatively fetch posts
- * for a given user principal string.
- */
-export function useAdminGetUserPosts() {
-  const { actor } = useActor();
+export function useAdminGetFlaggedPosts() {
+  const { actor, isFetching } = useActor();
+  const { identity } = useInternetIdentity();
 
-  return useMutation({
-    mutationFn: async (userId: Principal) => {
-      if (!actor) throw new Error('Actor not available');
-      return actor.adminGetUserPosts(userId);
+  return useQuery<Flag[]>({
+    queryKey: ['admin', 'flaggedPosts'],
+    queryFn: async () => {
+      if (!actor) return [];
+      return actor.adminGetFlaggedPosts();
     },
+    enabled: !!actor && !isFetching && !!identity,
+  });
+}
+
+export function useAdminGetAllFlaggedPostsWithRecords() {
+  const { actor, isFetching } = useActor();
+  const { identity } = useInternetIdentity();
+
+  return useQuery<Array<[string, Array<Flag>]>>({
+    queryKey: ['admin', 'flaggedPostsWithRecords'],
+    queryFn: async () => {
+      if (!actor) return [];
+      return actor.adminGetAllFlaggedPostsWithRecords();
+    },
+    enabled: !!actor && !isFetching && !!identity,
   });
 }
 
@@ -534,20 +478,16 @@ export function useAdminRemovePost() {
       return actor.adminRemovePost(postId);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['adminAllPosts'] });
-      queryClient.invalidateQueries({ queryKey: ['publicPosts'] });
-      queryClient.invalidateQueries({ queryKey: ['adminFlaggedPosts'] });
-      queryClient.invalidateQueries({ queryKey: ['flaggedPostsWithRecords'] });
-      queryClient.invalidateQueries({ queryKey: ['crisisRiskPosts'] });
-      queryClient.invalidateQueries({ queryKey: ['ecosystemSilence'] });
+      queryClient.invalidateQueries({ queryKey: ['admin', 'allPosts'] });
+      queryClient.invalidateQueries({ queryKey: ['admin', 'flaggedPosts'] });
+      queryClient.invalidateQueries({ queryKey: ['admin', 'flaggedPostsWithRecords'] });
+      queryClient.invalidateQueries({ queryKey: ['posts', 'public'] });
     },
   });
 }
 
-/** Alias: some components import useAdminDeletePost */
-export function useAdminDeletePost() {
-  return useAdminRemovePost();
-}
+// Alias
+export const useAdminDeletePost = useAdminRemovePost;
 
 export function useAdminSuspendUser() {
   const { actor } = useActor();
@@ -559,7 +499,8 @@ export function useAdminSuspendUser() {
       return actor.adminSuspendUser(userId);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['adminAllUsers'] });
+      queryClient.invalidateQueries({ queryKey: ['admin', 'allUsers'] });
+      queryClient.invalidateQueries({ queryKey: ['admin', 'allUsersExtended'] });
     },
   });
 }
@@ -574,7 +515,8 @@ export function useAdminUnsuspendUser() {
       return actor.adminUnsuspendUser(userId);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['adminAllUsers'] });
+      queryClient.invalidateQueries({ queryKey: ['admin', 'allUsers'] });
+      queryClient.invalidateQueries({ queryKey: ['admin', 'allUsersExtended'] });
     },
   });
 }
@@ -589,55 +531,13 @@ export function useAdminToggleUserSuspension() {
       return actor.adminToggleUserSuspension(userId);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['adminAllUsers'] });
+      queryClient.invalidateQueries({ queryKey: ['admin', 'allUsers'] });
+      queryClient.invalidateQueries({ queryKey: ['admin', 'allUsersExtended'] });
     },
   });
 }
 
-export function useAdminSetSubscriptionStatus() {
-  const { actor } = useActor();
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: async ({
-      userId,
-      status,
-    }: {
-      userId: Principal;
-      status: SubscriptionStatus;
-    }) => {
-      if (!actor) throw new Error('Actor not available');
-      return actor.adminSetSubscriptionStatus(userId, status);
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['adminAllUsers'] });
-    },
-  });
-}
-
-export function useAdminPermanentlyRemoveUser() {
-  const { actor } = useActor();
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: async (userId: Principal) => {
-      if (!actor) throw new Error('Actor not available');
-      return actor.adminPermanentlyRemoveUser(userId);
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['adminAllUsers'] });
-      queryClient.invalidateQueries({ queryKey: ['adminAllPosts'] });
-      queryClient.invalidateQueries({ queryKey: ['seatInfo'] });
-    },
-  });
-}
-
-/** Alias kept for backward compatibility */
-export function useAdminRemoveUser() {
-  return useAdminPermanentlyRemoveUser();
-}
-
-export function useAdminApplyPublicPostingCooldown() {
+export function useAdminApplyCooldown() {
   const { actor } = useActor();
   const queryClient = useQueryClient();
 
@@ -647,68 +547,97 @@ export function useAdminApplyPublicPostingCooldown() {
       return actor.adminApplyPublicPostingCooldown(userId);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['adminAllUsers'] });
+      queryClient.invalidateQueries({ queryKey: ['admin', 'allUsers'] });
     },
   });
 }
 
-/** Alias kept for backward compatibility */
-export function useAdminApplyCooldown() {
-  return useAdminApplyPublicPostingCooldown();
-}
-
-// ─── Admin Seat Count ─────────────────────────────────────────────────────────
-
-export function useAdminGetSeatCount() {
-  return useGetSeatInfo();
-}
-
-// ─── Admin ESP ────────────────────────────────────────────────────────────────
-
-export function useAdminGetESPFlaggedUsers() {
-  const { actor, isFetching } = useActor();
-
-  return useQuery<Principal[]>({
-    queryKey: ['adminESPFlaggedUsers'],
-    queryFn: async () => {
-      if (!actor) return [];
-      return actor.adminGetESPFlaggedUsers();
-    },
-    enabled: !!actor && !isFetching,
-  });
-}
-
-export function useAdminClearESPFlag() {
+export function useAdminRemoveUser() {
   const { actor } = useActor();
   const queryClient = useQueryClient();
 
   return useMutation({
     mutationFn: async (userId: Principal) => {
       if (!actor) throw new Error('Actor not available');
-      return actor.adminClearESPFlag(userId);
+      return actor.adminPermanentlyRemoveUser(userId);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['adminESPFlaggedUsers'] });
+      queryClient.invalidateQueries({ queryKey: ['admin', 'allUsers'] });
+      queryClient.invalidateQueries({ queryKey: ['admin', 'allUsersExtended'] });
+      queryClient.invalidateQueries({ queryKey: ['admin', 'allPosts'] });
     },
   });
 }
 
-// ─── Admin Invite Codes ───────────────────────────────────────────────────────
+export function useAdminSetSubscriptionStatus() {
+  const { actor } = useActor();
+  const queryClient = useQueryClient();
 
-export function useAdminGetInviteCodes() {
+  return useMutation({
+    mutationFn: async ({ userId, status }: { userId: Principal; status: SubscriptionStatus }) => {
+      if (!actor) throw new Error('Actor not available');
+      return actor.adminSetSubscriptionStatus(userId, status);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin', 'allUsers'] });
+      queryClient.invalidateQueries({ queryKey: ['admin', 'allUsersExtended'] });
+    },
+  });
+}
+
+export function useAdminGetHighRiskEmotionAlerts() {
   const { actor, isFetching } = useActor();
+  const { identity } = useInternetIdentity();
 
-  return useQuery({
-    queryKey: ['adminInviteCodes'],
+  return useQuery<Array<[Principal, bigint]>>({
+    queryKey: ['admin', 'emotionAlerts'],
+    queryFn: async () => {
+      if (!actor) return [];
+      return actor.adminGetHighRiskEmotionAlerts();
+    },
+    enabled: !!actor && !isFetching && !!identity,
+  });
+}
+
+// Aliases
+export const useGetEmotionalAlerts = useAdminGetHighRiskEmotionAlerts;
+export const useAdminGetEmotionalAlerts = useAdminGetHighRiskEmotionAlerts;
+
+export function useGetCrisisRiskPosts() {
+  const { actor, isFetching } = useActor();
+  const { identity } = useInternetIdentity();
+
+  return useQuery<Post[]>({
+    queryKey: ['admin', 'crisisRiskPosts'],
+    queryFn: async () => {
+      if (!actor) return [];
+      const allPosts = await actor.adminGetAllPosts();
+      return allPosts.filter((p) => p.flaggedForReview === 'crisisRisk');
+    },
+    enabled: !!actor && !isFetching && !!identity,
+  });
+}
+
+// ─── Invite Codes ─────────────────────────────────────────────────────────────
+
+export function useGetInviteCodes() {
+  const { actor, isFetching } = useActor();
+  const { identity } = useInternetIdentity();
+
+  return useQuery<InviteCode[]>({
+    queryKey: ['admin', 'inviteCodes'],
     queryFn: async () => {
       if (!actor) return [];
       return actor.getInviteCodes();
     },
-    enabled: !!actor && !isFetching,
+    enabled: !!actor && !isFetching && !!identity,
   });
 }
 
-export function useAdminGenerateInviteCode() {
+// Alias used by AdminInviteCodes
+export const useAdminGetInviteCodes = useGetInviteCodes;
+
+export function useGenerateInviteCode() {
   const { actor } = useActor();
   const queryClient = useQueryClient();
 
@@ -718,28 +647,30 @@ export function useAdminGenerateInviteCode() {
       return actor.generateInviteCode();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['adminInviteCodes'] });
-      queryClient.invalidateQueries({ queryKey: ['seatInfo'] });
+      queryClient.invalidateQueries({ queryKey: ['admin', 'inviteCodes'] });
     },
   });
 }
 
-export function useAdminAddInviteCode() {
+// Alias
+export const useAdminGenerateInviteCode = useGenerateInviteCode;
+
+export function useRevokeInviteCode() {
   const { actor } = useActor();
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async ({ code: _code }: { code: string }) => {
+    mutationFn: async (code: string) => {
       if (!actor) throw new Error('Actor not available');
-      // Backend doesn't support adding arbitrary codes; generate one instead
-      return actor.generateInviteCode();
+      return actor.revokeInviteCode(code);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['adminInviteCodes'] });
+      queryClient.invalidateQueries({ queryKey: ['admin', 'inviteCodes'] });
     },
   });
 }
 
+// Alias used by AdminInviteCodes (old signature passed { code })
 export function useAdminRevokeInviteCode() {
   const { actor } = useActor();
   const queryClient = useQueryClient();
@@ -750,60 +681,88 @@ export function useAdminRevokeInviteCode() {
       return actor.revokeInviteCode(code);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['adminInviteCodes'] });
+      queryClient.invalidateQueries({ queryKey: ['admin', 'inviteCodes'] });
     },
-  });
-}
-
-// ─── Admin Register ───────────────────────────────────────────────────────────
-
-export function useAdminRegister() {
-  const { actor } = useActor();
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: async (params: { pseudonym: string; region: Region; inviteCode: string }) => {
-      if (!actor) throw new Error('Actor not available');
-      const result = await actor.register(params.pseudonym, params.region, params.inviteCode);
-      if (result.__kind__ === 'err') {
-        throw new Error(String(result.err));
-      }
-      return result.ok;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['adminAllUsers'] });
-      queryClient.invalidateQueries({ queryKey: ['seatInfo'] });
-    },
-  });
-}
-
-// ─── User Profile ─────────────────────────────────────────────────────────────
-
-export function useGetUserProfile(userId: string) {
-  const { actor, isFetching } = useActor();
-
-  return useQuery<UserProfile | null>({
-    queryKey: ['userProfile', userId],
-    queryFn: async () => {
-      if (!actor) return null;
-      return actor.getUserProfile(Principal.fromText(userId));
-    },
-    enabled: !!actor && !isFetching && !!userId,
   });
 }
 
 // ─── Direct Messages ──────────────────────────────────────────────────────────
 
-export function useGetDirectMessagesForUser(userId: string) {
+export function useGetDirectMessages(userId: Principal | null) {
   const { actor, isFetching } = useActor();
+  const { identity } = useInternetIdentity();
 
   return useQuery<DirectMessage[]>({
-    queryKey: ['directMessages', userId],
+    queryKey: ['directMessages', userId?.toString()],
     queryFn: async () => {
-      if (!actor) return [];
-      return actor.getDirectMessagesForUser(Principal.fromText(userId));
+      if (!actor || !userId) return [];
+      return actor.getDirectMessagesForUser(userId);
     },
-    enabled: !!actor && !isFetching && !!userId,
+    enabled: !!actor && !isFetching && !!identity && !!userId,
+  });
+}
+
+export function useSendAdminMessage() {
+  const { actor } = useActor();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ recipient, messageContent }: { recipient: string; messageContent: string }) => {
+      if (!actor) throw new Error('Actor not available');
+      const { Principal } = await import('@dfinity/principal');
+      const p = Principal.fromText(recipient);
+      return actor.sendAdminMessage(p, MessageType.admin, messageContent);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['directMessages'] });
+    },
+  });
+}
+
+export function useSendCrisisResourceMessage() {
+  const { actor } = useActor();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ recipient }: { recipient: string }) => {
+      if (!actor) throw new Error('Actor not available');
+      const { Principal } = await import('@dfinity/principal');
+      const p = Principal.fromText(recipient);
+      return actor.sendCrisisResourceMessage(p, MessageType.resource);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['directMessages'] });
+    },
+  });
+}
+
+export function useSendCheckIn() {
+  const { actor } = useActor();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ recipient, message }: { recipient: Principal; message: string }) => {
+      if (!actor) throw new Error('Actor not available');
+      return actor.sendAdminMessage(recipient, MessageType.admin, message);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['directMessages'] });
+    },
+  });
+}
+
+export function useSendCrisisResources() {
+  const { actor } = useActor();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (recipient: Principal) => {
+      if (!actor) throw new Error('Actor not available');
+      return actor.sendCrisisResourceMessage(recipient, MessageType.resource);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['directMessages'] });
+    },
   });
 }
 
@@ -822,101 +781,21 @@ export function useMarkDirectMessageAsRead() {
   });
 }
 
-// ─── Crisis Protocol ──────────────────────────────────────────────────────────
-
-export function useGetCrisisRiskPosts() {
-  const { actor, isFetching } = useActor();
-
-  return useQuery<Post[]>({
-    queryKey: ['crisisRiskPosts'],
-    queryFn: async () => {
-      if (!actor) return [];
-      const allPosts = await actor.adminGetAllPosts();
-      return allPosts.filter((p) => p.flaggedForReview === ReviewFlag.crisisRisk);
-    },
-    enabled: !!actor && !isFetching,
-  });
-}
-
-export function useSendAdminMessage() {
-  const { actor } = useActor();
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: async (params: { recipient: string; messageContent: string }) => {
-      if (!actor) throw new Error('Actor not available');
-      return actor.sendAdminMessage(
-        Principal.fromText(params.recipient),
-        MessageType.admin,
-        params.messageContent
-      );
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['directMessages'] });
-    },
-  });
-}
-
-export function useSendCrisisResourceMessage() {
-  const { actor } = useActor();
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: async (params: { recipient: string }) => {
-      if (!actor) throw new Error('Actor not available');
-      return actor.sendCrisisResourceMessage(
-        Principal.fromText(params.recipient),
-        MessageType.resource
-      );
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['directMessages'] });
-    },
-  });
-}
-
-// ─── Emotional Alerts ─────────────────────────────────────────────────────────
-
-export function useAdminGetHighRiskEmotionAlerts() {
-  const { actor, isFetching } = useActor();
-
-  return useQuery<Array<[Principal, bigint]>>({
-    queryKey: ['highRiskEmotionAlerts'],
-    queryFn: async () => {
-      if (!actor) return [];
-      return actor.adminGetHighRiskEmotionAlerts();
-    },
-    enabled: !!actor && !isFetching,
-    staleTime: 60_000,
-  });
-}
-
-/** Alias kept for backward compatibility */
-export function useAdminGetEmotionalAlerts() {
-  return useAdminGetHighRiskEmotionAlerts();
-}
-
 // ─── Ecosystem Silence ────────────────────────────────────────────────────────
 
-const FIVE_DAYS_NS = BigInt(5 * 24 * 60 * 60) * BigInt(1_000_000_000);
-
 export function useCheckEcosystemSilence() {
-  const { actor, isFetching } = useActor();
+  const { data: publicPosts } = useGetPublicPosts();
 
-  return useQuery<boolean>({
-    queryKey: ['ecosystemSilence'],
-    queryFn: async () => {
-      if (!actor) return false;
-      const allPosts = await actor.adminGetAllPosts();
-      const now = BigInt(Date.now()) * BigInt(1_000_000);
-      const cutoff = now - FIVE_DAYS_NS;
-      const hasRecentPublicPost = allPosts.some(
-        (p) => p.visibility === Visibility.publicView && p.createdAt >= cutoff
-      );
-      return !hasRecentPublicPost;
-    },
-    enabled: !!actor && !isFetching,
+  const fiveDaysAgo = Date.now() - 5 * 24 * 60 * 60 * 1000;
+  const hasRecentPost = publicPosts?.some((p) => {
+    const postTime = Number(p.createdAt) / 1_000_000;
+    return postTime > fiveDaysAgo;
   });
+
+  return {
+    isSilent: publicPosts !== undefined && !hasRecentPost,
+    isLoading: publicPosts === undefined,
+  };
 }
 
 export function usePublishPromptPost() {
@@ -924,20 +803,129 @@ export function usePublishPromptPost() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async (emotionType: EmotionType) => {
+    mutationFn: async ({
+      emotionType,
+      content,
+    }: {
+      emotionType: EmotionType;
+      content: string;
+    }) => {
       if (!actor) throw new Error('Actor not available');
-      const PROMPT_MESSAGE =
-        'The community has been quiet for a while. Feel free to share something on your mind.';
-      const result = await actor.createPost(emotionType, PROMPT_MESSAGE, Visibility.publicView);
+      const result = await actor.createPost(emotionType, content, Visibility.publicView);
       if (result.__kind__ === 'err') {
         throw new Error(result.err);
       }
       return result.ok;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['ecosystemSilence'] });
-      queryClient.invalidateQueries({ queryKey: ['publicPosts'] });
-      queryClient.invalidateQueries({ queryKey: ['adminAllPosts'] });
+      queryClient.invalidateQueries({ queryKey: ['posts', 'public'] });
+      queryClient.invalidateQueries({ queryKey: ['admin', 'allPosts'] });
+    },
+  });
+}
+
+// ─── ESP ──────────────────────────────────────────────────────────────────────
+
+export function useGetESPStatus() {
+  const { actor, isFetching } = useActor();
+  const { identity } = useInternetIdentity();
+
+  return useQuery<boolean>({
+    queryKey: ['espStatus'],
+    queryFn: async () => {
+      if (!actor) return false;
+      return actor.getESPStatus();
+    },
+    enabled: !!actor && !isFetching && !!identity,
+  });
+}
+
+export function useAdminGetESPFlaggedUsers() {
+  const { actor, isFetching } = useActor();
+  const { identity } = useInternetIdentity();
+
+  return useQuery<Principal[]>({
+    queryKey: ['admin', 'espFlaggedUsers'],
+    queryFn: async () => {
+      if (!actor) return [];
+      return actor.adminGetESPFlaggedUsers();
+    },
+    enabled: !!actor && !isFetching && !!identity,
+  });
+}
+
+export function useAdminClearESPFlag() {
+  const { actor } = useActor();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (userId: Principal) => {
+      if (!actor) throw new Error('Actor not available');
+      return actor.adminClearESPFlag(userId);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin', 'espFlaggedUsers'] });
+    },
+  });
+}
+
+// ─── Flagged Comments (derived from all comments) ─────────────────────────────
+
+export function useGetFlaggedComments() {
+  const { actor, isFetching } = useActor();
+  const { identity } = useInternetIdentity();
+
+  return useQuery<Comment[]>({
+    queryKey: ['admin', 'flaggedComments'],
+    queryFn: async () => {
+      if (!actor) return [];
+      const allPosts = await actor.adminGetAllPosts();
+      const publicPosts = allPosts.filter((p) => p.visibility === 'publicView');
+      const commentArrays = await Promise.all(
+        publicPosts.map((p) => actor.getCommentsByPost(p.id).catch(() => [] as Comment[]))
+      );
+      const allComments = commentArrays.flat();
+      return allComments.filter((c) => c.flagged);
+    },
+    enabled: !!actor && !isFetching && !!identity,
+  });
+}
+
+// ─── RSVP ─────────────────────────────────────────────────────────────────────
+
+export function useGetAllRSVPs() {
+  const { actor, isFetching } = useActor();
+  const { identity } = useInternetIdentity();
+
+  return useQuery<RSVP[]>({
+    queryKey: ['admin', 'rsvps'],
+    queryFn: async () => {
+      if (!actor) return [];
+      return actor.getAllRSVPs();
+    },
+    enabled: !!actor && !isFetching && !!identity,
+  });
+}
+
+export function useSubmitRSVP() {
+  const { actor } = useActor();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({
+      name,
+      attending,
+      inviteCode,
+    }: {
+      name: string;
+      attending: boolean;
+      inviteCode: string;
+    }) => {
+      if (!actor) throw new Error('Actor not available');
+      return actor.submitRSVP(name, attending, inviteCode);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin', 'rsvps'] });
     },
   });
 }

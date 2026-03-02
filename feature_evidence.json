@@ -1,4 +1,229 @@
 {
   "kind": "feature_evidence_report",
-  "features": []
+  "features": [
+    {
+      "featureId": "feature-ensure-the-full-internet-identity-authentication-flow-is-working-end-to-end-login-via-internet-identity-session-persistence-logout-and-role-detection-admin-vs-member-the-loginpage-must-redirect-authenticated-users-to-the-community-feed-and-protectedroute-adminroute-guards-must-correctly-block-unauthenticated-or-unauthorized-access",
+      "featureTitle": "Ensure the full Internet Identity authentication flow is working end-to-end: login via Internet Identity, session persistence, logout, and role detection (admin vs. member). The LoginPage must redirect authenticated users to the community feed, and ProtectedRoute/AdminRoute guards must correctly block unauthenticated or unauthorized access.",
+      "files": [
+        "frontend/src/components/AdminRoute.tsx",
+        "frontend/src/components/ProtectedRoute.tsx",
+        "frontend/src/hooks/useAuth.ts",
+        "frontend/src/pages/LoginPage.tsx"
+      ],
+      "components": [
+        "authorization@4.0.0",
+        "invite-links@3.0.0",
+        "core-infrastructure@1.0.2",
+        "shadcn-ui@1.0.0",
+        "build-template-react@1.0.0",
+        "initial-app@1.0.0",
+        "github-export-icp-cli@1.0.0"
+      ],
+      "testIds": [
+        "REQ-1"
+      ],
+      "confidence": "high"
+    },
+    {
+      "featureId": "feature-ensure-fully-functional-post-creation-users-can-select-an-emotion-type-happy-confess-broke-write-content-subject-to-a-24-word-minimum-for-applicable-emotion-types-toggle-public-private-visibility-acknowledge-the-entry-protection-modal-acknowledge-the-public-post-warning-modal-when-posting-publicly-and-successfully-submit-the-post-to-the-backend-after-submission-redirect-the-user-to-their-posts-list",
+      "featureTitle": "Ensure fully functional post creation: users can select an emotion type (happy, confess, broke), write content subject to a 24-word minimum for applicable emotion types, toggle public/private visibility, acknowledge the entry protection modal, acknowledge the public post warning modal when posting publicly, and successfully submit the post to the backend. After submission, redirect the user to their posts list.",
+      "files": [
+        "frontend/src/components/EmotionBadge.tsx",
+        "frontend/src/components/EntryProtectionModal.tsx",
+        "frontend/src/components/PublicPostWarningModal.tsx",
+        "frontend/src/pages/MyPostsPage.tsx",
+        "frontend/src/pages/PostCreationPage.tsx"
+      ],
+      "components": [
+        "authorization@4.0.0",
+        "invite-links@3.0.0",
+        "core-infrastructure@1.0.2",
+        "shadcn-ui@1.0.0",
+        "build-template-react@1.0.0",
+        "initial-app@1.0.0",
+        "github-export-icp-cli@1.0.0"
+      ],
+      "testIds": [
+        "REQ-2"
+      ],
+      "confidence": "high"
+    },
+    {
+      "featureId": "feature-implement-emotional-mode-guidance-in-the-post-creation-flow-when-the-user-selects-the-broke-emotion-type-display-contextual-guidance-text-advising-them-that-this-mode-is-for-moments-of-genuine-distress-and-offering-a-brief-grounding-prompt-guidance-should-be-visually-distinct-e-g-a-highlighted-callout-and-appear-inline-without-blocking-composition",
+      "featureTitle": "Implement emotional mode guidance in the post creation flow: when the user selects the 'broke' emotion type, display contextual guidance text advising them that this mode is for moments of genuine distress and offering a brief grounding prompt. Guidance should be visually distinct (e.g., a highlighted callout) and appear inline without blocking composition.",
+      "files": [
+        "frontend/src/pages/PostCreationPage.tsx"
+      ],
+      "components": [
+        "authorization@4.0.0",
+        "invite-links@3.0.0",
+        "core-infrastructure@1.0.2",
+        "shadcn-ui@1.0.0",
+        "build-template-react@1.0.0",
+        "initial-app@1.0.0",
+        "github-export-icp-cli@1.0.0"
+      ],
+      "testIds": [
+        "REQ-3"
+      ],
+      "confidence": "high"
+    },
+    {
+      "featureId": "feature-ensure-the-reaction-system-is-fully-functional-on-public-posts-in-the-community-feed-authenticated-users-who-are-not-the-post-s-author-can-add-a-text-reaction-to-a-post-and-reactions-are-persisted-in-the-backend-each-post-card-must-display-the-current-list-of-reactions-users-cannot-react-to-their-own-posts",
+      "featureTitle": "Ensure the reaction system is fully functional on public posts in the community feed: authenticated users (who are not the post's author) can add a text reaction to a post, and reactions are persisted in the backend. Each post card must display the current list of reactions. Users cannot react to their own posts.",
+      "files": [
+        "frontend/src/components/PublicPostCard.tsx",
+        "frontend/src/hooks/useQueries.ts"
+      ],
+      "components": [
+        "authorization@4.0.0",
+        "invite-links@3.0.0",
+        "core-infrastructure@1.0.2",
+        "shadcn-ui@1.0.0",
+        "build-template-react@1.0.0",
+        "initial-app@1.0.0",
+        "github-export-icp-cli@1.0.0"
+      ],
+      "testIds": [
+        "REQ-4"
+      ],
+      "confidence": "high"
+    },
+    {
+      "featureId": "feature-ensure-the-comment-system-is-fully-functional-on-public-posts-authenticated-users-who-are-not-the-post-s-author-can-add-a-comment-comments-are-persisted-in-the-backend-and-the-comment-list-is-displayed-on-each-publicpostcard-authors-cannot-comment-on-their-own-posts",
+      "featureTitle": "Ensure the comment system is fully functional on public posts: authenticated users (who are not the post's author) can add a comment, comments are persisted in the backend, and the comment list is displayed on each PublicPostCard. Authors cannot comment on their own posts.",
+      "files": [
+        "frontend/src/components/PublicPostCard.tsx",
+        "frontend/src/hooks/useQueries.ts"
+      ],
+      "components": [
+        "authorization@4.0.0",
+        "invite-links@3.0.0",
+        "core-infrastructure@1.0.2",
+        "shadcn-ui@1.0.0",
+        "build-template-react@1.0.0",
+        "initial-app@1.0.0",
+        "github-export-icp-cli@1.0.0"
+      ],
+      "testIds": [
+        "REQ-5"
+      ],
+      "confidence": "high"
+    },
+    {
+      "featureId": "feature-ensure-the-flagging-system-is-fully-functional-on-public-posts-authenticated-users-who-are-not-the-post-s-author-can-flag-a-post-for-review-flagged-posts-must-be-tracked-in-the-backend-with-a-report-count-the-flag-action-should-be-available-on-publicpostcard-for-non-authors-only",
+      "featureTitle": "Ensure the flagging system is fully functional on public posts: authenticated users (who are not the post's author) can flag a post for review. Flagged posts must be tracked in the backend with a report count. The flag action should be available on PublicPostCard for non-authors only.",
+      "files": [
+        "frontend/src/components/AdminFlaggedComments.tsx",
+        "frontend/src/components/AdminFlaggedPosts.tsx",
+        "frontend/src/components/PublicPostCard.tsx",
+        "frontend/src/hooks/useQueries.ts"
+      ],
+      "components": [
+        "authorization@4.0.0",
+        "invite-links@3.0.0",
+        "core-infrastructure@1.0.2",
+        "shadcn-ui@1.0.0",
+        "build-template-react@1.0.0",
+        "initial-app@1.0.0",
+        "github-export-icp-cli@1.0.0"
+      ],
+      "testIds": [
+        "REQ-6"
+      ],
+      "confidence": "high"
+    },
+    {
+      "featureId": "feature-ensure-the-admin-dashboard-is-fully-functional-with-all-tabs-operational-public-posts-list-with-remove-action-user-management-suspend-unsuspend-cooldown-remove-invite-codes-generate-copy-revoke-flagged-content-posts-and-comments-with-remove-actions-emotional-alerts-users-with-5-broke-posts-in-3-consecutive-days-and-crisis-risk-posts-flagged-for-crisis-with-check-in-and-resource-actions-the-ecosystem-silence-banner-should-appear-when-no-public-posts-exist-in-the-last-5-days-allowing-admins-to-publish-a-prompt-post",
+      "featureTitle": "Ensure the admin dashboard is fully functional with all tabs operational: Public Posts list (with remove action), User Management (suspend/unsuspend/cooldown/remove), Invite Codes (generate/copy/revoke), Flagged Content (posts and comments with remove actions), Emotional Alerts (users with 5+ 'broke' posts in 3 consecutive days), and Crisis Risk (posts flagged for crisis with check-in and resource actions). The ecosystem silence banner should appear when no public posts exist in the last 5 days, allowing admins to publish a prompt post.",
+      "files": [
+        "frontend/src/components/AdminAllUsersTab.tsx",
+        "frontend/src/components/AdminCrisisRiskTab.tsx",
+        "frontend/src/components/AdminDashboard.tsx",
+        "frontend/src/components/AdminEmotionalAlertsTab.tsx",
+        "frontend/src/components/AdminInviteCodes.tsx",
+        "frontend/src/components/AdminPublicPostsList.tsx",
+        "frontend/src/hooks/useQueries.ts"
+      ],
+      "components": [
+        "authorization@4.0.0",
+        "invite-links@3.0.0",
+        "core-infrastructure@1.0.2",
+        "shadcn-ui@1.0.0",
+        "build-template-react@1.0.0",
+        "initial-app@1.0.0",
+        "github-export-icp-cli@1.0.0"
+      ],
+      "testIds": [
+        "REQ-7"
+      ],
+      "confidence": "high"
+    },
+    {
+      "featureId": "feature-ensure-invite-code-logic-is-fully-functional-admins-can-generate-invite-codes-from-the-admin-dashboard-codes-are-stored-in-the-backend-with-used-unused-status-and-new-users-can-register-only-by-providing-a-valid-unused-invite-code-on-the-signuppage-after-a-code-is-used-during-registration-it-must-be-marked-as-consumed-and-cannot-be-reused",
+      "featureTitle": "Ensure invite code logic is fully functional: admins can generate invite codes from the admin dashboard, codes are stored in the backend with used/unused status, and new users can register only by providing a valid unused invite code on the SignupPage. After a code is used during registration, it must be marked as consumed and cannot be reused.",
+      "files": [
+        "frontend/src/components/AdminInviteCodes.tsx",
+        "frontend/src/hooks/useQueries.ts",
+        "frontend/src/pages/SignupPage.tsx"
+      ],
+      "components": [
+        "authorization@4.0.0",
+        "invite-links@3.0.0",
+        "core-infrastructure@1.0.2",
+        "shadcn-ui@1.0.0",
+        "build-template-react@1.0.0",
+        "initial-app@1.0.0",
+        "github-export-icp-cli@1.0.0"
+      ],
+      "testIds": [
+        "REQ-8"
+      ],
+      "confidence": "high"
+    },
+    {
+      "featureId": "feature-ensure-the-seat-counter-is-functional-on-the-signuppage-display-the-number-of-remaining-available-seats-total-capacity-minus-registered-users-so-prospective-members-know-availability-before-registering-seat-count-must-be-fetched-live-from-the-backend",
+      "featureTitle": "Ensure the seat counter is functional on the SignupPage: display the number of remaining available seats (total capacity minus registered users) so prospective members know availability before registering. Seat count must be fetched live from the backend.",
+      "files": [
+        "frontend/src/hooks/useQueries.ts",
+        "frontend/src/pages/SignupPage.tsx"
+      ],
+      "components": [
+        "authorization@4.0.0",
+        "invite-links@3.0.0",
+        "core-infrastructure@1.0.2",
+        "shadcn-ui@1.0.0",
+        "build-template-react@1.0.0",
+        "initial-app@1.0.0",
+        "github-export-icp-cli@1.0.0"
+      ],
+      "testIds": [
+        "REQ-9"
+      ],
+      "confidence": "high"
+    },
+    {
+      "featureId": "feature-wire-up-all-react-query-hooks-in-usequeries-ts-to-correctly-call-every-corresponding-backend-motoko-actor-method-user-registration-login-check-post-crud-reactions-comments-flagging-admin-operations-invite-code-management-seat-count-ensure-query-keys-are-consistent-mutations-invalidate-relevant-queries-and-error-states-are-surfaced-to-the-ui",
+      "featureTitle": "Wire up all React Query hooks in useQueries.ts to correctly call every corresponding backend Motoko actor method (user registration, login check, post CRUD, reactions, comments, flagging, admin operations, invite code management, seat count). Ensure query keys are consistent, mutations invalidate relevant queries, and error states are surfaced to the UI.",
+      "files": [
+        "frontend/src/hooks/useQueries.ts",
+        "frontend/src/pages/CommunityFeedPage.tsx",
+        "frontend/src/pages/DashboardPage.tsx",
+        "frontend/src/pages/MyPostsPage.tsx"
+      ],
+      "components": [
+        "authorization@4.0.0",
+        "invite-links@3.0.0",
+        "core-infrastructure@1.0.2",
+        "shadcn-ui@1.0.0",
+        "build-template-react@1.0.0",
+        "initial-app@1.0.0",
+        "github-export-icp-cli@1.0.0"
+      ],
+      "testIds": [
+        "REQ-10"
+      ],
+      "confidence": "high"
+    }
+  ]
 }

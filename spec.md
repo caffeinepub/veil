@@ -1,15 +1,19 @@
 # Specification
 
 ## Summary
-**Goal:** Build the VEIL MVP — a closed emotional ecosystem with invite-only registration, pseudonymous identity, a metrics-free community feed, and basic moderation tools.
+**Goal:** Build the complete VEIL platform end-to-end, covering authentication, post creation, reactions, comments, flagging, admin dashboard, invite codes, and seat counter — all wired to a fully implemented Motoko backend.
 
 **Planned changes:**
-- **Signup page:** Display remaining available seat count fetched from the backend near the registration form; enforce invite code validation (invalid/used codes show a clear error); allow registration with a pseudonym upon valid code submission; redirect to login after successful registration.
-- **Login page:** Implement Internet Identity as the sole authentication method; redirect authenticated users to the community feed/dashboard; redirect unauthenticated users away from protected routes back to `/login`; persist auth state across reloads.
-- **Post creation page:** Add emotion selector including a "Happy" option; add a Public/Private visibility toggle defaulting to Private; show a confirmation warning modal when toggling to Public before submission; submit post with correct visibility to the backend.
-- **Community feed page:** List all public posts in reverse-chronological order; display each post card with pseudonym, emotion badge, content, and timestamp; show predefined text reactions (e.g., "I feel this", "You are not alone") with no counts — only a personal highlight for the current user's selection; include a comments section per post showing comments in submission order with a text input for authenticated users; show a Flag/Report button on posts not authored by the current user; no engagement metrics, trending sections, or popularity indicators anywhere.
-- **Backend:** Store and decrement seat count on registration; validate invite codes (mark as used on success); store posts (public/private), reactions (no counts exposed), comments, and flags associated with posts.
-- **Admin panel:** Add a "Flagged Posts" tab listing all reported posts with post content, author pseudonym, and creation date; provide a permanently-remove action behind a confirmation dialog; removed posts disappear from the feed.
-- **Global UI:** Remove all gamification elements, streak counters, badges, engagement metrics, leaderboards, and popularity signals from every page; UI should communicate calm, containment, and witnessing.
+- Implement end-to-end Internet Identity authentication flow with session persistence, logout, role detection (admin vs. member), and route guards (ProtectedRoute, AdminRoute)
+- Implement fully functional post creation with emotion type selection (happy, confess, broke), 24-word minimum enforcement, public/private toggle, entry protection modal, and public post warning modal
+- Add inline "broke" emotion mode guidance callout that appears only when the broke emotion type is selected
+- Implement reaction system on public post cards: non-authors can add text reactions, reaction count displayed, persisted in backend
+- Implement comment system on public post cards: non-authors can add comments, comment count displayed, persisted in backend
+- Implement flagging system on public post cards: non-authors can flag posts/comments, report counts tracked in backend
+- Build fully functional admin dashboard with six tabs: Public Posts, User Management, Invite Codes, Flagged Content, Emotional Alerts, and Crisis Risk; include ecosystem silence banner
+- Implement invite code flow: admin generates/revokes/copies codes; SignupPage validates codes before registration; codes marked as consumed after use
+- Implement seat counter on SignupPage showing remaining seats fetched live from backend; disable signup form when seats are full
+- Wire all React Query hooks in useQueries.ts to every backend actor method with consistent query keys, mutation invalidation, and error state surfacing
+- Implement complete Motoko backend actor in backend/main.mo with all required methods (createUser, createPost, getPublicPosts, getUserPosts, addReaction, addComment, flagPost, flagComment, getFlags, all admin methods, invite code methods, getRemainingSeats, getEmotionalAlerts, getCrisisRiskPosts) using stable variables for persistence
 
-**User-visible outcome:** Invited users can register with a pseudonym, log in via Internet Identity, create public or private emotional posts, witness others' posts through reactions and comments, flag harmful content, and admins can review and remove flagged posts — all within a metrics-free, non-gamified interface.
+**User-visible outcome:** Users can sign up with an invite code, authenticate via Internet Identity, create emotion-typed posts, react and comment on others' posts, and flag content. Admins can manage users, posts, invite codes, flagged content, emotional alerts, and crisis risk items from a fully operational dashboard.

@@ -1,172 +1,205 @@
-import { useState } from 'react';
-import { Post, EmotionType } from '../backend';
+import React, { useState } from 'react';
+import { useInternetIdentity } from '../hooks/useInternetIdentity';
+import {
+  useGetTextReactionsForPost,
+  useAddTextReaction,
+  useGetCommentsByPost,
+  useAddComment,
+  useFlagPost,
+} from '../hooks/useQueries';
+import type { Post } from '../backend';
 import EmotionBadge from './EmotionBadge';
-import { useAddTextReaction, useTextReactionsForPost, useGetCommentsForPost, useAddComment, useFlagPost } from '../hooks/useQueries';
-import { toast } from 'sonner';
-import { ChevronDown, ChevronUp, Flag } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Loader2, Flag, MessageCircle, Heart, ChevronDown, ChevronUp } from 'lucide-react';
 
 interface PublicPostCardProps {
   post: Post;
-  currentUserId?: string;
 }
 
-function formatRelativeTime(timestamp: bigint): string {
-  const ms = Number(timestamp / BigInt(1_000_000));
-  const diff = Date.now() - ms;
-  const minutes = Math.floor(diff / 60000);
-  const hours = Math.floor(diff / 3600000);
-  const days = Math.floor(diff / 86400000);
-  if (minutes < 1) return 'just now';
-  if (minutes < 60) return `${minutes}m ago`;
-  if (hours < 24) return `${hours}h ago`;
-  return `${days}d ago`;
-}
+export default function PublicPostCard({ post }: PublicPostCardProps) {
+  const { identity } = useInternetIdentity();
+  const currentUserId = identity?.getPrincipal().toString();
+  const isAuthor = currentUserId === post.author.toString();
 
-const TEXT_REACTIONS: Record<EmotionType, string[]> = {
-  [EmotionType.confess]: ['I hear you', 'You are not alone', 'Thank you for sharing'],
-  [EmotionType.broke]: ['Sending strength', 'This too shall pass', 'You matter'],
-  [EmotionType.happy]: ['This made me smile', 'Grateful for this', 'Beautiful'],
-};
-
-export default function PublicPostCard({ post, currentUserId }: PublicPostCardProps) {
   const [showComments, setShowComments] = useState(false);
   const [commentText, setCommentText] = useState('');
-  const [hasReacted, setHasReacted] = useState(false);
+  const [reactionText, setReactionText] = useState('');
+  const [flagged, setFlagged] = useState(false);
+  const [flagError, setFlagError] = useState('');
 
+  const { data: textReactions } = useGetTextReactionsForPost(post.id);
+  const { data: comments } = useGetCommentsByPost(post.id);
   const addTextReaction = useAddTextReaction();
-  const { data: textReactions = [] } = useTextReactionsForPost(post.id);
-  // useGetCommentsForPost only accepts postId — fetch is always enabled when postId is present
-  const { data: comments = [] } = useGetCommentsForPost(post.id);
   const addComment = useAddComment();
   const flagPost = useFlagPost();
 
-  const reactions = TEXT_REACTIONS[post.emotionType] || [];
-  const isOwnPost = currentUserId && post.author.toString() === currentUserId;
-
-  const handleReact = async (reactionText: string) => {
-    if (hasReacted || isOwnPost) return;
+  const handleReaction = async () => {
+    if (!reactionText.trim()) return;
     try {
-      await addTextReaction.mutateAsync({ postId: post.id, reactionText });
-      setHasReacted(true);
+      await addTextReaction.mutateAsync({ postId: post.id, reactionText: reactionText.trim() });
+      setReactionText('');
     } catch {
-      toast.error('Could not send reaction.');
+      // silently fail — user may have already reacted
     }
   };
 
-  const handleComment = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleComment = async () => {
     if (!commentText.trim()) return;
     try {
       await addComment.mutateAsync({ postId: post.id, content: commentText.trim() });
       setCommentText('');
     } catch {
-      toast.error('Could not post comment.');
+      // silently fail
     }
   };
 
   const handleFlag = async () => {
+    setFlagError('');
     try {
       await flagPost.mutateAsync({ postId: post.id, reason: 'Reported by user' });
-      toast.success('Post reported.');
-    } catch {
-      toast.error('Could not report post.');
+      setFlagged(true);
+    } catch (err: unknown) {
+      setFlagError((err as Error)?.message ?? 'Failed to flag post.');
     }
   };
 
+  const postDate = new Date(Number(post.createdAt) / 1_000_000).toLocaleDateString(undefined, {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+  });
+
   return (
-    <article className="bg-card rounded-xl shadow-card border border-border p-5 flex flex-col gap-4">
-      <div className="flex items-start justify-between gap-3">
+    <article className="rounded-xl border border-border bg-card shadow-card overflow-hidden">
+      {/* Header */}
+      <div className="px-5 pt-4 pb-3 flex items-center justify-between">
         <EmotionBadge emotionType={post.emotionType} />
-        <div className="flex items-center gap-3">
-          <time className="text-xs text-muted-foreground">
-            {formatRelativeTime(post.createdAt)}
-          </time>
-          {!isOwnPost && (
-            <button
-              onClick={handleFlag}
-              className="text-muted-foreground hover:text-foreground opacity-40 hover:opacity-70"
-              title="Report post"
-            >
-              <Flag size={13} />
-            </button>
-          )}
-        </div>
+        <span className="text-xs text-muted-foreground">{postDate}</span>
       </div>
 
-      <p className="text-sm text-foreground leading-relaxed whitespace-pre-wrap">{post.content}</p>
+      {/* Content */}
+      <div className="px-5 pb-4">
+        <p className="text-sm text-foreground leading-relaxed whitespace-pre-wrap">{post.content}</p>
+      </div>
 
-      {!isOwnPost && !hasReacted && (
-        <div className="flex flex-wrap gap-2">
-          {reactions.map((r) => (
-            <button
-              key={r}
-              onClick={() => handleReact(r)}
-              className="text-xs px-3 py-1.5 rounded-full border border-border text-muted-foreground hover:text-foreground hover:border-muted-foreground"
-            >
-              {r}
-            </button>
-          ))}
-        </div>
-      )}
-
-      {hasReacted && (
-        <p className="text-xs text-muted-foreground italic">Response sent.</p>
-      )}
-
-      {textReactions.length > 0 && (
-        <div className="flex flex-wrap gap-1.5">
-          {textReactions.map((tr) => (
-            <span
-              key={tr.id}
-              className="text-xs px-2.5 py-1 rounded-full bg-muted text-muted-foreground"
-            >
-              {tr.reactionText}
-            </span>
-          ))}
-        </div>
-      )}
-
-      <div className="border-t border-border pt-3">
+      {/* Stats Row */}
+      <div className="px-5 pb-3 flex items-center gap-4 text-xs text-muted-foreground">
+        <span className="flex items-center gap-1">
+          <Heart className="h-3.5 w-3.5" />
+          {textReactions?.length ?? 0} reactions
+        </span>
         <button
           onClick={() => setShowComments((v) => !v)}
-          className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground"
+          className="flex items-center gap-1 hover:text-foreground transition-colors"
         >
-          {showComments ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
-          Comments
+          <MessageCircle className="h-3.5 w-3.5" />
+          {comments?.length ?? 0} comments
+          {showComments ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
         </button>
-
-        {showComments && (
-          <div className="mt-3 flex flex-col gap-3">
-            {comments.length === 0 && (
-              <p className="text-xs text-muted-foreground">No comments yet.</p>
-            )}
-            {comments.map((c) => (
-              <div key={c.id} className="text-xs text-foreground leading-relaxed">
-                <p>{c.content}</p>
-              </div>
-            ))}
-
-            {!isOwnPost && (
-              <form onSubmit={handleComment} className="flex gap-2 mt-1">
-                <input
-                  value={commentText}
-                  onChange={(e) => setCommentText(e.target.value)}
-                  placeholder="Add a comment…"
-                  maxLength={300}
-                  className="flex-1 text-xs bg-muted border border-border rounded-lg px-3 py-2 text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-                />
-                <button
-                  type="submit"
-                  disabled={addComment.isPending || !commentText.trim()}
-                  className="text-xs px-3 py-2 rounded-lg bg-secondary text-secondary-foreground hover:opacity-80 disabled:opacity-40"
-                >
-                  {addComment.isPending ? '…' : 'Send'}
-                </button>
-              </form>
-            )}
-          </div>
-        )}
       </div>
+
+      {/* Interaction Area (non-authors only) */}
+      {!isAuthor && (
+        <div className="border-t border-border px-5 py-3 space-y-3">
+          {/* Text Reaction */}
+          <div className="flex gap-2">
+            <Input
+              value={reactionText}
+              onChange={(e) => setReactionText(e.target.value)}
+              placeholder="Send a kind word…"
+              className="text-sm h-8"
+              maxLength={100}
+              onKeyDown={(e) => e.key === 'Enter' && handleReaction()}
+            />
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={handleReaction}
+              disabled={addTextReaction.isPending || !reactionText.trim()}
+              className="h-8 px-3 shrink-0"
+            >
+              {addTextReaction.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Heart className="h-3.5 w-3.5" />}
+            </Button>
+          </div>
+
+          {/* Comment */}
+          <div className="flex gap-2">
+            <Input
+              value={commentText}
+              onChange={(e) => setCommentText(e.target.value)}
+              placeholder="Add a comment…"
+              className="text-sm h-8"
+              maxLength={500}
+              onKeyDown={(e) => e.key === 'Enter' && handleComment()}
+            />
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={handleComment}
+              disabled={addComment.isPending || !commentText.trim()}
+              className="h-8 px-3 shrink-0"
+            >
+              {addComment.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <MessageCircle className="h-3.5 w-3.5" />}
+            </Button>
+          </div>
+
+          {/* Flag */}
+          <div className="flex items-center gap-2">
+            {!flagged ? (
+              <button
+                onClick={handleFlag}
+                disabled={flagPost.isPending}
+                className="flex items-center gap-1 text-xs text-muted-foreground hover:text-destructive transition-colors"
+              >
+                {flagPost.isPending ? (
+                  <Loader2 className="h-3 w-3 animate-spin" />
+                ) : (
+                  <Flag className="h-3 w-3" />
+                )}
+                Report
+              </button>
+            ) : (
+              <span className="text-xs text-muted-foreground">Reported</span>
+            )}
+            {flagError && <span className="text-xs text-destructive">{flagError}</span>}
+          </div>
+        </div>
+      )}
+
+      {/* Comments Section */}
+      {showComments && (
+        <div className="border-t border-border px-5 py-3 space-y-2">
+          {comments && comments.length > 0 ? (
+            comments.map((comment) => (
+              <div key={comment.id} className="text-sm text-muted-foreground bg-muted/30 rounded-lg px-3 py-2">
+                <p>{comment.content}</p>
+                <p className="text-xs mt-1 opacity-60">
+                  {new Date(Number(comment.createdAt) / 1_000_000).toLocaleDateString()}
+                </p>
+              </div>
+            ))
+          ) : (
+            <p className="text-xs text-muted-foreground">No comments yet.</p>
+          )}
+        </div>
+      )}
+
+      {/* Text Reactions Display */}
+      {textReactions && textReactions.length > 0 && (
+        <div className="border-t border-border px-5 py-3">
+          <div className="flex flex-wrap gap-2">
+            {textReactions.map((r) => (
+              <span
+                key={r.id}
+                className="text-xs bg-muted/40 rounded-full px-2.5 py-1 text-muted-foreground"
+              >
+                {r.reactionText}
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
     </article>
   );
 }

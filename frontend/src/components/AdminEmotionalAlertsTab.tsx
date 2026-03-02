@@ -1,55 +1,59 @@
-import { useAdminGetHighRiskEmotionAlerts, useAdminGetAllUsers } from '../hooks/useQueries';
-
-function formatDate(timestamp: bigint): string {
-  const ms = Number(timestamp / BigInt(1_000_000));
-  return new Date(ms).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-}
+import React from 'react';
+import { useAdminGetHighRiskEmotionAlerts, useAdminGetAllUsersExtended } from '../hooks/useQueries';
+import { Skeleton } from '@/components/ui/skeleton';
+import { Badge } from '@/components/ui/badge';
+import { AlertTriangle, ShieldAlert } from 'lucide-react';
 
 export default function AdminEmotionalAlertsTab() {
-  const { data: alerts = [], isLoading } = useAdminGetHighRiskEmotionAlerts();
-  const { data: allUsers = [] } = useAdminGetAllUsers();
+  const { data: alerts, isLoading: alertsLoading } = useAdminGetHighRiskEmotionAlerts();
+  const { data: usersExtended, isLoading: usersLoading } = useAdminGetAllUsersExtended();
 
-  const getPseudonym = (principalStr: string): string => {
-    const user = allUsers.find((u) => u.id.toString() === principalStr);
-    return user?.pseudonym ?? principalStr.slice(0, 8) + '…';
+  const isLoading = alertsLoading || usersLoading;
+
+  const getUserPseudonym = (principalStr: string): string => {
+    if (!usersExtended) return principalStr.slice(0, 12) + '…';
+    const entry = usersExtended.find(([p]) => p.toString() === principalStr);
+    return entry ? entry[1].pseudonym : principalStr.slice(0, 12) + '…';
   };
 
   if (isLoading) {
-    return <p className="text-sm text-muted-foreground py-6 text-center">Loading…</p>;
+    return (
+      <div className="space-y-3">
+        {[1, 2].map((i) => <Skeleton key={i} className="h-16 w-full rounded-xl" />)}
+      </div>
+    );
   }
 
   return (
-    <div className="flex flex-col gap-4">
-      <div className="rounded-xl bg-muted border border-border px-4 py-3 text-sm text-muted-foreground">
-        Users who have posted 5 or more Broke entries within 3 consecutive days appear here.
-        Use the All Users tab to take action if needed.
+    <div className="space-y-4">
+      <div className="rounded-xl border border-border bg-muted/20 px-4 py-3 flex gap-3 items-start">
+        <ShieldAlert className="h-4 w-4 text-muted-foreground shrink-0 mt-0.5" />
+        <p className="text-xs text-muted-foreground leading-relaxed">
+          Users listed here have posted 3 or more "broke" entries within the last 3 days. Consider reaching out via the Crisis Risk tab if their posts contain distress signals.
+        </p>
       </div>
 
-      {alerts.length === 0 ? (
-        <p className="text-sm text-muted-foreground py-4 text-center">No alerts at this time.</p>
+      {!alerts || alerts.length === 0 ? (
+        <div className="text-center py-8 space-y-2">
+          <AlertTriangle className="h-8 w-8 text-muted-foreground mx-auto" />
+          <p className="text-sm text-muted-foreground">No high-risk emotional alerts at this time.</p>
+        </div>
       ) : (
-        <div className="flex flex-col gap-3">
-          {alerts.map(([principal, count]) => {
-            const principalStr = principal.toString();
-            return (
-              <div
-                key={principalStr}
-                className="bg-card rounded-xl border border-border shadow-soft p-4 flex items-center justify-between gap-3"
-              >
-                <div className="flex flex-col gap-0.5">
-                  <p className="text-sm text-foreground font-medium">
-                    {getPseudonym(principalStr)}
-                  </p>
-                  <p className="text-xs text-muted-foreground">
-                    {Number(count)} Broke {Number(count) === 1 ? 'post' : 'posts'} in 3 days
-                  </p>
-                </div>
-                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs bg-muted text-muted-foreground">
-                  {Number(count)}
-                </span>
+        <div className="space-y-2">
+          {alerts.map(([principal, count]) => (
+            <div
+              key={principal.toString()}
+              className="rounded-xl border border-border bg-card px-4 py-3 flex items-center justify-between"
+            >
+              <div className="space-y-0.5 min-w-0">
+                <p className="text-sm font-medium text-foreground">{getUserPseudonym(principal.toString())}</p>
+                <p className="text-xs text-muted-foreground font-mono truncate">{principal.toString()}</p>
               </div>
-            );
-          })}
+              <Badge variant="secondary" className="text-xs shrink-0">
+                {Number(count)} broke post{Number(count) !== 1 ? 's' : ''}
+              </Badge>
+            </div>
+          ))}
         </div>
       )}
     </div>

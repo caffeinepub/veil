@@ -1,222 +1,266 @@
 {
   "kind": "build_request",
-  "title": "VEIL MVP — Closed Emotional Ecosystem Core Flow",
+  "title": "Complete VEIL Platform — Auth, Posts, Emotions, Reactions, Comments, Flagging, Admin, Invites, Seat Counter",
   "projectName": "VEIL",
   "priority": "high",
   "requirements": [
     {
       "id": "REQ-1",
-      "text": "On the Signup page, display the remaining available seat count fetched from the backend so users can see how many spots are left in the closed ecosystem before registering.",
-      "target": "frontend",
+      "text": "Ensure the full Internet Identity authentication flow is working end-to-end: login via Internet Identity, session persistence, logout, and role detection (admin vs. member). The LoginPage must redirect authenticated users to the community feed, and ProtectedRoute/AdminRoute guards must correctly block unauthenticated or unauthorized access.",
+      "target": "both",
       "source": {
         "messageIds": [
           "msg-4"
         ],
         "quotes": [
-          "See seat counter"
+          "Full working authentication flow"
         ]
       },
       "acceptanceCriteria": [
-        "Signup page fetches and displays the remaining seat count from the backend.",
-        "Seat count updates when a new user registers.",
-        "Count is displayed clearly near the registration form without framing it as urgency or social pressure."
+        "Unauthenticated users visiting protected routes are redirected to /login",
+        "Non-admin users visiting /admin are shown an access-denied screen",
+        "After Internet Identity login, users are redirected to the community feed",
+        "Logout clears session state and redirects to login",
+        "Auth state (isAuthenticated, userId, role) is correctly exposed via useAuth hook"
       ]
     },
     {
       "id": "REQ-2",
-      "text": "Ensure the registration flow requires a valid invite code. A user who submits an invalid or already-used invite code must see a clear error. A user with a valid code must be able to complete registration with a pseudonym and proceed to login.",
+      "text": "Ensure fully functional post creation: users can select an emotion type (happy, confess, broke), write content subject to a 24-word minimum for applicable emotion types, toggle public/private visibility, acknowledge the entry protection modal, acknowledge the public post warning modal when posting publicly, and successfully submit the post to the backend. After submission, redirect the user to their posts list.",
       "target": "both",
       "source": {
         "messageIds": [
           "msg-4"
         ],
         "quotes": [
-          "Register using invite code"
+          "Fully functional post creation"
         ]
       },
       "acceptanceCriteria": [
-        "Submitting an invalid or used invite code shows a clear error message.",
-        "Submitting a valid invite code allows the user to register with a pseudonym.",
-        "After successful registration the user is redirected to the login page.",
-        "Registered user is able to log in via Internet Identity."
+        "Emotion type selector renders all three types (happy, confess, broke) with correct EmotionBadge styling",
+        "Word count enforcement prevents submission below 24 words for emotion types that require it",
+        "EntryProtectionModal appears on page load and must be acknowledged before composing",
+        "PublicPostWarningModal appears when visibility is set to public and must be acknowledged before submit",
+        "Successful submission creates the post in the backend and navigates to /my-posts",
+        "Post appears on MyPostsPage with correct emotion badge and visibility status"
       ]
     },
     {
       "id": "REQ-3",
-      "text": "Ensure the login flow uses Internet Identity exclusively. After authenticating, the user must be redirected to the main feed or dashboard. Unauthenticated users attempting to access protected pages must be redirected to the login page.",
+      "text": "Implement emotional mode guidance in the post creation flow: when the user selects the 'broke' emotion type, display contextual guidance text advising them that this mode is for moments of genuine distress and offering a brief grounding prompt. Guidance should be visually distinct (e.g., a highlighted callout) and appear inline without blocking composition.",
       "target": "frontend",
       "source": {
         "messageIds": [
           "msg-4"
         ],
         "quotes": [
-          "Login securely"
+          "Emotional mode guidance"
         ]
       },
       "acceptanceCriteria": [
-        "Login page presents the Internet Identity authentication button.",
-        "Successful login redirects to the community feed or dashboard.",
-        "Accessing a protected route while unauthenticated redirects to /login.",
-        "Auth state persists across page reloads."
+        "Selecting 'broke' emotion type renders a visible guidance callout below the emotion selector",
+        "Guidance text does not appear for 'happy' or 'confess' emotion types",
+        "Callout is styled distinctly (uses the 'broke' emotion color token) and does not obstruct the content textarea",
+        "Guidance does not block form submission"
       ]
     },
     {
       "id": "REQ-4",
-      "text": "On the post creation page, provide a 'Happy' emotion option. The user must be able to write content, select 'Happy' as the emotion, and submit the post. The post creation UI must include a Public/Private visibility toggle. The default state must be Private. If the user toggles to Public, a confirmation warning modal must be shown before the post is submitted publicly.",
-      "target": "frontend",
+      "text": "Ensure the reaction system is fully functional on public posts in the community feed: authenticated users (who are not the post's author) can add a text reaction to a post, and reactions are persisted in the backend. Each post card must display the current list of reactions. Users cannot react to their own posts.",
+      "target": "both",
       "source": {
         "messageIds": [
           "msg-4"
         ],
         "quotes": [
-          "Create a Happy post",
-          "Toggle Public"
+          "Reaction system"
         ]
       },
       "acceptanceCriteria": [
-        "Post creation form includes a 'Happy' emotion selector.",
-        "A Public/Private visibility toggle is present and defaults to Private.",
-        "Toggling to Public before submitting shows a confirmation modal explaining community visibility.",
-        "Submitting with Public=true creates a public post.",
-        "Submitting with Public=false creates a private post."
+        "Reaction input and submit button are visible on PublicPostCard for non-authors",
+        "Reaction input and submit button are hidden for the post's own author",
+        "Submitting a reaction calls the backend and optimistically or reactively updates the displayed reaction list",
+        "Reactions persist across page refreshes",
+        "Reaction count is visible on each post card"
       ]
     },
     {
       "id": "REQ-5",
-      "text": "The Community Feed page must display all public posts in chronological order. After a user creates a public 'Happy' post, it must appear in the feed immediately (or on refresh) without requiring any additional action.",
-      "target": "frontend",
+      "text": "Ensure the comment system is fully functional on public posts: authenticated users (who are not the post's author) can add a comment, comments are persisted in the backend, and the comment list is displayed on each PublicPostCard. Authors cannot comment on their own posts.",
+      "target": "both",
       "source": {
         "messageIds": [
           "msg-4"
         ],
         "quotes": [
-          "See it appear in feed"
+          "Comment system"
         ]
       },
       "acceptanceCriteria": [
-        "Community Feed page lists all public posts sorted by creation date (newest first).",
-        "A newly created public post appears in the feed after creation.",
-        "Each post card shows the pseudonym, emotion badge, content, and timestamp.",
-        "No popularity scores, engagement counts, or trending indicators are shown."
+        "Comment input and submit button are visible on PublicPostCard for non-authors",
+        "Comment input and submit button are hidden for the post's own author",
+        "Submitting a comment calls the backend and updates the displayed comment list",
+        "Comments persist across page refreshes",
+        "Comment count is visible on each post card"
       ]
     },
     {
       "id": "REQ-6",
-      "text": "On each public post card in the Community Feed, display a set of predefined text reactions (e.g., 'I feel this', 'You are not alone'). Any authenticated user must be able to select a reaction. Reaction counts must NOT be displayed — reactions serve as witnessing gestures, not engagement metrics.",
+      "text": "Ensure the flagging system is fully functional on public posts: authenticated users (who are not the post's author) can flag a post for review. Flagged posts must be tracked in the backend with a report count. The flag action should be available on PublicPostCard for non-authors only.",
       "target": "both",
       "source": {
         "messageIds": [
           "msg-4"
         ],
         "quotes": [
-          "React to it",
-          "No metrics.",
-          "No popularity systems."
+          "Flagging system"
         ]
       },
       "acceptanceCriteria": [
-        "Each public post card shows predefined reaction options.",
-        "An authenticated user can select a reaction on any post.",
-        "No reaction counts, totals, or popularity indicators are displayed.",
-        "A user's own reaction is visually acknowledged (e.g., highlighted) but not counted publicly."
+        "Flag button is visible on PublicPostCard for non-authors",
+        "Flag button is hidden for the post's own author",
+        "Clicking flag calls the backend and increments the post's report count",
+        "Flagged posts with sufficient report count appear in the AdminFlaggedPosts tab",
+        "Admins can remove flagged posts from the AdminFlaggedPosts tab",
+        "Flagged comments appear in AdminFlaggedComments and can be removed by admins"
       ]
     },
     {
       "id": "REQ-7",
-      "text": "On each public post card in the Community Feed, display a comments section. Any authenticated user must be able to submit a text comment on a post. Comments must appear under the post in submission order. No upvotes, likes, or sorting by popularity.",
+      "text": "Ensure the admin dashboard is fully functional with all tabs operational: Public Posts list (with remove action), User Management (suspend/unsuspend/cooldown/remove), Invite Codes (generate/copy/revoke), Flagged Content (posts and comments with remove actions), Emotional Alerts (users with 5+ 'broke' posts in 3 consecutive days), and Crisis Risk (posts flagged for crisis with check-in and resource actions). The ecosystem silence banner should appear when no public posts exist in the last 5 days, allowing admins to publish a prompt post.",
       "target": "both",
       "source": {
         "messageIds": [
           "msg-4"
         ],
         "quotes": [
-          "Comment on it"
+          "Admin dashboard"
         ]
       },
       "acceptanceCriteria": [
-        "Each public post card has a visible comments section.",
-        "An authenticated user can write and submit a comment.",
-        "Comments appear under the post in chronological order.",
-        "No vote, like, or popularity mechanism is present on comments."
+        "All six admin tabs render with correct data fetched from the backend",
+        "Remove post action in AdminPublicPostsList permanently deletes the post after confirmation",
+        "Suspend, unsuspend, cooldown, and remove actions in AdminAllUsersTab work correctly",
+        "Invite code generation creates a new code; revoke removes it; copy link copies to clipboard",
+        "AdminFlaggedPosts and AdminFlaggedComments display flagged items and support removal",
+        "AdminEmotionalAlertsTab lists users with 5+ broke posts in 3 consecutive days",
+        "AdminCrisisRiskTab lists crisis-flagged posts with check-in and resource-send actions",
+        "Ecosystem silence banner appears when no public posts in 5 days and allows publishing a prompt"
       ]
     },
     {
       "id": "REQ-8",
-      "text": "On public post cards authored by other users, display a 'Flag' or 'Report' button. An authenticated user must be able to flag a post from another account. The flag action must be submitted to the backend and recorded against the post.",
+      "text": "Ensure invite code logic is fully functional: admins can generate invite codes from the admin dashboard, codes are stored in the backend with used/unused status, and new users can register only by providing a valid unused invite code on the SignupPage. After a code is used during registration, it must be marked as consumed and cannot be reused.",
       "target": "both",
       "source": {
         "messageIds": [
           "msg-4"
         ],
         "quotes": [
-          "Flag it (from another account)"
+          "Invite code logic"
         ]
       },
       "acceptanceCriteria": [
-        "A Flag/Report button is visible on public posts not authored by the current user.",
-        "Clicking Flag submits the report to the backend.",
-        "A user cannot flag their own post.",
-        "A confirmation or acknowledgment is shown after flagging.",
-        "The flag is stored on the backend associated with the post."
+        "Admin can generate a new invite code from AdminInviteCodes tab",
+        "Generated code appears in the list with copy-link functionality",
+        "SignupPage validates the invite code against the backend before allowing registration",
+        "Using an invalid or already-used code displays a clear error message",
+        "After successful registration with a code, the code is marked used and cannot be reused",
+        "Admins can revoke unused codes"
       ]
     },
     {
       "id": "REQ-9",
-      "text": "The Admin panel must include a 'Flagged Posts' tab listing all posts that have been reported by users. Each entry must show the post content and a button for the admin to permanently remove the post. No popularity metrics or report counts visible to the admin beyond the post content.",
+      "text": "Ensure the seat counter is functional on the SignupPage: display the number of remaining available seats (total capacity minus registered users) so prospective members know availability before registering. Seat count must be fetched live from the backend.",
       "target": "both",
       "source": {
         "messageIds": [
           "msg-4"
         ],
         "quotes": [
-          "View flagged post in admin panel"
+          "Seat counter"
         ]
       },
       "acceptanceCriteria": [
-        "Admin dashboard has a Flagged Posts tab.",
-        "The tab lists all posts that have received at least one flag.",
-        "Each entry shows the post content, author pseudonym, and creation date.",
-        "Admin can permanently remove a flagged post via a confirmation dialog.",
-        "Removed posts no longer appear in the community feed."
+        "SignupPage displays remaining seat count fetched from the backend",
+        "Seat count decrements correctly after each successful registration",
+        "If no seats remain, the signup form is disabled with an appropriate message",
+        "Seat count reflects the current state on page load"
       ]
     },
     {
       "id": "REQ-10",
-      "text": "Remove or hide all gamification elements, engagement metrics, popularity indicators, streak counters, leaderboards, and growth-oriented UI from every page. The interface must reflect containment and witnessing — not performance or engagement optimization.",
+      "text": "Wire up all React Query hooks in useQueries.ts to correctly call every corresponding backend Motoko actor method (user registration, login check, post CRUD, reactions, comments, flagging, admin operations, invite code management, seat count). Ensure query keys are consistent, mutations invalidate relevant queries, and error states are surfaced to the UI.",
       "target": "frontend",
       "source": {
         "messageIds": [
           "msg-4"
         ],
         "quotes": [
-          "No gamification.",
-          "No metrics.",
-          "No popularity systems.",
-          "Witnessing over performance.",
-          "Containment over engagement."
+          "Full working authentication flow",
+          "Fully functional post creation",
+          "Reaction system",
+          "Comment system",
+          "Flagging system",
+          "Admin dashboard",
+          "Invite code logic",
+          "Seat counter"
         ]
       },
       "acceptanceCriteria": [
-        "No streak counters, badges, points, or gamification UI is visible anywhere.",
-        "No engagement metrics (view counts, reaction totals, comment counts) are displayed publicly.",
-        "No trending, popular, or recommended post sections exist.",
-        "The overall UI communicates calm, stability, and containment."
+        "Every backend method exposed by the Motoko actor has a corresponding React Query hook in useQueries.ts",
+        "Mutations call invalidateQueries on the correct query keys after success",
+        "Loading and error states from queries are handled in all consuming components",
+        "No stale data is shown after a mutation completes"
+      ]
+    },
+    {
+      "id": "REQ-11",
+      "text": "Ensure the backend Motoko actor in backend/main.mo implements all required methods fully and correctly: createUser (with invite code validation and seat enforcement), createPost, getPublicPosts, getUserPosts, addReaction, addComment, flagPost, flagComment, getFlags, admin methods (removePost, removeComment, suspendUser, unsuspendUser, applyCooldown, removeUser, updateSubscription, getUserHistory, sendCheckIn, sendCrisisResources, publishPromptPost), invite code methods (generateInviteCode, revokeInviteCode, listInviteCodes), getRemainingSeats, getEmotionalAlerts, and getCrisisRiskPosts. All state must be persisted in stable variables.",
+      "target": "backend",
+      "source": {
+        "messageIds": [
+          "msg-4"
+        ],
+        "quotes": [
+          "Full working authentication flow",
+          "Fully functional post creation",
+          "Reaction system",
+          "Comment system",
+          "Flagging system",
+          "Admin dashboard",
+          "Invite code logic",
+          "Seat counter",
+          "Database schema",
+          "API route definitions"
+        ]
+      },
+      "acceptanceCriteria": [
+        "All listed methods exist and are callable from the frontend actor",
+        "createUser validates the invite code and rejects registration if seats are full or code is invalid",
+        "createPost enforces word count rules on the backend for applicable emotion types",
+        "addReaction and addComment reject calls from the post's own author",
+        "flagPost and flagComment increment report counts and are retrievable by admins",
+        "All admin methods require the caller to have admin role, returning an error otherwise",
+        "State is stored in stable variables so it persists across canister upgrades",
+        "getRemainingSeats returns total capacity minus current user count"
       ]
     }
   ],
   "constraints": [
-    "Do not add any gamification, streak tracking, leaderboards, or engagement metrics.",
-    "Do not display reaction counts, comment counts, or any popularity signals publicly.",
-    "Authentication must use Internet Identity exclusively — no username/password auth.",
-    "Registration must require a valid invite code.",
-    "The closed ecosystem principle must be enforced: no open registration, no public-facing growth hooks."
+    "All backend logic must remain in a single Motoko actor in backend/main.mo",
+    "Do not modify files listed in frontend.immutablePaths",
+    "Internet Identity is the only supported authentication mechanism — no external auth providers",
+    "All state must be stored in Motoko stable variables for upgrade persistence",
+    "No external databases, cloud providers, or third-party backend services"
   ],
   "nonGoals": [
-    "Subscription or payment flows are out of scope for this MVP.",
-    "Direct messaging between users is out of scope.",
-    "Crisis detection and emotional alert systems are out of scope for this MVP.",
-    "Admin user management beyond viewing flagged posts is out of scope.",
-    "Any third-party integrations (email, SMS, social) are out of scope."
+    "Real-time WebSocket or push notification features",
+    "Email or SMS notification integrations",
+    "Payment or subscription billing integration",
+    "Mobile app or React Native version",
+    "Multi-canister or microservices architecture",
+    "External deployment infrastructure (AWS, GCP, Vercel) — ICP deployment only"
   ],
   "imageRequirements": {
     "required": [],

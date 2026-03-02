@@ -1,214 +1,133 @@
-import { useState } from 'react';
+import React, { useState } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
-import { ShieldAlert, Loader2, VolumeX, Send } from 'lucide-react';
+import { Loader2, AlertTriangle, Volume2 } from 'lucide-react';
 import { toast } from 'sonner';
 import AdminPublicPostsList from './AdminPublicPostsList';
-import AdminUserManagement from './AdminUserManagement';
+import AdminAllUsersTab from './AdminAllUsersTab';
 import AdminInviteCodes from './AdminInviteCodes';
-import AdminUserPostHistory from './AdminUserPostHistory';
 import AdminFlaggedPosts from './AdminFlaggedPosts';
 import AdminFlaggedComments from './AdminFlaggedComments';
-import AdminAllUsersTab from './AdminAllUsersTab';
 import AdminEmotionalAlertsTab from './AdminEmotionalAlertsTab';
 import AdminCrisisRiskTab from './AdminCrisisRiskTab';
-import {
-  useGetCrisisRiskPosts,
-  useAdminGetHighRiskEmotionAlerts,
-  useCheckEcosystemSilence,
-  usePublishPromptPost,
-} from '../hooks/useQueries';
+import { useCheckEcosystemSilence, usePublishPromptPost } from '../hooks/useQueries';
 import { EmotionType } from '../backend';
 
 export default function AdminDashboard() {
-  const { data: crisisRiskPosts } = useGetCrisisRiskPosts();
-  const { data: emotionAlerts } = useAdminGetHighRiskEmotionAlerts();
-  const { data: isSilent, isLoading: silenceLoading } = useCheckEcosystemSilence();
-  const publishPromptPost = usePublishPromptPost();
+  const { isSilent } = useCheckEcosystemSilence();
+  const publishPrompt = usePublishPromptPost();
+  const [promptEmotion, setPromptEmotion] = useState<EmotionType>(EmotionType.happy);
 
-  const [selectedEmotion, setSelectedEmotion] = useState<EmotionType.happy | EmotionType.confess>(
-    EmotionType.happy
-  );
+  const handlePublishPrompt = async () => {
+    const prompts: Record<EmotionType, string> = {
+      [EmotionType.happy]: 'A gentle reminder from the VEIL community: you are not alone. Share something small that brought you peace today.',
+      [EmotionType.confess]: 'The community is listening. What is something you have been carrying quietly that you would like to set down here?',
+      [EmotionType.broke]: 'This space holds you. If you are struggling, you are welcome here.',
+    };
 
-  const crisisCount = crisisRiskPosts?.length ?? 0;
-  const emotionAlertCount = emotionAlerts?.length ?? 0;
-
-  const handlePublishPrompt = () => {
-    publishPromptPost.mutate(selectedEmotion, {
-      onSuccess: () => {
-        toast.success('Prompt post published to the community feed.');
-      },
-      onError: (err: any) => {
-        toast.error(err?.message ?? 'Failed to publish prompt post.');
-      },
-    });
+    try {
+      await publishPrompt.mutateAsync({
+        emotionType: promptEmotion,
+        content: prompts[promptEmotion],
+      });
+      toast.success('Prompt post published to the community feed.');
+    } catch (err: unknown) {
+      toast.error((err as Error)?.message ?? 'Failed to publish prompt.');
+    }
   };
 
   return (
-    <div className="space-y-4">
-      {/* ── Ecosystem Silence Banner ── */}
-      {!silenceLoading && isSilent && (
-        <div className="rounded-lg border border-amber-300 bg-amber-50 dark:bg-amber-950/30 dark:border-amber-700 p-4 space-y-4">
+    <div className="space-y-6">
+      {/* Ecosystem Silence Banner */}
+      {isSilent && (
+        <div className="rounded-xl border border-amber-200 bg-amber-50 dark:border-amber-800 dark:bg-amber-950/30 px-5 py-4 space-y-4">
           <div className="flex items-start gap-3">
-            <VolumeX className="h-5 w-5 text-amber-600 dark:text-amber-400 mt-0.5 shrink-0" />
-            <div className="flex-1 min-w-0">
-              <p className="font-semibold text-amber-800 dark:text-amber-300 text-sm">
-                Ecosystem Silence Detected
-              </p>
-              <p className="text-amber-700 dark:text-amber-400 text-xs mt-0.5">
-                No public posts have been created in the last 5 days. You may publish a gentle
-                prompt to encourage the community.
+            <Volume2 className="h-5 w-5 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
+            <div>
+              <p className="font-medium text-amber-800 dark:text-amber-300 text-sm">Ecosystem Silence Detected</p>
+              <p className="text-xs text-amber-700 dark:text-amber-400 mt-0.5">
+                No public posts have been shared in the last 5 days. Consider publishing a prompt to re-engage the community.
               </p>
             </div>
           </div>
-
-          <div className="pl-8 space-y-3">
-            <p className="text-xs font-medium text-amber-800 dark:text-amber-300">
-              Select emotion mode for the prompt post:
-            </p>
+          <div className="space-y-3 pl-8">
             <RadioGroup
-              value={selectedEmotion}
-              onValueChange={(val) =>
-                setSelectedEmotion(val as EmotionType.happy | EmotionType.confess)
-              }
-              className="flex gap-6"
+              value={promptEmotion}
+              onValueChange={(v) => setPromptEmotion(v as EmotionType)}
+              className="flex gap-4"
             >
-              <div className="flex items-center gap-2">
-                <RadioGroupItem
-                  value={EmotionType.happy}
-                  id="silence-happy"
-                  className="border-amber-500 text-amber-600"
-                />
-                <Label
-                  htmlFor="silence-happy"
-                  className="text-sm text-amber-800 dark:text-amber-300 cursor-pointer"
-                >
-                  Happy
-                </Label>
+              <div className="flex items-center gap-1.5">
+                <RadioGroupItem value={EmotionType.happy} id="prompt-happy" />
+                <Label htmlFor="prompt-happy" className="text-sm cursor-pointer">Happy</Label>
               </div>
-              <div className="flex items-center gap-2">
-                <RadioGroupItem
-                  value={EmotionType.confess}
-                  id="silence-confess"
-                  className="border-amber-500 text-amber-600"
-                />
-                <Label
-                  htmlFor="silence-confess"
-                  className="text-sm text-amber-800 dark:text-amber-300 cursor-pointer"
-                >
-                  Confess
-                </Label>
+              <div className="flex items-center gap-1.5">
+                <RadioGroupItem value={EmotionType.confess} id="prompt-confess" />
+                <Label htmlFor="prompt-confess" className="text-sm cursor-pointer">Confess</Label>
               </div>
             </RadioGroup>
-
             <Button
               size="sm"
+              variant="outline"
               onClick={handlePublishPrompt}
-              disabled={publishPromptPost.isPending}
-              className="bg-amber-600 hover:bg-amber-700 text-white border-0 gap-2"
+              disabled={publishPrompt.isPending}
+              className="border-amber-300 text-amber-800 hover:bg-amber-100 dark:border-amber-700 dark:text-amber-300 dark:hover:bg-amber-900/40"
             >
-              {publishPromptPost.isPending ? (
-                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              {publishPrompt.isPending ? (
+                <>
+                  <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />
+                  Publishing…
+                </>
               ) : (
-                <Send className="h-3.5 w-3.5" />
+                'Publish Prompt Post'
               )}
-              Publish Prompt Post
             </Button>
           </div>
         </div>
       )}
 
-      {/* ── Crisis Alert Banner ── */}
-      {crisisCount > 0 && (
-        <div className="rounded-lg border border-red-300 bg-red-50 dark:bg-red-950/30 dark:border-red-700 p-4 flex items-start gap-3">
-          <ShieldAlert className="h-5 w-5 text-red-600 dark:text-red-400 mt-0.5 shrink-0" />
-          <div>
-            <p className="font-semibold text-red-800 dark:text-red-300 text-sm">
-              Crisis Risk Alert
-            </p>
-            <p className="text-red-700 dark:text-red-400 text-xs mt-0.5">
-              {crisisCount} post{crisisCount !== 1 ? 's' : ''} flagged for crisis risk. Review
-              immediately in the Crisis Risk tab.
-            </p>
-          </div>
-        </div>
-      )}
+      {/* Crisis Banner placeholder — shown in CrisisRiskTab */}
 
-      {/* ── Tabs ── */}
-      <Tabs defaultValue="crisis" className="w-full">
-        <TabsList className="flex flex-wrap h-auto gap-1 mb-4">
-          <TabsTrigger value="crisis" className="flex items-center gap-1.5">
-            Crisis Risk
-            {crisisCount > 0 && (
-              <Badge variant="destructive" className="h-4 px-1 text-xs">
-                {crisisCount}
-              </Badge>
-            )}
-          </TabsTrigger>
-          <TabsTrigger value="emotional-alerts" className="flex items-center gap-1.5">
-            Emotional Alerts
-            {emotionAlertCount > 0 && (
-              <Badge className="h-4 px-1 text-xs bg-amber-500 hover:bg-amber-500">
-                {emotionAlertCount}
-              </Badge>
-            )}
-          </TabsTrigger>
-          <TabsTrigger value="posts">Public Posts</TabsTrigger>
-          <TabsTrigger value="flagged">Flagged Posts</TabsTrigger>
-          <TabsTrigger value="flagged-comments">Flagged Comments</TabsTrigger>
-          <TabsTrigger value="users">User Management</TabsTrigger>
-          <TabsTrigger value="all-users">All Users</TabsTrigger>
-          <TabsTrigger value="invite-codes">Invite Codes</TabsTrigger>
-          <TabsTrigger value="post-history">Post History</TabsTrigger>
-          <TabsTrigger value="signup">New Member</TabsTrigger>
+      {/* Tabs */}
+      <Tabs defaultValue="posts">
+        <TabsList className="flex flex-wrap h-auto gap-1 bg-muted/40 p-1 rounded-xl">
+          <TabsTrigger value="posts" className="rounded-lg text-xs">Public Posts</TabsTrigger>
+          <TabsTrigger value="users" className="rounded-lg text-xs">Users</TabsTrigger>
+          <TabsTrigger value="invites" className="rounded-lg text-xs">Invite Codes</TabsTrigger>
+          <TabsTrigger value="flagged" className="rounded-lg text-xs">Flagged</TabsTrigger>
+          <TabsTrigger value="alerts" className="rounded-lg text-xs">Emotional Alerts</TabsTrigger>
+          <TabsTrigger value="crisis" className="rounded-lg text-xs">Crisis Risk</TabsTrigger>
         </TabsList>
 
-        <TabsContent value="crisis">
-          <AdminCrisisRiskTab />
-        </TabsContent>
-
-        <TabsContent value="emotional-alerts">
-          <AdminEmotionalAlertsTab />
-        </TabsContent>
-
-        <TabsContent value="posts">
+        <TabsContent value="posts" className="mt-4">
           <AdminPublicPostsList />
         </TabsContent>
-
-        <TabsContent value="flagged">
-          <AdminFlaggedPosts />
-        </TabsContent>
-
-        <TabsContent value="flagged-comments">
-          <AdminFlaggedComments />
-        </TabsContent>
-
-        <TabsContent value="users">
-          <AdminUserManagement />
-        </TabsContent>
-
-        <TabsContent value="all-users">
+        <TabsContent value="users" className="mt-4">
           <AdminAllUsersTab />
         </TabsContent>
-
-        <TabsContent value="invite-codes">
+        <TabsContent value="invites" className="mt-4">
           <AdminInviteCodes />
         </TabsContent>
-
-        <TabsContent value="post-history">
-          <AdminUserPostHistory />
+        <TabsContent value="flagged" className="mt-4">
+          <Tabs defaultValue="flagged-posts">
+            <TabsList className="bg-muted/30 rounded-lg">
+              <TabsTrigger value="flagged-posts" className="text-xs">Posts</TabsTrigger>
+              <TabsTrigger value="flagged-comments" className="text-xs">Comments</TabsTrigger>
+            </TabsList>
+            <TabsContent value="flagged-posts" className="mt-3">
+              <AdminFlaggedPosts />
+            </TabsContent>
+            <TabsContent value="flagged-comments" className="mt-3">
+              <AdminFlaggedComments />
+            </TabsContent>
+          </Tabs>
         </TabsContent>
-
-        <TabsContent value="signup">
-          <div className="p-4">
-            <p className="text-muted-foreground text-sm">
-              Use the Invite Codes tab to generate a code, then share the signup link with the new
-              member.
-            </p>
-          </div>
+        <TabsContent value="alerts" className="mt-4">
+          <AdminEmotionalAlertsTab />
+        </TabsContent>
+        <TabsContent value="crisis" className="mt-4">
+          <AdminCrisisRiskTab />
         </TabsContent>
       </Tabs>
     </div>

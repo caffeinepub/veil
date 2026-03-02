@@ -1,153 +1,158 @@
 {
   "schemaVersion": "1.0.0",
   "projectStateVersion": 3,
-  "summary": "VEIL is a closed emotional ecosystem app. MVP focuses on invite-only registration, secure login, seat counter, post creation (Happy posts with Public toggle), feed, reactions, comments, flagging, and an admin panel for flagged posts. No gamification, no metrics, no popularity systems. Core values: stability over growth, containment over engagement, witnessing over performance.",
-  "architectural_notes": [
-    "Closed ecosystem: access via invite codes only",
-    "No gamification, no metrics, no popularity/ranking systems",
-    "Core values: stability over growth, containment over engagement, witnessing over performance"
-  ],
+  "summary": "Full-stack social/community platform with authentication, posting, emotional mode guidance, reactions, comments, flagging, admin dashboard, invite codes, seat counter, and deployment-ready configuration.",
+  "architectural_notes": [],
   "known_issues": [],
   "isFixRequest": false,
-  "existing_features": [],
+  "existing_features": [
+    {
+      "id": "feature-ensure-the-full-internet-identity-authentication-flow-is-working-end-to-end-login-via-internet-identity-session-persistence-logout-and-role-detection-admin-vs-member-the-loginpage-must-redirect-authenticated-users-to-the-community-feed-and-protectedroute-adminroute-guards-must-correctly-block-unauthenticated-or-unauthorized-access",
+      "title": "Ensure the full Internet Identity authentication flow is working end-to-end: login via Internet Identity, session persistence, logout, and role detection (admin vs. member). The LoginPage must redirect authenticated users to the community feed, and ProtectedRoute/AdminRoute guards must correctly block unauthenticated or unauthorized access.",
+      "reqIds": [
+        "REQ-1"
+      ],
+      "version": 1
+    },
+    {
+      "id": "feature-ensure-fully-functional-post-creation-users-can-select-an-emotion-type-happy-confess-broke-write-content-subject-to-a-24-word-minimum-for-applicable-emotion-types-toggle-public-private-visibility-acknowledge-the-entry-protection-modal-acknowledge-the-public-post-warning-modal-when-posting-publicly-and-successfully-submit-the-post-to-the-backend-after-submission-redirect-the-user-to-their-posts-list",
+      "title": "Ensure fully functional post creation: users can select an emotion type (happy, confess, broke), write content subject to a 24-word minimum for applicable emotion types, toggle public/private visibility, acknowledge the entry protection modal, acknowledge the public post warning modal when posting publicly, and successfully submit the post to the backend. After submission, redirect the user to their posts list.",
+      "reqIds": [
+        "REQ-2"
+      ],
+      "version": 1
+    },
+    {
+      "id": "feature-implement-emotional-mode-guidance-in-the-post-creation-flow-when-the-user-selects-the-broke-emotion-type-display-contextual-guidance-text-advising-them-that-this-mode-is-for-moments-of-genuine-distress-and-offering-a-brief-grounding-prompt-guidance-should-be-visually-distinct-e-g-a-highlighted-callout-and-appear-inline-without-blocking-composition",
+      "title": "Implement emotional mode guidance in the post creation flow: when the user selects the 'broke' emotion type, display contextual guidance text advising them that this mode is for moments of genuine distress and offering a brief grounding prompt. Guidance should be visually distinct (e.g., a highlighted callout) and appear inline without blocking composition.",
+      "reqIds": [
+        "REQ-3"
+      ],
+      "version": 1
+    },
+    {
+      "id": "feature-ensure-the-reaction-system-is-fully-functional-on-public-posts-in-the-community-feed-authenticated-users-who-are-not-the-post-s-author-can-add-a-text-reaction-to-a-post-and-reactions-are-persisted-in-the-backend-each-post-card-must-display-the-current-list-of-reactions-users-cannot-react-to-their-own-posts",
+      "title": "Ensure the reaction system is fully functional on public posts in the community feed: authenticated users (who are not the post's author) can add a text reaction to a post, and reactions are persisted in the backend. Each post card must display the current list of reactions. Users cannot react to their own posts.",
+      "reqIds": [
+        "REQ-4"
+      ],
+      "version": 1
+    },
+    {
+      "id": "feature-ensure-the-comment-system-is-fully-functional-on-public-posts-authenticated-users-who-are-not-the-post-s-author-can-add-a-comment-comments-are-persisted-in-the-backend-and-the-comment-list-is-displayed-on-each-publicpostcard-authors-cannot-comment-on-their-own-posts",
+      "title": "Ensure the comment system is fully functional on public posts: authenticated users (who are not the post's author) can add a comment, comments are persisted in the backend, and the comment list is displayed on each PublicPostCard. Authors cannot comment on their own posts.",
+      "reqIds": [
+        "REQ-5"
+      ],
+      "version": 1
+    },
+    {
+      "id": "feature-ensure-the-flagging-system-is-fully-functional-on-public-posts-authenticated-users-who-are-not-the-post-s-author-can-flag-a-post-for-review-flagged-posts-must-be-tracked-in-the-backend-with-a-report-count-the-flag-action-should-be-available-on-publicpostcard-for-non-authors-only",
+      "title": "Ensure the flagging system is fully functional on public posts: authenticated users (who are not the post's author) can flag a post for review. Flagged posts must be tracked in the backend with a report count. The flag action should be available on PublicPostCard for non-authors only.",
+      "reqIds": [
+        "REQ-6"
+      ],
+      "version": 1
+    },
+    {
+      "id": "feature-ensure-the-admin-dashboard-is-fully-functional-with-all-tabs-operational-public-posts-list-with-remove-action-user-management-suspend-unsuspend-cooldown-remove-invite-codes-generate-copy-revoke-flagged-content-posts-and-comments-with-remove-actions-emotional-alerts-users-with-5-broke-posts-in-3-consecutive-days-and-crisis-risk-posts-flagged-for-crisis-with-check-in-and-resource-actions-the-ecosystem-silence-banner-should-appear-when-no-public-posts-exist-in-the-last-5-days-allowing-admins-to-publish-a-prompt-post",
+      "title": "Ensure the admin dashboard is fully functional with all tabs operational: Public Posts list (with remove action), User Management (suspend/unsuspend/cooldown/remove), Invite Codes (generate/copy/revoke), Flagged Content (posts and comments with remove actions), Emotional Alerts (users with 5+ 'broke' posts in 3 consecutive days), and Crisis Risk (posts flagged for crisis with check-in and resource actions). The ecosystem silence banner should appear when no public posts exist in the last 5 days, allowing admins to publish a prompt post.",
+      "reqIds": [
+        "REQ-7"
+      ],
+      "version": 1
+    },
+    {
+      "id": "feature-ensure-invite-code-logic-is-fully-functional-admins-can-generate-invite-codes-from-the-admin-dashboard-codes-are-stored-in-the-backend-with-used-unused-status-and-new-users-can-register-only-by-providing-a-valid-unused-invite-code-on-the-signuppage-after-a-code-is-used-during-registration-it-must-be-marked-as-consumed-and-cannot-be-reused",
+      "title": "Ensure invite code logic is fully functional: admins can generate invite codes from the admin dashboard, codes are stored in the backend with used/unused status, and new users can register only by providing a valid unused invite code on the SignupPage. After a code is used during registration, it must be marked as consumed and cannot be reused.",
+      "reqIds": [
+        "REQ-8"
+      ],
+      "version": 1
+    },
+    {
+      "id": "feature-ensure-the-seat-counter-is-functional-on-the-signuppage-display-the-number-of-remaining-available-seats-total-capacity-minus-registered-users-so-prospective-members-know-availability-before-registering-seat-count-must-be-fetched-live-from-the-backend",
+      "title": "Ensure the seat counter is functional on the SignupPage: display the number of remaining available seats (total capacity minus registered users) so prospective members know availability before registering. Seat count must be fetched live from the backend.",
+      "reqIds": [
+        "REQ-9"
+      ],
+      "version": 1
+    },
+    {
+      "id": "feature-wire-up-all-react-query-hooks-in-usequeries-ts-to-correctly-call-every-corresponding-backend-motoko-actor-method-user-registration-login-check-post-crud-reactions-comments-flagging-admin-operations-invite-code-management-seat-count-ensure-query-keys-are-consistent-mutations-invalidate-relevant-queries-and-error-states-are-surfaced-to-the-ui",
+      "title": "Wire up all React Query hooks in useQueries.ts to correctly call every corresponding backend Motoko actor method (user registration, login check, post CRUD, reactions, comments, flagging, admin operations, invite code management, seat count). Ensure query keys are consistent, mutations invalidate relevant queries, and error states are surfaced to the UI.",
+      "reqIds": [
+        "REQ-10"
+      ],
+      "version": 1
+    }
+  ],
   "new_feature_requests": [
     {
       "id": "AR-1",
-      "summary": "Register using invite code",
+      "summary": "Full working authentication flow",
       "reqIds": [],
       "status": "pending"
     },
     {
       "id": "AR-2",
-      "summary": "Secure login",
+      "summary": "Fully functional post creation",
       "reqIds": [],
       "status": "pending"
     },
     {
       "id": "AR-3",
-      "summary": "Seat counter display",
+      "summary": "Emotional mode guidance system",
       "reqIds": [],
       "status": "pending"
     },
     {
       "id": "AR-4",
-      "summary": "Create a Happy post",
+      "summary": "Reaction system",
       "reqIds": [],
       "status": "pending"
     },
     {
       "id": "AR-5",
-      "summary": "Toggle Public on a post",
+      "summary": "Comment system",
       "reqIds": [],
       "status": "pending"
     },
     {
       "id": "AR-6",
-      "summary": "Post appears in feed",
+      "summary": "Flagging system",
       "reqIds": [],
       "status": "pending"
     },
     {
       "id": "AR-7",
-      "summary": "React to a post",
+      "summary": "Admin dashboard",
       "reqIds": [],
       "status": "pending"
     },
     {
       "id": "AR-8",
-      "summary": "Comment on a post",
+      "summary": "Invite code logic",
       "reqIds": [],
       "status": "pending"
     },
     {
       "id": "AR-9",
-      "summary": "Flag a post from another account",
+      "summary": "Seat counter",
       "reqIds": [],
       "status": "pending"
     },
     {
       "id": "AR-10",
-      "summary": "Admin panel to view flagged posts",
+      "summary": "Deployment-ready configuration including folder structure, database schema, API route definitions, environment variables template, and deployment steps",
       "reqIds": [],
       "status": "pending"
     },
     {
-      "id": "AR-11",
-      "summary": "On the Signup page, display the remaining available seat count fetched from the backend so users can see how many spots are left in the closed ecosystem before registering.",
+      "id": "AR-21",
+      "summary": "Ensure the backend Motoko actor in backend/main.mo implements all required methods fully and correctly: createUser (with invite code validation and seat enforcement), createPost, getPublicPosts, getUserPosts, addReaction, addComment, flagPost, flagComment, getFlags, admin methods (removePost, removeComment, suspendUser, unsuspendUser, applyCooldown, removeUser, updateSubscription, getUserHistory, sendCheckIn, sendCrisisResources, publishPromptPost), invite code methods (generateInviteCode, revokeInviteCode, listInviteCodes), getRemainingSeats, getEmotionalAlerts, and getCrisisRiskPosts. All state must be persisted in stable variables.",
       "reqIds": [
-        "REQ-1"
-      ],
-      "status": "pending"
-    },
-    {
-      "id": "AR-12",
-      "summary": "Ensure the registration flow requires a valid invite code. A user who submits an invalid or already-used invite code must see a clear error. A user with a valid code must be able to complete registration with a pseudonym and proceed to login.",
-      "reqIds": [
-        "REQ-2"
-      ],
-      "status": "pending"
-    },
-    {
-      "id": "AR-13",
-      "summary": "Ensure the login flow uses Internet Identity exclusively. After authenticating, the user must be redirected to the main feed or dashboard. Unauthenticated users attempting to access protected pages must be redirected to the login page.",
-      "reqIds": [
-        "REQ-3"
-      ],
-      "status": "pending"
-    },
-    {
-      "id": "AR-14",
-      "summary": "On the post creation page, provide a 'Happy' emotion option. The user must be able to write content, select 'Happy' as the emotion, and submit the post. The post creation UI must include a Public/Private visibility toggle. The default state must be Private. If the user toggles to Public, a confirmation warning modal must be shown before the post is submitted publicly.",
-      "reqIds": [
-        "REQ-4"
-      ],
-      "status": "pending"
-    },
-    {
-      "id": "AR-15",
-      "summary": "The Community Feed page must display all public posts in chronological order. After a user creates a public 'Happy' post, it must appear in the feed immediately (or on refresh) without requiring any additional action.",
-      "reqIds": [
-        "REQ-5"
-      ],
-      "status": "pending"
-    },
-    {
-      "id": "AR-16",
-      "summary": "On each public post card in the Community Feed, display a set of predefined text reactions (e.g., 'I feel this', 'You are not alone'). Any authenticated user must be able to select a reaction. Reaction counts must NOT be displayed — reactions serve as witnessing gestures, not engagement metrics.",
-      "reqIds": [
-        "REQ-6"
-      ],
-      "status": "pending"
-    },
-    {
-      "id": "AR-17",
-      "summary": "On each public post card in the Community Feed, display a comments section. Any authenticated user must be able to submit a text comment on a post. Comments must appear under the post in submission order. No upvotes, likes, or sorting by popularity.",
-      "reqIds": [
-        "REQ-7"
-      ],
-      "status": "pending"
-    },
-    {
-      "id": "AR-18",
-      "summary": "On public post cards authored by other users, display a 'Flag' or 'Report' button. An authenticated user must be able to flag a post from another account. The flag action must be submitted to the backend and recorded against the post.",
-      "reqIds": [
-        "REQ-8"
-      ],
-      "status": "pending"
-    },
-    {
-      "id": "AR-19",
-      "summary": "The Admin panel must include a 'Flagged Posts' tab listing all posts that have been reported by users. Each entry must show the post content and a button for the admin to permanently remove the post. No popularity metrics or report counts visible to the admin beyond the post content.",
-      "reqIds": [
-        "REQ-9"
-      ],
-      "status": "pending"
-    },
-    {
-      "id": "AR-20",
-      "summary": "Remove or hide all gamification elements, engagement metrics, popularity indicators, streak counters, leaderboards, and growth-oriented UI from every page. The interface must reflect containment and witnessing — not performance or engagement optimization.",
-      "reqIds": [
-        "REQ-10"
+        "REQ-11"
       ],
       "status": "pending"
     }

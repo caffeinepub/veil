@@ -1,123 +1,168 @@
-import { useState } from 'react';
-import { useAdminGetAllPosts, useAdminRemovePost, useSendAdminMessage, useSendCrisisResourceMessage } from '../hooks/useQueries';
-import { ReviewFlag, MessageType } from '../backend';
-import { toast } from 'sonner';
+import React, { useState } from 'react';
+import { useGetCrisisRiskPosts, useSendCheckIn, useSendCrisisResources, useAdminRemovePost } from '../hooks/useQueries';
 import EmotionBadge from './EmotionBadge';
-
-function formatDate(timestamp: bigint): string {
-  const ms = Number(timestamp / BigInt(1_000_000));
-  return new Date(ms).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-}
+import { Button } from '@/components/ui/button';
+import { Skeleton } from '@/components/ui/skeleton';
+import { Badge } from '@/components/ui/badge';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
+import { Loader2, Trash2, HeartHandshake, BookOpen, AlertOctagon } from 'lucide-react';
+import { toast } from 'sonner';
+import { Principal } from '@dfinity/principal';
 
 export default function AdminCrisisRiskTab() {
-  const { data: allPosts = [], isLoading } = useAdminGetAllPosts();
+  const { data: crisisPosts, isLoading } = useGetCrisisRiskPosts();
+  const sendCheckIn = useSendCheckIn();
+  const sendCrisisResources = useSendCrisisResources();
   const removePost = useAdminRemovePost();
-  const sendMessage = useSendAdminMessage();
-  const sendCrisisResource = useSendCrisisResourceMessage();
-  const [actioningId, setActioningId] = useState<string | null>(null);
+  const [pendingId, setPendingId] = useState<string | null>(null);
 
-  const crisisPosts = allPosts.filter(
-    (p) => p.flaggedForReview === ReviewFlag.crisisRisk
-  );
+  const handleCheckIn = async (authorStr: string) => {
+    setPendingId(`checkin-${authorStr}`);
+    try {
+      const principal = Principal.fromText(authorStr);
+      await sendCheckIn.mutateAsync({
+        recipient: principal,
+        message: 'Hi, we noticed you have been going through a difficult time. We are here for you. Please reach out if you need support.',
+      });
+      toast.success('Check-in message sent.');
+    } catch (err: unknown) {
+      toast.error((err as Error)?.message ?? 'Failed to send check-in.');
+    } finally {
+      setPendingId(null);
+    }
+  };
+
+  const handleSendResources = async (authorStr: string) => {
+    setPendingId(`resources-${authorStr}`);
+    try {
+      const principal = Principal.fromText(authorStr);
+      await sendCrisisResources.mutateAsync(principal);
+      toast.success('Crisis resources sent.');
+    } catch (err: unknown) {
+      toast.error((err as Error)?.message ?? 'Failed to send resources.');
+    } finally {
+      setPendingId(null);
+    }
+  };
 
   const handleRemove = async (postId: string) => {
-    setActioningId(postId + '-remove');
+    setPendingId(`remove-${postId}`);
     try {
       await removePost.mutateAsync(postId);
       toast.success('Post removed.');
-    } catch {
-      toast.error('Could not remove post.');
+    } catch (err: unknown) {
+      toast.error((err as Error)?.message ?? 'Failed to remove post.');
     } finally {
-      setActioningId(null);
-    }
-  };
-
-  const handleSendMessage = async (authorStr: string, postId: string) => {
-    setActioningId(postId + '-msg');
-    try {
-      await sendMessage.mutateAsync({
-        recipient: authorStr,
-        messageContent: 'A member of our team has noticed your recent post and wants to check in with you. You are not alone.',
-      });
-      toast.success('Message sent.');
-    } catch {
-      toast.error('Could not send message.');
-    } finally {
-      setActioningId(null);
-    }
-  };
-
-  const handleSendCrisisResources = async (authorStr: string, postId: string) => {
-    setActioningId(postId + '-crisis');
-    try {
-      await sendCrisisResource.mutateAsync({
-        recipient: authorStr,
-      });
-      toast.success('Crisis resources sent.');
-    } catch {
-      toast.error('Could not send resources.');
-    } finally {
-      setActioningId(null);
+      setPendingId(null);
     }
   };
 
   if (isLoading) {
-    return <p className="text-sm text-muted-foreground py-6 text-center">Loading…</p>;
+    return (
+      <div className="space-y-3">
+        {[1, 2].map((i) => <Skeleton key={i} className="h-32 w-full rounded-xl" />)}
+      </div>
+    );
   }
 
-  if (crisisPosts.length === 0) {
+  if (!crisisPosts || crisisPosts.length === 0) {
     return (
-      <p className="text-sm text-muted-foreground py-6 text-center">No crisis-risk posts at this time.</p>
+      <div className="text-center py-8 space-y-2">
+        <AlertOctagon className="h-8 w-8 text-muted-foreground mx-auto" />
+        <p className="text-sm text-muted-foreground">No crisis-flagged posts at this time.</p>
+      </div>
     );
   }
 
   return (
-    <div className="flex flex-col gap-4">
-      <div className="rounded-xl bg-muted border border-border px-4 py-3 text-sm text-muted-foreground">
-        These posts were flagged by the system for potential crisis indicators. Review carefully before taking action.
-      </div>
-
+    <div className="space-y-3">
       {crisisPosts.map((post) => {
         const authorStr = post.author.toString();
         return (
-          <div
-            key={post.id}
-            className="bg-card rounded-xl border border-border shadow-soft p-4 flex flex-col gap-3"
-          >
-            <div className="flex items-start justify-between gap-3">
+          <div key={post.id} className="rounded-xl border border-destructive/20 bg-destructive/5 px-4 py-3 space-y-3">
+            <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <EmotionBadge emotionType={post.emotionType} />
-                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs bg-muted text-muted-foreground">
-                  flagged
-                </span>
+                <Badge variant="destructive" className="text-xs">Crisis Risk</Badge>
               </div>
-              <time className="text-xs text-muted-foreground">{formatDate(post.createdAt)}</time>
+              <span className="text-xs text-muted-foreground">
+                {new Date(Number(post.createdAt) / 1_000_000).toLocaleDateString()}
+              </span>
             </div>
 
             <p className="text-sm text-foreground leading-relaxed">{post.content}</p>
+            <p className="text-xs text-muted-foreground font-mono truncate">Author: {authorStr}</p>
 
-            <div className="flex flex-wrap gap-2 pt-1 border-t border-border">
-              <button
-                onClick={() => handleRemove(post.id)}
-                disabled={actioningId === post.id + '-remove'}
-                className="text-xs text-muted-foreground hover:text-foreground disabled:opacity-40"
+            <div className="flex flex-wrap gap-2">
+              <Button
+                size="sm"
+                variant="outline"
+                className="h-7 text-xs gap-1"
+                disabled={pendingId === `checkin-${authorStr}`}
+                onClick={() => handleCheckIn(authorStr)}
               >
-                {actioningId === post.id + '-remove' ? 'Removing…' : 'Remove post'}
-              </button>
-              <button
-                onClick={() => handleSendMessage(authorStr, post.id)}
-                disabled={actioningId === post.id + '-msg'}
-                className="text-xs text-muted-foreground hover:text-foreground disabled:opacity-40"
+                {pendingId === `checkin-${authorStr}` ? (
+                  <Loader2 className="h-3 w-3 animate-spin" />
+                ) : (
+                  <HeartHandshake className="h-3 w-3" />
+                )}
+                Send Check-in
+              </Button>
+
+              <Button
+                size="sm"
+                variant="outline"
+                className="h-7 text-xs gap-1"
+                disabled={pendingId === `resources-${authorStr}`}
+                onClick={() => handleSendResources(authorStr)}
               >
-                {actioningId === post.id + '-msg' ? 'Sending…' : 'Message user'}
-              </button>
-              <button
-                onClick={() => handleSendCrisisResources(authorStr, post.id)}
-                disabled={actioningId === post.id + '-crisis'}
-                className="text-xs text-muted-foreground hover:text-foreground disabled:opacity-40"
-              >
-                {actioningId === post.id + '-crisis' ? 'Sending…' : 'Send crisis resources'}
-              </button>
+                {pendingId === `resources-${authorStr}` ? (
+                  <Loader2 className="h-3 w-3 animate-spin" />
+                ) : (
+                  <BookOpen className="h-3 w-3" />
+                )}
+                Send Resources
+              </Button>
+
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="h-7 text-xs gap-1 text-muted-foreground hover:text-destructive"
+                    disabled={pendingId === `remove-${post.id}`}
+                  >
+                    {pendingId === `remove-${post.id}` ? (
+                      <Loader2 className="h-3 w-3 animate-spin" />
+                    ) : (
+                      <Trash2 className="h-3 w-3" />
+                    )}
+                    Remove Post
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Remove Crisis Post</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      This will permanently remove this post. This action cannot be undone.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                    <AlertDialogAction onClick={() => handleRemove(post.id)}>Remove</AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
             </div>
           </div>
         );

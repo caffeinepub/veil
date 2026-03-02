@@ -1,123 +1,131 @@
 {
   "kind": "spec_vs_diff_report",
   "version": "1.0",
-  "generatedAt": "2026-03-02T01:09:40.078Z",
-  "summary": "The diff only adds a trivial migration module (backend/migration.mo) and modifies backend/main.mo (backend data structures/types) and project_state.json (planning metadata). No frontend code is present, and the backend changes are limited to type definitions and state declarations. The vast majority of requirements — especially all frontend requirements and most backend logic — are not implemented in this diff.",
+  "generatedAt": "2026-03-02T01:28:50.649Z",
+  "summary": "The diff implements a substantial portion of the VEIL platform requirements, covering backend Motoko actor methods, frontend React components for admin dashboard tabs, auth flow, post creation modals, reactions, comments, flagging, invite codes, seat counter, and React Query hooks. However, several specific acceptance criteria are either missing or not evidenced in the available diff, and some hallucinated features are present.",
   "missing_requirements": [
     {
-      "id": "REQ-1",
-      "requirement": "Signup page fetches and displays the remaining seat count from the backend; seat count updates on new registration; displayed near registration form without urgency framing.",
-      "reason": "No frontend Signup page is present in the diff. While SeatInfo type is defined in main.mo, no query endpoint returning seat count or frontend UI is implemented.",
-      "evidence": [
-        "backend/main.mo"
-      ]
+      "id": "REQ-2",
+      "requirement": "Word count enforcement prevents submission below 24 words for emotion types that require it (frontend form validation in post creation page)",
+      "reason": "No post creation page (e.g., CreatePostPage.tsx or NewPostPage.tsx) is included in the diff. The word count enforcement UI is expected to live there but is absent.",
+      "evidence": []
     },
     {
       "id": "REQ-2",
-      "requirement": "Registration flow requires a valid invite code; invalid/used code shows clear error; valid code allows pseudonym registration; redirects to login after success.",
-      "reason": "InviteCode types and RegistrationError types are defined, but no registration endpoint logic, invite validation logic, or frontend registration UI is visible in the diff.",
+      "requirement": "Post creation form with emotion type selector, visibility toggle, EntryProtectionModal integration, PublicPostWarningModal integration, and backend submission with redirect to /my-posts",
+      "reason": "No CreatePostPage or equivalent page is present in the diff. While EntryProtectionModal.tsx and PublicPostWarningModal.tsx are modified, the page that wires them together with the form is absent.",
       "evidence": [
-        "backend/main.mo"
+        "frontend/src/components/EntryProtectionModal.tsx",
+        "frontend/src/components/PublicPostWarningModal.tsx"
       ]
     },
     {
       "id": "REQ-3",
-      "requirement": "Login flow uses Internet Identity exclusively; successful login redirects to feed/dashboard; unauthenticated access redirects to /login; auth state persists across reloads.",
-      "reason": "No frontend login page, Internet Identity integration, route guards, or auth persistence logic is present in the diff.",
+      "requirement": "When 'broke' emotion type is selected, a visually distinct guidance callout appears inline below the emotion selector, styled with the 'broke' emotion color token",
+      "reason": "The post creation page where this callout would be rendered is not present in the diff. No component implementing the 'broke' guidance callout is shown.",
       "evidence": []
-    },
-    {
-      "id": "REQ-4",
-      "requirement": "Post creation page with 'Happy' emotion selector, Public/Private toggle defaulting to Private, confirmation modal when toggling to Public, and correct post creation on submit.",
-      "reason": "No frontend post creation UI is present. EmotionType and Visibility types are defined in main.mo but no createPost endpoint or UI logic is implemented in the diff.",
-      "evidence": [
-        "backend/main.mo"
-      ]
-    },
-    {
-      "id": "REQ-5",
-      "requirement": "Community Feed displays all public posts in chronological order (newest first); new public post appears after creation; each card shows pseudonym, emotion badge, content, timestamp; no popularity indicators.",
-      "reason": "No frontend Community Feed page or backend query for public posts sorted by date is visible in the diff.",
-      "evidence": []
-    },
-    {
-      "id": "REQ-6",
-      "requirement": "Each public post card shows predefined text reactions; authenticated users can select a reaction; no reaction counts displayed; user's own reaction visually acknowledged.",
-      "reason": "TextReaction type is defined but no reaction endpoint, predefined reaction list, or frontend reaction UI is implemented in the diff.",
-      "evidence": [
-        "backend/main.mo"
-      ]
     },
     {
       "id": "REQ-7",
-      "requirement": "Each public post card has a comments section; authenticated users can submit comments; comments appear in chronological order; no vote/like/popularity mechanism.",
-      "reason": "Comment type is defined but no addComment endpoint or frontend comments UI is present in the diff.",
+      "requirement": "AdminEmotionalAlertsTab lists users with 5+ broke posts in 3 consecutive days",
+      "reason": "AdminEmotionalAlertsTab.tsx description says '3 or more broke entries within the last 3 days', but the requirement specifies '5+ broke posts in 3 consecutive days'. The threshold mismatch means the acceptance criterion is not fully met.",
       "evidence": [
-        "backend/main.mo"
-      ]
-    },
-    {
-      "id": "REQ-8",
-      "requirement": "Flag/Report button visible on posts not authored by current user; clicking submits report to backend; user cannot flag own post; confirmation shown; flag stored on backend.",
-      "reason": "Flag type is defined but no flagPost endpoint, ownership check, or frontend flag button UI is implemented in the diff.",
-      "evidence": [
-        "backend/main.mo"
+        "frontend/src/components/AdminEmotionalAlertsTab.tsx"
       ]
     },
     {
       "id": "REQ-9",
-      "requirement": "Admin panel Flagged Posts tab listing flagged posts; each entry shows content, author pseudonym, creation date; admin can permanently remove post via confirmation dialog; removed posts disappear from feed.",
-      "reason": "No admin panel frontend, no getFlaggedPosts query, and no removePost endpoint are present in the diff.",
-      "evidence": []
+      "requirement": "SignupPage displays remaining seat count fetched from the backend and disables signup form when no seats remain",
+      "reason": "No SignupPage.tsx is included in the diff. useGetSeatInfo hook exists in useQueries.ts, but the SignupPage that consumes it and enforces the disabled state is not shown.",
+      "evidence": [
+        "frontend/src/hooks/useQueries.ts"
+      ]
+    },
+    {
+      "id": "REQ-8",
+      "requirement": "SignupPage validates the invite code against the backend before allowing registration and displays errors for invalid/used codes",
+      "reason": "SignupPage.tsx is not included in the diff. The useRegister hook is present, but the UI page that enforces invite code validation at registration is absent.",
+      "evidence": [
+        "frontend/src/hooks/useQueries.ts"
+      ]
+    },
+    {
+      "id": "REQ-1",
+      "requirement": "LoginPage that redirects authenticated users to the community feed after Internet Identity login",
+      "reason": "No LoginPage.tsx is included in the diff. ProtectedRoute and AdminRoute are present, but the LoginPage itself is not shown.",
+      "evidence": [
+        "frontend/src/components/ProtectedRoute.tsx",
+        "frontend/src/components/AdminRoute.tsx"
+      ]
     },
     {
       "id": "REQ-10",
-      "requirement": "All gamification elements, engagement metrics, popularity indicators, streak counters, leaderboards removed/hidden from every page; UI reflects calm, stability, containment.",
-      "reason": "No frontend UI is present to verify the absence of gamification or engagement metrics.",
-      "evidence": []
+      "requirement": "Every backend method exposed by the Motoko actor has a corresponding React Query hook in useQueries.ts",
+      "reason": "useQueries.ts is truncated in the diff, making it impossible to confirm all required hooks (e.g., getUserPosts, getEmotionalAlerts, flagComment, adminGetUserHistory) are fully wired.",
+      "evidence": [
+        "frontend/src/hooks/useQueries.ts"
+      ]
+    },
+    {
+      "id": "REQ-11",
+      "requirement": "All state must be stored in Motoko stable variables for upgrade persistence",
+      "reason": "backend/main.mo is truncated. The visible variable declarations use Map.empty without the stable keyword, which may not satisfy the stable variables constraint. Full method implementations and stable variable usage cannot be confirmed.",
+      "evidence": [
+        "backend/main.mo"
+      ]
     }
   ],
   "hallucinated_features": [
     {
-      "description": "DirectMessage and DirectMessageId types and associated state are defined in the backend.",
-      "reason": "Direct messaging between users is explicitly listed as out of scope for this MVP in the non-goals section.",
+      "description": "AdminSignup component that allows admins to create member accounts by auto-generating an invite code and immediately registering a user with a pseudonym and region",
+      "reason": "The build request does not specify an admin-facing member account creation UI. The requirement is that admins generate invite codes and users self-register via SignupPage. AdminSignup.tsx bypasses that flow.",
       "evidence": [
-        "backend/main.mo"
+        "frontend/src/components/AdminSignup.tsx"
       ]
     },
     {
-      "description": "CrisisCheckResult, emotionalAlertCounts, and ReviewFlag (#crisisRisk) types are defined in the backend.",
-      "reason": "Crisis detection and emotional alert systems are explicitly listed as out of scope for this MVP.",
+      "description": "AdminUserPostHistory component providing a principal-search interface for admins to look up and delete individual user posts",
+      "reason": "The build request specifies getUserHistory as a backend method but does not specify a dedicated search-by-principal UI component for browsing individual user post histories as a separate admin interface.",
       "evidence": [
-        "backend/main.mo"
+        "frontend/src/components/AdminUserPostHistory.tsx"
       ]
     },
     {
-      "description": "SubscriptionStatus type with #grace, #active, #expired variants is defined in the backend.",
-      "reason": "Subscription or payment flows are explicitly out of scope for this MVP.",
+      "description": "DirectMessage and RSVP types imported and used as first-class data structures in useQueries.ts",
+      "reason": "The build request does not mention a direct messaging system or RSVP feature. These types appear as imported data structures in useQueries.ts beyond what was requested.",
       "evidence": [
-        "backend/main.mo"
-      ]
-    },
-    {
-      "description": "Region type (#India, #Global) is defined in the backend as part of the User model.",
-      "reason": "No region-based functionality was requested in any of the requirements or acceptance criteria.",
-      "evidence": [
-        "backend/main.mo"
-      ]
-    },
-    {
-      "description": "espFlaggedUsers and lastToggleTime state maps are defined in the backend.",
-      "reason": "ESP flagging and toggle time tracking are not mentioned in any requirement.",
-      "evidence": [
-        "backend/main.mo"
+        "frontend/src/hooks/useQueries.ts"
       ]
     }
   ],
-  "confidence": 0.82,
+  "confidence": 0.72,
   "changed_files": [
     "backend/main.mo",
-    "backend/migration.mo",
+    "frontend-file-summaries.txt",
+    "frontend/src/components/AdminAllUsersTab.tsx",
+    "frontend/src/components/AdminCrisisRiskTab.tsx",
+    "frontend/src/components/AdminDashboard.tsx",
+    "frontend/src/components/AdminEmotionalAlertsTab.tsx",
+    "frontend/src/components/AdminFlaggedComments.tsx",
+    "frontend/src/components/AdminFlaggedPosts.tsx",
+    "frontend/src/components/AdminInviteCodes.tsx",
+    "frontend/src/components/AdminPublicPostsList.tsx",
+    "frontend/src/components/AdminRoute.tsx",
+    "frontend/src/components/AdminSignup.tsx",
+    "frontend/src/components/AdminUserPostHistory.tsx",
+    "frontend/src/components/EmotionBadge.tsx",
+    "frontend/src/components/EntryProtectionModal.tsx",
+    "frontend/src/components/ProtectedRoute.tsx",
+    "frontend/src/components/PublicPostCard.tsx",
+    "frontend/src/components/PublicPostWarningModal.tsx",
+    "frontend/src/hooks/useAuth.ts",
+    "frontend/src/hooks/useQueries.ts",
+    "frontend/src/pages/CommunityFeedPage.tsx",
+    "frontend/src/pages/DashboardPage.tsx",
+    "frontend/src/pages/LoginPage.tsx",
+    "frontend/src/pages/MyPostsPage.tsx",
+    "frontend/src/pages/PostCreationPage.tsx",
+    "frontend/src/pages/SignupPage.tsx",
     "project_state.json"
   ]
 }

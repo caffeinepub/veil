@@ -13,9 +13,7 @@ import Nat "mo:core/Nat";
 import InviteLinksModule "invite-links/invite-links-module";
 import MixinAuthorization "authorization/MixinAuthorization";
 import AccessControl "authorization/access-control";
-import Migration "migration";
 
-(with migration = Migration.run)
 actor {
   let accessControlState = AccessControl.initState();
   let inviteState = InviteLinksModule.initState();
@@ -243,6 +241,7 @@ actor {
     } else { #none };
   };
 
+  // Only the recipient or an admin can view direct messages for a user
   public query ({ caller }) func getDirectMessagesForUser(_userId : Principal) : async [DirectMessage] {
     if (caller.isAnonymous()) {
       Runtime.trap("Anonymous principals cannot get direct messages");
@@ -262,6 +261,7 @@ actor {
     );
   };
 
+  // Only the recipient or an admin can mark a message as read
   public shared ({ caller }) func markDirectMessageAsRead(messageId : DirectMessageId) : async () {
     if (caller.isAnonymous()) {
       Runtime.trap("Anonymous principals cannot mark direct messages as read");
@@ -320,6 +320,7 @@ actor {
     messageId;
   };
 
+  // Admin-only: generate an invite code
   public shared ({ caller }) func generateInviteCode() : async Text {
     if (caller.isAnonymous()) {
       Runtime.trap("Anonymous principals cannot generate invite codes");
@@ -341,10 +342,12 @@ actor {
     code;
   };
 
+  // Public: submit an RSVP (no auth required)
   public shared func submitRSVP(name : Text, attending : Bool, inviteCode : Text) : async () {
     InviteLinksModule.submitRSVP(inviteState, name, attending, inviteCode);
   };
 
+  // Admin-only: get all RSVPs
   public query ({ caller }) func getAllRSVPs() : async [InviteLinksModule.RSVP] {
     if (caller.isAnonymous()) {
       Runtime.trap("Anonymous principals cannot get RSVPs");
@@ -355,6 +358,7 @@ actor {
     InviteLinksModule.getAllRSVPs(inviteState);
   };
 
+  // Admin-only: list invite codes
   public query ({ caller }) func getInviteCodes() : async [InviteLinksModule.InviteCode] {
     if (caller.isAnonymous()) {
       Runtime.trap("Anonymous principals cannot get invite codes");
@@ -365,6 +369,7 @@ actor {
     InviteLinksModule.getInviteCodes(inviteState);
   };
 
+  // Public: validate an invite code (needed on signup page before registration)
   public query func validateInviteCode(code : Text) : async Bool {
     switch (inviteCodes.get(code)) {
       case (?ic) { not ic.used };
@@ -372,6 +377,7 @@ actor {
     };
   };
 
+  // Admin-only: revoke an invite code
   public shared ({ caller }) func revokeInviteCode(_code : Text) : async () {
     if (caller.isAnonymous()) {
       Runtime.trap("Anonymous principals cannot revoke invite codes");
@@ -379,8 +385,16 @@ actor {
     if (not AccessControl.isAdmin(accessControlState, caller)) {
       Runtime.trap("Unauthorized: Only admins can perform this action");
     };
+    switch (inviteCodes.get(_code)) {
+      case (null) { Runtime.trap("Invite code does not exist") };
+      case (?ic) {
+        let updated : InviteCode = { ic with used = true };
+        inviteCodes.add(_code, updated);
+      };
+    };
   };
 
+  // Public (non-anonymous): register with a valid invite code
   public shared ({ caller }) func register(
     pseudonym : Text,
     region : Region,
@@ -461,6 +475,7 @@ actor {
     };
   };
 
+  // Registered user: get own profile
   public query ({ caller }) func getCallerUserProfile() : async ?UserProfile {
     if (caller.isAnonymous()) {
       Runtime.trap("Anonymous principals cannot get user profiles");
@@ -480,6 +495,7 @@ actor {
     };
   };
 
+  // Registered user: save own profile
   public shared ({ caller }) func saveCallerUserProfile(profile : UserProfileUpdate) : async () {
     if (caller.isAnonymous()) {
       Runtime.trap("Anonymous principals cannot save user profiles");
@@ -507,6 +523,7 @@ actor {
     };
   };
 
+  // Registered user: acknowledge entry message
   public shared ({ caller }) func acknowledgeEntryMessage() : async () {
     if (caller.isAnonymous()) {
       Runtime.trap("Anonymous principals cannot acknowledge entry message");
@@ -534,6 +551,7 @@ actor {
     };
   };
 
+  // Registered user: acknowledge public post message
   public shared ({ caller }) func acknowledgePublicPostMessage() : async () {
     if (caller.isAnonymous()) {
       Runtime.trap("Anonymous principals cannot acknowledge public post message");
@@ -561,6 +579,7 @@ actor {
     };
   };
 
+  // Registered user can view own profile; admin can view any profile
   public query ({ caller }) func getUserProfile(userId : Principal) : async ?UserProfile {
     if (caller.isAnonymous()) {
       Runtime.trap("Anonymous principals cannot get user profiles");
@@ -631,6 +650,7 @@ actor {
     count;
   };
 
+  // Registered (non-suspended) user: create a post
   public shared ({ caller }) func createPost(
     emotionType : EmotionType,
     content : Text,
@@ -672,7 +692,6 @@ actor {
     let postId = await generateUuid();
     let now = Time.now();
 
-    // Crisis keyword check runs server-side on post creation for broke posts made public
     let flagForReview = computeCrisisFlag(emotionType, resolvedVisibility, content);
 
     let post : Post = {
@@ -689,6 +708,7 @@ actor {
     #ok(post);
   };
 
+  // Registered (non-suspended) user: toggle visibility of own post
   public shared ({ caller }) func togglePostVisibility(postId : Text) : async Result<Post, Text> {
     if (caller.isAnonymous()) {
       Runtime.trap("Anonymous principals cannot toggle post visibility");
@@ -728,7 +748,6 @@ actor {
           case (#publicView) { #privateView };
         };
 
-        // Crisis keyword check runs server-side on visibility toggle to public for broke posts
         let newFlagForReview = computeCrisisFlag(post.emotionType, newVisibility, post.content);
 
         let updatedPost : Post = {
@@ -749,16 +768,19 @@ actor {
     };
   };
 
+  // Registered user: check own ESP status
   public query ({ caller }) func getESPStatus() : async Bool {
     if (caller.isAnonymous()) {
       Runtime.trap("Anonymous principals cannot check ESP status");
     };
+    requireRegisteredUser(caller);
     switch (espFlaggedUsers.get(caller)) {
       case (?flagged) { flagged };
       case (null) { false };
     };
   };
 
+  // Registered (non-suspended) user: get all public posts
   public query ({ caller }) func getPublicPosts() : async [Post] {
     if (caller.isAnonymous()) {
       Runtime.trap("Anonymous principals cannot view posts");
@@ -776,6 +798,7 @@ actor {
     );
   };
 
+  // Registered (non-suspended) user: get own posts
   public query ({ caller }) func getMyPosts() : async [Post] {
     if (caller.isAnonymous()) {
       Runtime.trap("Anonymous principals cannot view posts");
@@ -793,6 +816,7 @@ actor {
     );
   };
 
+  // Registered (non-suspended) user: add an emoji/type reaction to a public post they do not own
   public shared ({ caller }) func addReaction(postId : Text, reactionType : ReactionType) : async Text {
     if (caller.isAnonymous()) {
       Runtime.trap("Anonymous principals cannot add reactions");
@@ -835,6 +859,7 @@ actor {
     });
   };
 
+  // Registered (non-suspended) user: view reactions on a public post
   public query ({ caller }) func getReactionsForPost(postId : Text) : async [Reaction] {
     if (caller.isAnonymous()) {
       Runtime.trap("Anonymous principals cannot view reactions");
@@ -855,6 +880,7 @@ actor {
     };
   };
 
+  // Registered (non-suspended) user: add a text reaction to a public post they do not own
   public shared ({ caller }) func addTextReaction(postId : Text, reactionText : Text) : async Text {
     if (caller.isAnonymous()) {
       Runtime.trap("Anonymous principals cannot add reactions");
@@ -897,6 +923,7 @@ actor {
     });
   };
 
+  // Registered (non-suspended) user: view text reactions on a public post
   public query ({ caller }) func getTextReactionsForPost(postId : Text) : async [TextReaction] {
     if (caller.isAnonymous()) {
       Runtime.trap("Anonymous principals cannot view reactions");
@@ -917,6 +944,7 @@ actor {
     };
   };
 
+  // Registered (non-suspended) user: add a comment to a public post they do not own
   public shared ({ caller }) func addComment(postId : Text, content : Text) : async Text {
     if (caller.isAnonymous()) {
       Runtime.trap("Anonymous principals cannot add comments");
@@ -927,6 +955,9 @@ actor {
       case (?post) {
         if (post.visibility == #privateView) {
           Runtime.trap("Cannot comment on a private post");
+        };
+        if (post.author == caller) {
+          Runtime.trap("Cannot comment on your own post");
         };
         let commentId = await generateUuid();
         let comment : Comment = {
@@ -946,6 +977,7 @@ actor {
     };
   };
 
+  // Registered (non-suspended) user: view comments on a public post
   public query ({ caller }) func getCommentsByPost(postId : Text) : async [Comment] {
     if (caller.isAnonymous()) {
       Runtime.trap("Anonymous principals cannot view comments");
@@ -974,10 +1006,17 @@ actor {
     };
   };
 
+  // Registered (non-suspended) user: flag a comment they do not own
   public shared ({ caller }) func flagComment(commentId : Text) : async () {
+    if (caller.isAnonymous()) {
+      Runtime.trap("Anonymous principals cannot flag comments");
+    };
     requireRegisteredUser(caller);
     switch (comments.get(commentId)) {
       case (?comment) {
+        if (comment.userId == caller) {
+          Runtime.trap("Cannot flag your own comment");
+        };
         if (comment.flagged) {
           Runtime.trap("Comment is already flagged");
         };
@@ -990,6 +1029,7 @@ actor {
     };
   };
 
+  // Admin-only: delete a comment
   public shared ({ caller }) func deleteComment(commentId : Text) : async () {
     requireAdmin(caller);
     switch (comments.get(commentId)) {
@@ -1000,8 +1040,7 @@ actor {
     };
   };
 
-  // An authenticated registered user may flag a post authored by another user.
-  // Users must not be able to flag their own posts.
+  // Registered (non-suspended) user: flag a public post they do not own
   public shared ({ caller }) func flagPost(postId : Text, reason : Text) : async Text {
     if (caller.isAnonymous()) {
       Runtime.trap("Anonymous principals cannot flag posts");
@@ -1033,16 +1072,19 @@ actor {
     };
   };
 
+  // Admin-only: get all flagged posts
   public query ({ caller }) func adminGetFlaggedPosts() : async [Flag] {
     requireAdmin(caller);
     flags.values().toArray();
   };
 
+  // Admin-only: get all posts
   public query ({ caller }) func adminGetAllPosts() : async [Post] {
     requireAdmin(caller);
     posts.values().toArray();
   };
 
+  // Admin-only: delete a post and its associated comments/reactions
   public shared ({ caller }) func adminDeletePost(postId : Text) : async () {
     requireAdmin(caller);
     switch (posts.get(postId)) {
@@ -1067,11 +1109,13 @@ actor {
     };
   };
 
+  // Admin-only: get all users
   public query ({ caller }) func adminGetAllUsers() : async [User] {
     requireAdmin(caller);
     users.values().toArray();
   };
 
+  // Admin-only: suspend a user
   public shared ({ caller }) func adminSuspendUser(userId : Principal) : async () {
     requireAdmin(caller);
     switch (users.get(userId)) {
@@ -1092,6 +1136,7 @@ actor {
     };
   };
 
+  // Admin-only: unsuspend a user
   public shared ({ caller }) func adminUnsuspendUser(userId : Principal) : async () {
     requireAdmin(caller);
     switch (users.get(userId)) {
@@ -1112,6 +1157,7 @@ actor {
     };
   };
 
+  // Admin-only: set subscription status for a user
   public shared ({ caller }) func adminSetSubscriptionStatus(
     userId : Principal,
     status : SubscriptionStatus
@@ -1135,6 +1181,7 @@ actor {
     };
   };
 
+  // Admin-only: get posts for a specific user
   public query ({ caller }) func adminGetUserPosts(userId : Principal) : async [Post] {
     requireAdmin(caller);
     posts.values().filter(func(p : Post) : Bool {
@@ -1142,6 +1189,7 @@ actor {
     }).toArray();
   };
 
+  // Public: get seat info (needed for signup page before authentication)
   public query func getSeatInfo() : async SeatInfo {
     {
       currentSeats = users.size();
@@ -1149,6 +1197,7 @@ actor {
     };
   };
 
+  // Admin-only: get ESP-flagged users
   public query ({ caller }) func adminGetESPFlaggedUsers() : async [Principal] {
     requireAdmin(caller);
     espFlaggedUsers.keys().filter(func(p : Principal) : Bool {
@@ -1159,11 +1208,13 @@ actor {
     }).toArray();
   };
 
+  // Admin-only: clear ESP flag for a user
   public shared ({ caller }) func adminClearESPFlag(userId : Principal) : async () {
     requireAdmin(caller);
     espFlaggedUsers.add(userId, false);
   };
 
+  // Public (non-anonymous): check login/registration status
   public query ({ caller }) func checkLoginStatus() : async { #newUser; #existingUser; #anonymous } {
     if (caller.isAnonymous()) {
       return #anonymous;
@@ -1176,6 +1227,7 @@ actor {
 
   // ------------ ADMIN MODERATION ------------
 
+  // Admin-only: permanently remove a user and all their content
   public shared ({ caller }) func adminPermanentlyRemoveUser(userId : Principal) : async () {
     if (not AccessControl.isAdmin(accessControlState, caller)) {
       Runtime.trap("Unauthorized: Only admins can perform this action");
@@ -1184,7 +1236,6 @@ actor {
     switch (users.get(userId)) {
       case (null) { Runtime.trap("User does not exist") };
       case (?_) {
-        // Remove all posts by user
         let userPosts = posts.values().filter(
           func(p) { p.author == userId }
         ).toArray();
@@ -1192,40 +1243,36 @@ actor {
           posts.remove(post.id);
         };
 
-        // Remove all comments by user
         for ((_, comment) in comments.entries()) {
           if (comment.userId == userId) {
             comments.remove(comment.id);
           };
         };
 
-        // Remove all direct reactions
         for ((_, reaction) in reactions.entries()) {
           if (reaction.author == userId) {
             reactions.remove(reaction.id);
           };
         };
 
-        // Remove all text reactions
         for ((_, tReaction) in textReactions.entries()) {
           if (tReaction.userId == userId) {
             textReactions.remove(tReaction.id);
           };
         };
 
-        // Remove user flags (where they are reporter)
         for ((_, flag) in flags.entries()) {
           if (flag.reporter == userId) {
             flags.remove(flag.id);
           };
         };
 
-        // Remove user record
         users.remove(userId);
       };
     };
   };
 
+  // Admin-only: toggle suspension for a user
   public shared ({ caller }) func adminToggleUserSuspension(userId : Principal) : async Bool {
     if (not AccessControl.isAdmin(accessControlState, caller)) {
       Runtime.trap("Unauthorized: Only admins can perform this action");
@@ -1241,6 +1288,7 @@ actor {
     };
   };
 
+  // Admin-only: apply a public posting cooldown to a user
   public shared ({ caller }) func adminApplyPublicPostingCooldown(userId : Principal) : async () {
     if (not AccessControl.isAdmin(accessControlState, caller)) {
       Runtime.trap("Unauthorized: Only admins can perform this action");
@@ -1264,6 +1312,7 @@ actor {
     };
   };
 
+  // Admin-only: remove a post
   public shared ({ caller }) func adminRemovePost(postId : Text) : async () {
     if (not AccessControl.isAdmin(accessControlState, caller)) {
       Runtime.trap("Unauthorized: Only admins can perform this action");
@@ -1276,6 +1325,7 @@ actor {
     };
   };
 
+  // Admin-only: get all users with extended profile info
   public query ({ caller }) func adminGetAllUsersExtended() : async [(Principal, UserProfile)] {
     if (not AccessControl.isAdmin(accessControlState, caller)) {
       Runtime.trap("Unauthorized: Only admins can perform this action");
@@ -1296,6 +1346,7 @@ actor {
     });
   };
 
+  // Admin-only: get all flagged posts with their flag records
   public query ({ caller }) func adminGetAllFlaggedPostsWithRecords() : async [(Text, [Flag])] {
     if (not AccessControl.isAdmin(accessControlState, caller)) {
       Runtime.trap("Unauthorized: Only admins can perform this action");
@@ -1314,11 +1365,9 @@ actor {
   func processPostForEmotionalMonitoring(post : Post) {
     if (post.emotionType != #broke) { return };
 
-    // Only process posts from the last 3 days
     let now = Time.now();
     let threeDaysAgo = now - (3 * 24 * 60 * 60 * 1_000_000_000);
 
-    // Keep only records from the last 3 days
     let currentCounts = switch (emotionalAlertCounts.get(post.author)) {
       case (?counts) {
         counts.filter(
@@ -1332,13 +1381,9 @@ actor {
       };
     };
 
-    // Add the current post
     currentCounts.add((now, 1));
-
-    // Update state
     emotionalAlertCounts.add(post.author, currentCounts);
 
-    // Check for emotional alert (3 posts within 3 days)
     let brokePostCount = currentCounts.toArray().size();
     if (brokePostCount >= 3) {
       let newPostCount = brokePostCount + 1;
@@ -1350,6 +1395,7 @@ actor {
 
   func addPermanentFlag(_user : Principal) {};
 
+  // Admin-only: get high-risk emotion alerts
   public query ({ caller }) func adminGetHighRiskEmotionAlerts() : async [(Principal, Nat)] {
     if (not AccessControl.isAdmin(accessControlState, caller)) {
       Runtime.trap("Unauthorized: Only admins can perform this action");

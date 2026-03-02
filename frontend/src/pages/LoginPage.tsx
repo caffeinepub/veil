@@ -1,54 +1,85 @@
-import { useState } from 'react';
-import { useNavigate, Link } from '@tanstack/react-router';
+import React, { useEffect } from 'react';
+import { useNavigate } from '@tanstack/react-router';
 import { useInternetIdentity } from '../hooks/useInternetIdentity';
+import { useQueryClient } from '@tanstack/react-query';
+import { Loader2 } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 
 export default function LoginPage() {
-  const { login, loginStatus } = useInternetIdentity();
+  const { login, clear, loginStatus, identity, isInitializing } = useInternetIdentity();
+  const queryClient = useQueryClient();
   const navigate = useNavigate();
-  const [error, setError] = useState('');
 
+  const isAuthenticated = !!identity;
   const isLoggingIn = loginStatus === 'logging-in';
 
+  useEffect(() => {
+    if (isAuthenticated) {
+      navigate({ to: '/community' });
+    }
+  }, [isAuthenticated, navigate]);
+
   const handleLogin = async () => {
-    setError('');
     try {
       await login();
-      navigate({ to: '/community' });
-    } catch (err: any) {
-      setError(err?.message || 'Sign in failed. Please try again.');
+    } catch (error: unknown) {
+      const err = error as Error;
+      if (err?.message === 'User is already authenticated') {
+        await clear();
+        queryClient.clear();
+        setTimeout(() => login(), 300);
+      }
     }
   };
 
+  if (isInitializing) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
+
   return (
-    <div className="min-h-[calc(100vh-3rem)] flex items-center justify-center px-5">
-      <div className="w-full max-w-sm flex flex-col gap-8">
-        <div className="flex flex-col gap-2">
-          <h1 className="font-serif text-2xl font-medium text-foreground">Welcome back</h1>
-          <p className="text-sm text-muted-foreground">
-            Sign in to continue to your private space.
+    <div className="min-h-screen flex flex-col items-center justify-center bg-background px-4">
+      <div className="w-full max-w-sm space-y-8 text-center">
+        <div className="space-y-3">
+          <img
+            src="/assets/generated/veil-logo.dim_256x256.png"
+            alt="VEIL"
+            className="h-16 w-16 mx-auto rounded-2xl object-cover"
+          />
+          <h1 className="text-3xl font-serif font-semibold text-foreground tracking-tight">VEIL</h1>
+          <p className="text-muted-foreground text-sm leading-relaxed">
+            A private space for honest expression. Sign in to continue.
           </p>
         </div>
 
-        <div className="flex flex-col gap-4">
-          <button
+        <div className="space-y-4">
+          <Button
             onClick={handleLogin}
             disabled={isLoggingIn}
-            className="w-full py-3 rounded-xl bg-secondary text-secondary-foreground text-sm font-medium hover:opacity-80 disabled:opacity-40"
+            variant="secondary"
+            className="w-full"
+            size="lg"
           >
-            {isLoggingIn ? 'Signing in…' : 'Sign in'}
-          </button>
+            {isLoggingIn ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Signing in…
+              </>
+            ) : (
+              'Sign in with Internet Identity'
+            )}
+          </Button>
 
-          {error && (
-            <p className="text-sm text-muted-foreground text-center">{error}</p>
-          )}
+          <p className="text-xs text-muted-foreground">
+            Don't have an account?{' '}
+            <a href="/signup" className="underline underline-offset-2 hover:text-foreground transition-colors">
+              Request access
+            </a>
+          </p>
         </div>
-
-        <p className="text-xs text-muted-foreground text-center">
-          Don't have an account?{' '}
-          <Link to="/signup" className="text-foreground hover:opacity-70">
-            Request access
-          </Link>
-        </p>
       </div>
     </div>
   );
