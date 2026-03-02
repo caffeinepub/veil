@@ -2,11 +2,11 @@
   "kind": "feature_evidence_report",
   "features": [
     {
-      "featureId": "feature-update-the-admindashboard-frontend-to-include-a-dedicated-all-users-tab-that-lists-every-registered-user-with-their-pseudonym-region-subscription-status-and-suspended-cooldown-state-each-user-row-must-have-action-buttons-suspend-unsuspend-apply-24-hr-cooldown-and-permanently-remove-user-with-a-confirmation-dialog-before-destructive-actions",
-      "featureTitle": "Update the AdminDashboard frontend to include a dedicated 'All Users' tab that lists every registered user with their pseudonym, region, subscription status, and suspended/cooldown state. Each user row must have action buttons: Suspend/Unsuspend, Apply 24-hr Cooldown, and Permanently Remove User (with a confirmation dialog before destructive actions).",
+      "featureId": "feature-in-the-frontend-mypostspage-and-postcard-component-display-the-visibility-status-private-or-public-for-each-of-the-user-s-own-posts-private-posts-should-be-clearly-labeled-as-visible-only-to-the-author-no-resharing-or-link-sharing-controls-should-appear-on-private-post-cards",
+      "featureTitle": "In the frontend MyPostsPage and PostCard component, display the visibility status (private or public) for each of the user's own posts. Private posts should be clearly labeled as visible only to the author. No resharing or link-sharing controls should appear on private post cards.",
       "files": [
-        "frontend/src/components/AdminAllUsersTab.tsx",
-        "frontend/src/components/AdminDashboard.tsx"
+        "frontend/src/components/PostCard.tsx",
+        "frontend/src/pages/MyPostsPage.tsx"
       ],
       "components": [
         "authorization@4.0.0",
@@ -18,68 +18,7 @@
         "github-export-icp-cli@1.0.0"
       ],
       "testIds": [
-        "REQ-5"
-      ],
-      "confidence": "high"
-    },
-    {
-      "featureId": "feature-update-the-admindashboard-frontend-flagged-posts-tab-to-support-a-remove-post-action-on-each-flagged-post-entry-in-addition-to-existing-review-functionality-show-flag-reason-flaggedby-pseudonym-and-createdat-include-a-confirmation-dialog-before-removal",
-      "featureTitle": "Update the AdminDashboard frontend 'Flagged Posts' tab to support a 'Remove Post' action on each flagged post entry, in addition to existing review functionality. Show flag reason, flaggedBy pseudonym, and createdAt. Include a confirmation dialog before removal.",
-      "files": [
-        "frontend/src/components/AdminFlaggedPosts.tsx"
-      ],
-      "components": [
-        "authorization@4.0.0",
-        "invite-links@3.0.0",
-        "core-infrastructure@1.0.2",
-        "shadcn-ui@1.0.0",
-        "build-template-react@1.0.0",
-        "initial-app@1.0.0",
-        "github-export-icp-cli@1.0.0"
-      ],
-      "testIds": [
-        "REQ-6"
-      ],
-      "confidence": "high"
-    },
-    {
-      "featureId": "feature-add-an-emotional-monitoring-alerts-section-to-the-admindashboard-frontend-this-section-displays-a-list-of-users-who-have-triggered-the-5-broke-in-3-consecutive-days-threshold-each-alert-card-shows-the-user-s-pseudonym-the-number-of-broke-posts-and-the-date-window-no-action-is-taken-automatically-the-admin-can-manually-choose-to-suspend-cooldown-or-remove-the-user-from-the-existing-user-management-controls",
-      "featureTitle": "Add an 'Emotional Monitoring Alerts' section to the AdminDashboard frontend. This section displays a list of users who have triggered the 5-BROKE-in-3-consecutive-days threshold. Each alert card shows the user's pseudonym, the number of BROKE posts, and the date window. No action is taken automatically; the admin can manually choose to suspend, cooldown, or remove the user from the existing user management controls.",
-      "files": [
-        "frontend/src/components/AdminDashboard.tsx",
-        "frontend/src/components/AdminEmotionalAlertsTab.tsx"
-      ],
-      "components": [
-        "authorization@4.0.0",
-        "invite-links@3.0.0",
-        "core-infrastructure@1.0.2",
-        "shadcn-ui@1.0.0",
-        "build-template-react@1.0.0",
-        "initial-app@1.0.0",
-        "github-export-icp-cli@1.0.0"
-      ],
-      "testIds": [
-        "REQ-7"
-      ],
-      "confidence": "high"
-    },
-    {
-      "featureId": "feature-add-all-new-admin-mutation-and-query-hooks-to-usequeries-ts-useadmingetallusers-useadminremoveuser-useadminsuspenduser-useadminapplycooldown-useadminremovepost-useadmingetemotionalalerts-and-useadmingetflaggedposts-if-not-already-present-these-hooks-must-follow-the-existing-react-query-patterns-in-usequeries-ts",
-      "featureTitle": "Add all new admin mutation and query hooks to useQueries.ts: useAdminGetAllUsers, useAdminRemoveUser, useAdminSuspendUser, useAdminApplyCooldown, useAdminRemovePost, useAdminGetEmotionalAlerts, and useAdminGetFlaggedPosts (if not already present). These hooks must follow the existing React Query patterns in useQueries.ts.",
-      "files": [
-        "frontend/src/hooks/useQueries.ts"
-      ],
-      "components": [
-        "authorization@4.0.0",
-        "invite-links@3.0.0",
-        "core-infrastructure@1.0.2",
-        "shadcn-ui@1.0.0",
-        "build-template-react@1.0.0",
-        "initial-app@1.0.0",
-        "github-export-icp-cli@1.0.0"
-      ],
-      "testIds": [
-        "REQ-8"
+        "REQ-4"
       ],
       "confidence": "high"
     }

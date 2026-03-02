@@ -2,12 +2,15 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useActor } from './useActor';
 import {
   EmotionType,
+  MessageType,
   Region,
+  ReviewFlag,
   SubscriptionStatus,
   UserProfile,
   SeatInfo,
   Visibility,
   type Comment,
+  type Post,
 } from '../backend';
 import type { Principal } from '@dfinity/principal';
 
@@ -503,7 +506,7 @@ export function useAdminDeletePost() {
   });
 }
 
-// ─── Admin Moderation (new) ───────────────────────────────────────────────────
+// ─── Admin Moderation ─────────────────────────────────────────────────────────
 
 export function useAdminRemoveUser() {
   const { actor } = useActor();
@@ -565,6 +568,7 @@ export function useAdminRemovePost() {
       queryClient.invalidateQueries({ queryKey: ['adminFlaggedPosts'] });
       queryClient.invalidateQueries({ queryKey: ['adminAllPosts'] });
       queryClient.invalidateQueries({ queryKey: ['publicPosts'] });
+      queryClient.invalidateQueries({ queryKey: ['crisisRiskPosts'] });
     },
   });
 }
@@ -645,6 +649,23 @@ export function useAdminRevokeInviteCode() {
   });
 }
 
+// ─── Admin Seat Count ─────────────────────────────────────────────────────────
+
+export function useAdminGetSeatCount() {
+  const { actor, isFetching } = useActor();
+
+  return useQuery<SeatInfo>({
+    queryKey: ['adminSeatCount'],
+    queryFn: async () => {
+      if (!actor) throw new Error('Actor not available');
+      return actor.getSeatInfo();
+    },
+    enabled: !!actor && !isFetching,
+  });
+}
+
+// ─── Admin ESP ────────────────────────────────────────────────────────────────
+
 export function useAdminGetESPFlaggedUsers() {
   const { actor, isFetching } = useActor();
 
@@ -673,18 +694,7 @@ export function useAdminClearESPFlag() {
   });
 }
 
-export function useAdminGetSeatCount() {
-  const { actor, isFetching } = useActor();
-
-  return useQuery<SeatInfo>({
-    queryKey: ['seatInfo'],
-    queryFn: async () => {
-      if (!actor) throw new Error('Actor not available');
-      return actor.getSeatInfo();
-    },
-    enabled: !!actor && !isFetching,
-  });
-}
+// ─── Admin Register ───────────────────────────────────────────────────────────
 
 export function useAdminRegister() {
   const { actor } = useActor();
@@ -703,13 +713,82 @@ export function useAdminRegister() {
       if (!actor) throw new Error('Actor not available');
       const result = await actor.register(pseudonym, region, inviteCode);
       if (result.__kind__ === 'err') {
-        throw new Error(result.err);
+        throw new Error(String(result.err));
       }
       return result.ok;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['adminAllUsers'] });
       queryClient.invalidateQueries({ queryKey: ['seatInfo'] });
+      queryClient.invalidateQueries({ queryKey: ['adminSeatCount'] });
+    },
+  });
+}
+
+// ─── Crisis Risk Posts ────────────────────────────────────────────────────────
+
+/**
+ * Fetches all posts flagged as CRISIS_RISK by filtering adminGetAllPosts.
+ * The backend flags BROKE + public posts containing crisis keywords server-side.
+ */
+export function useGetCrisisRiskPosts() {
+  const { actor, isFetching } = useActor();
+
+  return useQuery<Post[]>({
+    queryKey: ['crisisRiskPosts'],
+    queryFn: async () => {
+      if (!actor) return [];
+      const allPosts = await actor.adminGetAllPosts();
+      return allPosts
+        .filter(p => p.flaggedForReview === ReviewFlag.crisisRisk)
+        .sort((a, b) => Number(b.createdAt - a.createdAt));
+    },
+    enabled: !!actor && !isFetching,
+  });
+}
+
+/**
+ * Sends a custom admin-composed message to a specific user.
+ * Must be explicitly triggered by an admin — never automated.
+ */
+export function useSendAdminMessage() {
+  const { actor } = useActor();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({
+      recipient,
+      messageContent,
+    }: {
+      recipient: Principal;
+      messageContent: string;
+    }) => {
+      if (!actor) throw new Error('Actor not available');
+      return actor.sendAdminMessage(recipient, MessageType.admin, messageContent);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['crisisRiskPosts'] });
+      queryClient.invalidateQueries({ queryKey: ['directMessages'] });
+    },
+  });
+}
+
+/**
+ * Sends the hardcoded crisis resource template message to a specific user.
+ * Must be explicitly triggered by an admin — never automated.
+ */
+export function useSendCrisisResourceMessage() {
+  const { actor } = useActor();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ recipient }: { recipient: Principal }) => {
+      if (!actor) throw new Error('Actor not available');
+      return actor.sendCrisisResourceMessage(recipient, MessageType.resource);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['crisisRiskPosts'] });
+      queryClient.invalidateQueries({ queryKey: ['directMessages'] });
     },
   });
 }

@@ -1,116 +1,62 @@
 {
   "kind": "coverage_report",
   "version": "1.0",
-  "generatedAt": "2026-03-02T00:10:14.097Z",
+  "generatedAt": "2026-03-02T00:27:40.346Z",
   "sources": {
     "buildRequest": true,
     "implementationPlan": true
   },
   "requirements": {
-    "total": 9,
-    "implemented": 4,
+    "total": 4,
+    "implemented": 1,
     "items": [
       {
         "id": "REQ-1",
-        "summary": "Extend the backend to support admin-only moderation actions: permanently remove a user (delete their account and all associated posts/comments), suspend a user (toggle suspended status), apply a 24-hour public posting cooldown to a specific user, and remove (delete) any post by postId. All these actions must be restricted to callers with the admin role.",
+        "summary": "In the backend, enforce that private posts are never returned in any feed or community query. Only the post's author should be able to retrieve their own private posts (e.g., via getMyPosts). Any query that returns posts for the community feed must filter out posts where visibility is private.",
         "status": "unknown",
         "plannedFiles": [],
         "matchedFiles": []
       },
       {
         "id": "REQ-2",
-        "summary": "Add a backend function to retrieve all registered users (for the admin 'View all users' panel), returning each user's id, pseudonym, region, suspended status, subscription status, and cooldownUntil timestamp. Restrict this to admin callers only.",
+        "summary": "In the backend, enforce that public posts returned by the community feed are ordered strictly chronologically (oldest to newest, or newest to oldest — consistently by creation timestamp). No resharing or link-sharing mechanism should exist or be callable.",
         "status": "unknown",
         "plannedFiles": [],
         "matchedFiles": []
       },
       {
         "id": "REQ-3",
-        "summary": "Add a backend function to retrieve all flagged posts (status = pending) with their associated flag records (id, postId, flaggedBy, reason, createdAt, status). Restrict to admin callers.",
-        "status": "unknown",
-        "plannedFiles": [],
+        "summary": "In the frontend CommunityFeedPage, display only public posts in chronological order. Remove or hide any UI element that allows resharing a post or copying/sharing a post link. If such controls exist (share button, copy link button, reshare option), they must be removed from PublicPostCard and any other feed-related components.",
+        "status": "missing",
+        "plannedFiles": [
+          "frontend/src/pages/CommunityFeedPage.tsx",
+          "frontend/src/components/PublicPostCard.tsx"
+        ],
         "matchedFiles": []
       },
       {
         "id": "REQ-4",
-        "summary": "Implement the Emotional Monitoring Alert in the backend: track BROKE-emotion post counts per user per day. Expose an admin-only query that returns a list of users who have posted 5 or more BROKE posts within any 3 consecutive calendar days. No automated messages are sent; this is a read-only alert feed for the admin.",
-        "status": "unknown",
-        "plannedFiles": [],
-        "matchedFiles": []
-      },
-      {
-        "id": "REQ-5",
-        "summary": "Update the AdminDashboard frontend to include a dedicated 'All Users' tab that lists every registered user with their pseudonym, region, subscription status, and suspended/cooldown state. Each user row must have action buttons: Suspend/Unsuspend, Apply 24-hr Cooldown, and Permanently Remove User (with a confirmation dialog before destructive actions).",
+        "summary": "In the frontend MyPostsPage and PostCard component, display the visibility status (private or public) for each of the user's own posts. Private posts should be clearly labeled as visible only to the author. No resharing or link-sharing controls should appear on private post cards.",
         "status": "implemented",
         "plannedFiles": [
-          "frontend/src/components/AdminDashboard.tsx",
-          "frontend/src/components/AdminAllUsersTab.tsx"
+          "frontend/src/components/PostCard.tsx",
+          "frontend/src/pages/MyPostsPage.tsx"
         ],
         "matchedFiles": [
-          "frontend/src/components/AdminDashboard.tsx",
-          "frontend/src/components/AdminAllUsersTab.tsx"
+          "frontend/src/components/PostCard.tsx",
+          "frontend/src/pages/MyPostsPage.tsx"
         ]
-      },
-      {
-        "id": "REQ-6",
-        "summary": "Update the AdminDashboard frontend 'Flagged Posts' tab to support a 'Remove Post' action on each flagged post entry, in addition to existing review functionality. Show flag reason, flaggedBy pseudonym, and createdAt. Include a confirmation dialog before removal.",
-        "status": "implemented",
-        "plannedFiles": [
-          "frontend/src/components/AdminFlaggedPosts.tsx"
-        ],
-        "matchedFiles": [
-          "frontend/src/components/AdminFlaggedPosts.tsx"
-        ]
-      },
-      {
-        "id": "REQ-7",
-        "summary": "Add an 'Emotional Monitoring Alerts' section to the AdminDashboard frontend. This section displays a list of users who have triggered the 5-BROKE-in-3-consecutive-days threshold. Each alert card shows the user's pseudonym, the number of BROKE posts, and the date window. No action is taken automatically; the admin can manually choose to suspend, cooldown, or remove the user from the existing user management controls.",
-        "status": "implemented",
-        "plannedFiles": [
-          "frontend/src/components/AdminDashboard.tsx",
-          "frontend/src/components/AdminEmotionalAlertsTab.tsx"
-        ],
-        "matchedFiles": [
-          "frontend/src/components/AdminDashboard.tsx",
-          "frontend/src/components/AdminEmotionalAlertsTab.tsx"
-        ]
-      },
-      {
-        "id": "REQ-8",
-        "summary": "Add all new admin mutation and query hooks to useQueries.ts: useAdminGetAllUsers, useAdminRemoveUser, useAdminSuspendUser, useAdminApplyCooldown, useAdminRemovePost, useAdminGetEmotionalAlerts, and useAdminGetFlaggedPosts (if not already present). These hooks must follow the existing React Query patterns in useQueries.ts.",
-        "status": "implemented",
-        "plannedFiles": [
-          "frontend/src/hooks/useQueries.ts"
-        ],
-        "matchedFiles": [
-          "frontend/src/hooks/useQueries.ts"
-        ]
-      },
-      {
-        "id": "REQ-9",
-        "summary": "Generate a migration module (backend/migration.mo) to handle any schema changes introduced by the new user fields (isSuspended, cooldownUntil) and the new flag/alert tracking structures, ensuring existing user records are migrated with safe default values.",
-        "status": "unknown",
-        "plannedFiles": [],
-        "matchedFiles": []
       }
     ]
   },
   "changedFiles": [
     "backend/main.mo",
-    "backend/migration.mo",
     "build-request.json",
     "feature_evidence.json",
     "frontend-file-summaries.txt",
     "frontend-implementation-plan.json",
-    "frontend/src/backend.d.ts",
-    "frontend/src/backend.ts",
-    "frontend/src/components/AdminAllUsersTab.tsx",
-    "frontend/src/components/AdminDashboard.tsx",
-    "frontend/src/components/AdminEmotionalAlertsTab.tsx",
-    "frontend/src/components/AdminFlaggedPosts.tsx",
-    "frontend/src/declarations/backend.did.d.ts",
-    "frontend/src/declarations/backend.did.js",
-    "frontend/src/hooks/useQueries.ts",
+    "frontend/src/components/PostCard.tsx",
+    "frontend/src/pages/MyPostsPage.tsx",
     "project_state.json",
     "scratch/component-selection.json",
     "spec.md",

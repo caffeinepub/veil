@@ -14,6 +14,15 @@ export interface Reaction {
     reactionType: ReactionType;
     postId: string;
 }
+export interface DirectMessage {
+    id: DirectMessageId;
+    to: Principal;
+    isCrisisResource: boolean;
+    content: string;
+    from?: Principal;
+    read: boolean;
+    timestamp: Time;
+}
 export type Time = bigint;
 export interface Flag {
     id: string;
@@ -40,10 +49,6 @@ export interface Comment {
     flagged: boolean;
     postId: string;
 }
-export interface SeatInfo {
-    maxSeats: bigint;
-    currentSeats: bigint;
-}
 export type Result_1 = {
     __kind__: "ok";
     ok: User;
@@ -51,20 +56,19 @@ export type Result_1 = {
     __kind__: "err";
     err: RegistrationError;
 };
-export interface RSVP {
-    name: string;
-    inviteCode: string;
-    timestamp: Time;
-    attending: boolean;
+export interface SeatInfo {
+    maxSeats: bigint;
+    currentSeats: bigint;
 }
 export interface UserProfileUpdate {
     region: Region;
     pseudonym: string;
 }
-export interface InviteCode {
-    created: Time;
-    code: string;
-    used: boolean;
+export interface RSVP {
+    name: string;
+    inviteCode: string;
+    timestamp: Time;
+    attending: boolean;
 }
 export type Result = {
     __kind__: "ok";
@@ -73,6 +77,11 @@ export type Result = {
     __kind__: "err";
     err: string;
 };
+export interface InviteCode {
+    created: Time;
+    code: string;
+    used: boolean;
+}
 export interface Post {
     id: string;
     emotionType: EmotionType;
@@ -80,8 +89,10 @@ export interface Post {
     createdAt: Time;
     author: Principal;
     updatedAt: Time;
+    flaggedForReview: ReviewFlag;
     visibility: Visibility;
 }
+export type DirectMessageId = string;
 export interface TextReaction {
     id: string;
     userId: Principal;
@@ -102,6 +113,10 @@ export enum EmotionType {
     happy = "happy",
     broke = "broke"
 }
+export enum MessageType {
+    resource = "resource",
+    admin = "admin"
+}
 export enum ReactionType {
     support = "support",
     care = "care",
@@ -117,6 +132,10 @@ export enum RegistrationError {
     InviteCodeUsed = "InviteCodeUsed",
     AlreadyRegistered = "AlreadyRegistered",
     InvalidInviteCode = "InvalidInviteCode"
+}
+export enum ReviewFlag {
+    none = "none",
+    crisisRisk = "crisisRisk"
 }
 export enum SubscriptionStatus {
     active = "active",
@@ -171,6 +190,7 @@ export interface backendInterface {
     getCallerUserProfile(): Promise<UserProfile | null>;
     getCallerUserRole(): Promise<UserRole>;
     getCommentsByPost(postId: string): Promise<Array<Comment>>;
+    getDirectMessagesForUser(_userId: Principal): Promise<Array<DirectMessage>>;
     getESPStatus(): Promise<boolean>;
     getInviteCodes(): Promise<Array<InviteCode>>;
     getMyPosts(): Promise<Array<Post>>;
@@ -180,9 +200,12 @@ export interface backendInterface {
     getTextReactionsForPost(postId: string): Promise<Array<TextReaction>>;
     getUserProfile(userId: Principal): Promise<UserProfile | null>;
     isCallerAdmin(): Promise<boolean>;
+    markDirectMessageAsRead(messageId: DirectMessageId): Promise<void>;
     register(pseudonym: string, region: Region, inviteCode: string): Promise<Result_1>;
     revokeInviteCode(_code: string): Promise<void>;
     saveCallerUserProfile(profile: UserProfileUpdate): Promise<void>;
+    sendAdminMessage(recipient: Principal, _messageType: MessageType, messageContent: string): Promise<DirectMessageId>;
+    sendCrisisResourceMessage(recipient: Principal, _messageType: MessageType): Promise<DirectMessageId>;
     submitRSVP(name: string, attending: boolean, inviteCode: string): Promise<void>;
     togglePostVisibility(postId: string): Promise<Result>;
     validateInviteCode(code: string): Promise<boolean>;

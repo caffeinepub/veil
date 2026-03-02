@@ -9,8 +9,15 @@ import AdminFlaggedPosts from './AdminFlaggedPosts';
 import AdminFlaggedComments from './AdminFlaggedComments';
 import AdminAllUsersTab from './AdminAllUsersTab';
 import AdminEmotionalAlertsTab from './AdminEmotionalAlertsTab';
-import { useAdminGetSeatCount, useAdminGetESPFlaggedUsers, useAdminClearESPFlag, useAdminGetEmotionalAlerts } from '../hooks/useQueries';
-import { ArrowLeft, Users, AlertTriangle, Loader2 } from 'lucide-react';
+import AdminCrisisRiskTab from './AdminCrisisRiskTab';
+import {
+  useAdminGetSeatCount,
+  useAdminGetESPFlaggedUsers,
+  useAdminClearESPFlag,
+  useAdminGetEmotionalAlerts,
+  useGetCrisisRiskPosts,
+} from '../hooks/useQueries';
+import { ArrowLeft, Users, AlertTriangle, ShieldAlert, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Principal } from '@dfinity/principal';
 
@@ -19,11 +26,13 @@ export default function AdminDashboard() {
   const { data: seatInfo, isLoading: seatLoading } = useAdminGetSeatCount();
   const { data: espUsers, isLoading: espLoading } = useAdminGetESPFlaggedUsers();
   const { data: emotionalAlerts } = useAdminGetEmotionalAlerts();
+  const { data: crisisPosts } = useGetCrisisRiskPosts();
   const clearESPFlag = useAdminClearESPFlag();
 
   const currentSeats = seatInfo ? Number(seatInfo.currentSeats) : 0;
   const maxSeats = seatInfo ? Number(seatInfo.maxSeats) : 100;
   const emotionalAlertCount = emotionalAlerts?.length ?? 0;
+  const crisisCount = crisisPosts?.length ?? 0;
 
   const handleClearESP = async (principalStr: string) => {
     try {
@@ -72,6 +81,22 @@ export default function AdminDashboard() {
         )}
       </div>
 
+      {/* Crisis Risk Alert Banner */}
+      {crisisCount > 0 && (
+        <div className="flex items-center gap-3 p-4 rounded-xl border-2 border-rose-300/80 dark:border-rose-700/60 bg-rose-50/70 dark:bg-rose-950/25">
+          <ShieldAlert size={16} className="text-rose-600 dark:text-rose-400 shrink-0" />
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-semibold text-rose-800 dark:text-rose-300">
+              Crisis Risk Alert
+            </p>
+            <p className="text-xs text-rose-700 dark:text-rose-400 mt-0.5">
+              {crisisCount} post{crisisCount !== 1 ? 's require' : ' requires'} immediate human
+              review. Open the <strong>Crisis Risk</strong> tab to respond.
+            </p>
+          </div>
+        </div>
+      )}
+
       {/* Emotional Monitoring Alert Banner */}
       {emotionalAlertCount > 0 && (
         <div className="flex items-center gap-3 p-4 rounded-xl border border-amber-300/60 dark:border-amber-700/50 bg-amber-50/60 dark:bg-amber-950/20">
@@ -81,8 +106,8 @@ export default function AdminDashboard() {
               Emotional Monitoring Alert
             </p>
             <p className="text-xs text-amber-700 dark:text-amber-400 mt-0.5">
-              {emotionalAlertCount} user{emotionalAlertCount !== 1 ? 's have' : ' has'} posted 5+ BROKE posts in the last 3 days.
-              Review in the <strong>Alerts</strong> tab.
+              {emotionalAlertCount} user{emotionalAlertCount !== 1 ? 's have' : ' has'} posted 5+
+              BROKE posts in the last 3 days. Review in the <strong>Alerts</strong> tab.
             </p>
           </div>
         </div>
@@ -101,8 +126,13 @@ export default function AdminDashboard() {
             {espUsers.map((principal: any) => {
               const principalStr = principal.toString();
               return (
-                <div key={principalStr} className="flex items-center justify-between gap-2 py-1.5 border-t border-border/50">
-                  <span className="text-xs font-mono text-muted-foreground">{principalStr.slice(0, 24)}…</span>
+                <div
+                  key={principalStr}
+                  className="flex items-center justify-between gap-2 py-1.5 border-t border-border/50"
+                >
+                  <span className="text-xs font-mono text-muted-foreground">
+                    {principalStr.slice(0, 24)}…
+                  </span>
                   <Button
                     size="sm"
                     variant="outline"
@@ -110,7 +140,9 @@ export default function AdminDashboard() {
                     disabled={clearESPFlag.isPending}
                     className="h-7 text-xs"
                   >
-                    {clearESPFlag.isPending ? <Loader2 size={11} className="animate-spin mr-1" /> : null}
+                    {clearESPFlag.isPending ? (
+                      <Loader2 size={11} className="animate-spin mr-1" />
+                    ) : null}
                     Clear Flag
                   </Button>
                 </div>
@@ -120,9 +152,23 @@ export default function AdminDashboard() {
         </div>
       )}
 
-      <Tabs defaultValue="users">
+      <Tabs defaultValue="crisis">
         <TabsList className="flex flex-wrap h-auto gap-1 w-full justify-start bg-muted/50 p-1 rounded-xl">
-          <TabsTrigger value="users" className="text-xs">All Users</TabsTrigger>
+          <TabsTrigger
+            value="crisis"
+            className="text-xs relative data-[state=active]:bg-rose-600 data-[state=active]:text-white"
+          >
+            <ShieldAlert size={12} className="mr-1" />
+            Crisis Risk
+            {crisisCount > 0 && (
+              <span className="ml-1.5 inline-flex items-center justify-center w-4 h-4 text-[10px] font-bold rounded-full bg-rose-600 text-white data-[state=active]:bg-white data-[state=active]:text-rose-600">
+                {crisisCount}
+              </span>
+            )}
+          </TabsTrigger>
+          <TabsTrigger value="users" className="text-xs">
+            All Users
+          </TabsTrigger>
           <TabsTrigger value="alerts" className="text-xs relative">
             Alerts
             {emotionalAlertCount > 0 && (
@@ -131,14 +177,32 @@ export default function AdminDashboard() {
               </span>
             )}
           </TabsTrigger>
-          <TabsTrigger value="flagged" className="text-xs">Flagged</TabsTrigger>
-          <TabsTrigger value="comments" className="text-xs">Comments</TabsTrigger>
-          <TabsTrigger value="codes" className="text-xs">Invites</TabsTrigger>
-          <TabsTrigger value="posts" className="text-xs">Posts</TabsTrigger>
-          <TabsTrigger value="members" className="text-xs">Members</TabsTrigger>
-          <TabsTrigger value="history" className="text-xs">History</TabsTrigger>
-          <TabsTrigger value="signup" className="text-xs">Signup</TabsTrigger>
+          <TabsTrigger value="flagged" className="text-xs">
+            Flagged
+          </TabsTrigger>
+          <TabsTrigger value="comments" className="text-xs">
+            Comments
+          </TabsTrigger>
+          <TabsTrigger value="codes" className="text-xs">
+            Invites
+          </TabsTrigger>
+          <TabsTrigger value="posts" className="text-xs">
+            Posts
+          </TabsTrigger>
+          <TabsTrigger value="members" className="text-xs">
+            Members
+          </TabsTrigger>
+          <TabsTrigger value="history" className="text-xs">
+            History
+          </TabsTrigger>
+          <TabsTrigger value="signup" className="text-xs">
+            Signup
+          </TabsTrigger>
         </TabsList>
+
+        <TabsContent value="crisis" className="mt-4">
+          <AdminCrisisRiskTab />
+        </TabsContent>
 
         <TabsContent value="users" className="mt-4">
           <AdminAllUsersTab />

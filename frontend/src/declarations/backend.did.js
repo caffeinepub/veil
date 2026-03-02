@@ -26,6 +26,10 @@ export const EmotionType = IDL.Variant({
   'happy' : IDL.Null,
   'broke' : IDL.Null,
 });
+export const ReviewFlag = IDL.Variant({
+  'none' : IDL.Null,
+  'crisisRisk' : IDL.Null,
+});
 export const Visibility = IDL.Variant({
   'publicView' : IDL.Null,
   'privateView' : IDL.Null,
@@ -37,6 +41,7 @@ export const Post = IDL.Record({
   'createdAt' : Time,
   'author' : IDL.Principal,
   'updatedAt' : Time,
+  'flaggedForReview' : ReviewFlag,
   'visibility' : Visibility,
 });
 export const Region = IDL.Variant({ 'India' : IDL.Null, 'Global' : IDL.Null });
@@ -83,6 +88,16 @@ export const Comment = IDL.Record({
   'flagged' : IDL.Bool,
   'postId' : IDL.Text,
 });
+export const DirectMessageId = IDL.Text;
+export const DirectMessage = IDL.Record({
+  'id' : DirectMessageId,
+  'to' : IDL.Principal,
+  'isCrisisResource' : IDL.Bool,
+  'content' : IDL.Text,
+  'from' : IDL.Opt(IDL.Principal),
+  'read' : IDL.Bool,
+  'timestamp' : Time,
+});
 export const InviteCode = IDL.Record({
   'created' : Time,
   'code' : IDL.Text,
@@ -117,6 +132,10 @@ export const Result_1 = IDL.Variant({ 'ok' : User, 'err' : RegistrationError });
 export const UserProfileUpdate = IDL.Record({
   'region' : Region,
   'pseudonym' : IDL.Text,
+});
+export const MessageType = IDL.Variant({
+  'resource' : IDL.Null,
+  'admin' : IDL.Null,
 });
 
 export const idlService = IDL.Service({
@@ -184,6 +203,11 @@ export const idlService = IDL.Service({
   'getCallerUserProfile' : IDL.Func([], [IDL.Opt(UserProfile)], ['query']),
   'getCallerUserRole' : IDL.Func([], [UserRole], ['query']),
   'getCommentsByPost' : IDL.Func([IDL.Text], [IDL.Vec(Comment)], ['query']),
+  'getDirectMessagesForUser' : IDL.Func(
+      [IDL.Principal],
+      [IDL.Vec(DirectMessage)],
+      ['query'],
+    ),
   'getESPStatus' : IDL.Func([], [IDL.Bool], ['query']),
   'getInviteCodes' : IDL.Func([], [IDL.Vec(InviteCode)], ['query']),
   'getMyPosts' : IDL.Func([], [IDL.Vec(Post)], ['query']),
@@ -201,9 +225,20 @@ export const idlService = IDL.Service({
       ['query'],
     ),
   'isCallerAdmin' : IDL.Func([], [IDL.Bool], ['query']),
+  'markDirectMessageAsRead' : IDL.Func([DirectMessageId], [], []),
   'register' : IDL.Func([IDL.Text, Region, IDL.Text], [Result_1], []),
   'revokeInviteCode' : IDL.Func([IDL.Text], [], []),
   'saveCallerUserProfile' : IDL.Func([UserProfileUpdate], [], []),
+  'sendAdminMessage' : IDL.Func(
+      [IDL.Principal, MessageType, IDL.Text],
+      [DirectMessageId],
+      [],
+    ),
+  'sendCrisisResourceMessage' : IDL.Func(
+      [IDL.Principal, MessageType],
+      [DirectMessageId],
+      [],
+    ),
   'submitRSVP' : IDL.Func([IDL.Text, IDL.Bool, IDL.Text], [], []),
   'togglePostVisibility' : IDL.Func([IDL.Text], [Result], []),
   'validateInviteCode' : IDL.Func([IDL.Text], [IDL.Bool], ['query']),
@@ -230,6 +265,10 @@ export const idlFactory = ({ IDL }) => {
     'happy' : IDL.Null,
     'broke' : IDL.Null,
   });
+  const ReviewFlag = IDL.Variant({
+    'none' : IDL.Null,
+    'crisisRisk' : IDL.Null,
+  });
   const Visibility = IDL.Variant({
     'publicView' : IDL.Null,
     'privateView' : IDL.Null,
@@ -241,6 +280,7 @@ export const idlFactory = ({ IDL }) => {
     'createdAt' : Time,
     'author' : IDL.Principal,
     'updatedAt' : Time,
+    'flaggedForReview' : ReviewFlag,
     'visibility' : Visibility,
   });
   const Region = IDL.Variant({ 'India' : IDL.Null, 'Global' : IDL.Null });
@@ -287,6 +327,16 @@ export const idlFactory = ({ IDL }) => {
     'flagged' : IDL.Bool,
     'postId' : IDL.Text,
   });
+  const DirectMessageId = IDL.Text;
+  const DirectMessage = IDL.Record({
+    'id' : DirectMessageId,
+    'to' : IDL.Principal,
+    'isCrisisResource' : IDL.Bool,
+    'content' : IDL.Text,
+    'from' : IDL.Opt(IDL.Principal),
+    'read' : IDL.Bool,
+    'timestamp' : Time,
+  });
   const InviteCode = IDL.Record({
     'created' : Time,
     'code' : IDL.Text,
@@ -321,6 +371,10 @@ export const idlFactory = ({ IDL }) => {
   const UserProfileUpdate = IDL.Record({
     'region' : Region,
     'pseudonym' : IDL.Text,
+  });
+  const MessageType = IDL.Variant({
+    'resource' : IDL.Null,
+    'admin' : IDL.Null,
   });
   
   return IDL.Service({
@@ -392,6 +446,11 @@ export const idlFactory = ({ IDL }) => {
     'getCallerUserProfile' : IDL.Func([], [IDL.Opt(UserProfile)], ['query']),
     'getCallerUserRole' : IDL.Func([], [UserRole], ['query']),
     'getCommentsByPost' : IDL.Func([IDL.Text], [IDL.Vec(Comment)], ['query']),
+    'getDirectMessagesForUser' : IDL.Func(
+        [IDL.Principal],
+        [IDL.Vec(DirectMessage)],
+        ['query'],
+      ),
     'getESPStatus' : IDL.Func([], [IDL.Bool], ['query']),
     'getInviteCodes' : IDL.Func([], [IDL.Vec(InviteCode)], ['query']),
     'getMyPosts' : IDL.Func([], [IDL.Vec(Post)], ['query']),
@@ -413,9 +472,20 @@ export const idlFactory = ({ IDL }) => {
         ['query'],
       ),
     'isCallerAdmin' : IDL.Func([], [IDL.Bool], ['query']),
+    'markDirectMessageAsRead' : IDL.Func([DirectMessageId], [], []),
     'register' : IDL.Func([IDL.Text, Region, IDL.Text], [Result_1], []),
     'revokeInviteCode' : IDL.Func([IDL.Text], [], []),
     'saveCallerUserProfile' : IDL.Func([UserProfileUpdate], [], []),
+    'sendAdminMessage' : IDL.Func(
+        [IDL.Principal, MessageType, IDL.Text],
+        [DirectMessageId],
+        [],
+      ),
+    'sendCrisisResourceMessage' : IDL.Func(
+        [IDL.Principal, MessageType],
+        [DirectMessageId],
+        [],
+      ),
     'submitRSVP' : IDL.Func([IDL.Text, IDL.Bool, IDL.Text], [], []),
     'togglePostVisibility' : IDL.Func([IDL.Text], [Result], []),
     'validateInviteCode' : IDL.Func([IDL.Text], [IDL.Bool], ['query']),

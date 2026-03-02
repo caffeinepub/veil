@@ -1,202 +1,93 @@
 {
   "kind": "build_request",
-  "title": "Admin Dashboard with Moderation Tools and Emotional Monitoring Alerts",
+  "title": "Enforce post visibility rules (private/public feed access and no resharing)",
   "projectName": "Veil",
   "priority": "normal",
   "requirements": [
     {
       "id": "REQ-1",
-      "text": "Extend the backend to support admin-only moderation actions: permanently remove a user (delete their account and all associated posts/comments), suspend a user (toggle suspended status), apply a 24-hour public posting cooldown to a specific user, and remove (delete) any post by postId. All these actions must be restricted to callers with the admin role.",
+      "text": "In the backend, enforce that private posts are never returned in any feed or community query. Only the post's author should be able to retrieve their own private posts (e.g., via getMyPosts). Any query that returns posts for the community feed must filter out posts where visibility is private.",
       "target": "backend",
       "source": {
         "messageIds": [
-          "msg-20"
+          "msg-4"
         ],
         "quotes": [
-          "Remove post",
-          "Suspend user",
-          "Permanently remove user",
-          "Apply 24-hour public posting cooldown"
+          "PRIVATE posts: Visible only to author. Not visible in feed."
         ]
       },
       "acceptanceCriteria": [
-        "adminRemoveUser(userId) deletes the user record and all posts/comments authored by that user.",
-        "adminSuspendUser(userId) sets a suspended flag on the user; suspended users cannot post or comment.",
-        "adminApplyCooldown(userId) sets a cooldownUntil timestamp 24 hours from now; user cannot make public posts until the cooldown expires.",
-        "adminRemovePost(postId) deletes the post and associated comments/flags.",
-        "All four functions return an error variant if the caller is not admin."
+        "A call to the community feed query (e.g., getPublicPosts) never returns posts with visibility set to private, regardless of caller.",
+        "A call to getMyPosts returns all of the authenticated caller's posts, including private ones.",
+        "A non-author caller cannot retrieve a specific private post by ID."
       ]
     },
     {
       "id": "REQ-2",
-      "text": "Add a backend function to retrieve all registered users (for the admin 'View all users' panel), returning each user's id, pseudonym, region, suspended status, subscription status, and cooldownUntil timestamp. Restrict this to admin callers only.",
+      "text": "In the backend, enforce that public posts returned by the community feed are ordered strictly chronologically (oldest to newest, or newest to oldest — consistently by creation timestamp). No resharing or link-sharing mechanism should exist or be callable.",
       "target": "backend",
       "source": {
         "messageIds": [
-          "msg-20"
+          "msg-4"
         ],
         "quotes": [
-          "View all users"
+          "PUBLIC posts: Visible to all registered users. Chronological order. No resharing. No sharing links."
         ]
       },
       "acceptanceCriteria": [
-        "adminGetAllUsers() returns a list of all users with at minimum: userId, pseudonym, region, isSuspended, subscriptionStatus, cooldownUntil.",
-        "Returns an error or empty list with an error if caller is not admin."
+        "The community feed query returns public posts sorted by creation timestamp in a consistent chronological order.",
+        "There is no backend method that allows resharing or generating shareable post links.",
+        "Public posts are accessible to all authenticated registered users."
       ]
     },
     {
       "id": "REQ-3",
-      "text": "Add a backend function to retrieve all flagged posts (status = pending) with their associated flag records (id, postId, flaggedBy, reason, createdAt, status). Restrict to admin callers.",
-      "target": "backend",
+      "text": "In the frontend CommunityFeedPage, display only public posts in chronological order. Remove or hide any UI element that allows resharing a post or copying/sharing a post link. If such controls exist (share button, copy link button, reshare option), they must be removed from PublicPostCard and any other feed-related components.",
+      "target": "frontend",
       "source": {
         "messageIds": [
-          "msg-20"
+          "msg-4"
         ],
         "quotes": [
-          "View flagged posts"
+          "PUBLIC posts: Visible to all registered users. Chronological order. No resharing. No sharing links."
         ]
       },
       "acceptanceCriteria": [
-        "adminGetFlaggedPosts() returns all flag records with status 'pending', including the associated post content.",
-        "Only accessible to admin callers."
+        "The community feed displays posts in chronological order.",
+        "No share, copy link, or reshare button is visible on any post card in the community feed.",
+        "Private posts never appear in the community feed UI for any user, including the author."
       ]
     },
     {
       "id": "REQ-4",
-      "text": "Implement the Emotional Monitoring Alert in the backend: track BROKE-emotion post counts per user per day. Expose an admin-only query that returns a list of users who have posted 5 or more BROKE posts within any 3 consecutive calendar days. No automated messages are sent; this is a read-only alert feed for the admin.",
-      "target": "backend",
-      "source": {
-        "messageIds": [
-          "msg-20"
-        ],
-        "quotes": [
-          "If user posts 5 BROKE posts within 3 consecutive days: Trigger soft alert in dashboard. No auto message sent. Admin manually decides action."
-        ]
-      },
-      "acceptanceCriteria": [
-        "adminGetEmotionalAlerts() returns a list of { userId, pseudonym, brokePostCount, windowDates } for users matching the 5-BROKE-in-3-consecutive-days threshold.",
-        "No message or notification is sent to the flagged user.",
-        "Alert resets or is suppressed if the user no longer meets the threshold.",
-        "Only accessible to admin callers."
-      ]
-    },
-    {
-      "id": "REQ-5",
-      "text": "Update the AdminDashboard frontend to include a dedicated 'All Users' tab that lists every registered user with their pseudonym, region, subscription status, and suspended/cooldown state. Each user row must have action buttons: Suspend/Unsuspend, Apply 24-hr Cooldown, and Permanently Remove User (with a confirmation dialog before destructive actions).",
+      "text": "In the frontend MyPostsPage and PostCard component, display the visibility status (private or public) for each of the user's own posts. Private posts should be clearly labeled as visible only to the author. No resharing or link-sharing controls should appear on private post cards.",
       "target": "frontend",
       "source": {
         "messageIds": [
-          "msg-20"
+          "msg-4"
         ],
         "quotes": [
-          "View all users",
-          "Suspend user",
-          "Permanently remove user",
-          "Apply 24-hour public posting cooldown"
+          "PRIVATE posts: Visible only to author.",
+          "No resharing. No sharing links."
         ]
       },
       "acceptanceCriteria": [
-        "All Users tab renders a list of all users fetched from adminGetAllUsers().",
-        "Each row shows pseudonym, region, subscription status, suspended badge (if applicable), and cooldown expiry (if active).",
-        "Suspend/Unsuspend button toggles suspended status and invalidates the user list query.",
-        "Apply 24-hr Cooldown button calls adminApplyCooldown and shows a success toast.",
-        "Permanently Remove User button opens a confirmation dialog; on confirm, calls adminRemoveUser and removes the user from the list.",
-        "All mutation buttons are disabled while a request is in-flight."
-      ]
-    },
-    {
-      "id": "REQ-6",
-      "text": "Update the AdminDashboard frontend 'Flagged Posts' tab to support a 'Remove Post' action on each flagged post entry, in addition to existing review functionality. Show flag reason, flaggedBy pseudonym, and createdAt. Include a confirmation dialog before removal.",
-      "target": "frontend",
-      "source": {
-        "messageIds": [
-          "msg-20"
-        ],
-        "quotes": [
-          "View flagged posts",
-          "Remove post"
-        ]
-      },
-      "acceptanceCriteria": [
-        "Flagged Posts tab fetches data from adminGetFlaggedPosts().",
-        "Each entry shows post content preview, flag reason, reporter pseudonym (or anonymized ID), and flag timestamp.",
-        "A 'Remove Post' button opens a confirmation dialog; on confirm, calls adminRemovePost(postId).",
-        "After removal, the flagged post entry disappears from the list and a success toast is shown."
-      ]
-    },
-    {
-      "id": "REQ-7",
-      "text": "Add an 'Emotional Monitoring Alerts' section to the AdminDashboard frontend. This section displays a list of users who have triggered the 5-BROKE-in-3-consecutive-days threshold. Each alert card shows the user's pseudonym, the number of BROKE posts, and the date window. No action is taken automatically; the admin can manually choose to suspend, cooldown, or remove the user from the existing user management controls.",
-      "target": "frontend",
-      "source": {
-        "messageIds": [
-          "msg-20"
-        ],
-        "quotes": [
-          "Emotional Monitoring Alert",
-          "If user posts 5 BROKE posts within 3 consecutive days: Trigger soft alert in dashboard. No auto message sent. Admin manually decides action."
-        ]
-      },
-      "acceptanceCriteria": [
-        "A clearly labeled 'Emotional Monitoring Alerts' tab or section is visible only in the AdminDashboard.",
-        "Fetches data from adminGetEmotionalAlerts() via a React Query hook.",
-        "Each alert card displays: user pseudonym, BROKE post count, and the 3-day window dates.",
-        "If no alerts are present, a 'No active alerts' empty state is shown.",
-        "No automated action buttons are shown; admin must navigate to All Users tab to act.",
-        "Alert cards use a visually distinct soft-warning style (e.g., amber/yellow tone) to indicate concern without alarm."
-      ]
-    },
-    {
-      "id": "REQ-8",
-      "text": "Add all new admin mutation and query hooks to useQueries.ts: useAdminGetAllUsers, useAdminRemoveUser, useAdminSuspendUser, useAdminApplyCooldown, useAdminRemovePost, useAdminGetEmotionalAlerts, and useAdminGetFlaggedPosts (if not already present). These hooks must follow the existing React Query patterns in useQueries.ts.",
-      "target": "frontend",
-      "source": {
-        "messageIds": [
-          "msg-20"
-        ],
-        "quotes": [
-          "Admin can:",
-          "Admin sees:"
-        ]
-      },
-      "acceptanceCriteria": [
-        "All six new hooks are defined in useQueries.ts.",
-        "Mutation hooks call invalidateQueries on the relevant query keys after success.",
-        "Query hooks use appropriate staleTime and are keyed consistently with existing conventions."
-      ]
-    },
-    {
-      "id": "REQ-9",
-      "text": "Generate a migration module (backend/migration.mo) to handle any schema changes introduced by the new user fields (isSuspended, cooldownUntil) and the new flag/alert tracking structures, ensuring existing user records are migrated with safe default values.",
-      "target": "backend",
-      "source": {
-        "messageIds": [
-          "msg-20"
-        ],
-        "quotes": [
-          "Suspend user",
-          "Apply 24-hour public posting cooldown"
-        ]
-      },
-      "acceptanceCriteria": [
-        "migration.mo adds isSuspended = false and cooldownUntil = null to all existing user records that lack these fields.",
-        "Existing posts, comments, and flag records are preserved unchanged.",
-        "Migration is idempotent — running it twice produces the same result."
+        "Each post card in MyPostsPage shows whether the post is private or public.",
+        "Private posts display a label or badge indicating they are visible only to the author.",
+        "No share or copy-link button is present on any post card in MyPostsPage."
       ]
     }
   ],
   "constraints": [
-    "All admin actions must verify the caller has the admin role before executing; return an error variant for unauthorized callers.",
-    "Emotional monitoring alerts are read-only; no automated messages or notifications are sent to users.",
-    "Destructive actions (remove user, remove post) must be confirmed via a dialog before executing.",
-    "Do not modify files in frontend/src/hooks/useInternetIdentity.ts, frontend/src/hooks/useActor.ts, frontend/src/main.tsx, or frontend/src/components/ui."
+    "Do not change the authentication or invite-code system.",
+    "Admin views (AdminPublicPostsList, AdminUserPostHistory) may still display all posts regardless of visibility for moderation purposes.",
+    "Do not alter the post creation flow beyond what is needed to enforce visibility rules."
   ],
   "nonGoals": [
-    "Automated messaging or notifications to users flagged by emotional monitoring.",
-    "Email or push notification integrations.",
-    "Admin ability to edit or modify post content.",
-    "Any role other than admin accessing these moderation features.",
-    "Real-time dashboard updates via WebSockets."
+    "Adding new visibility levels beyond private and public.",
+    "Implementing resharing or link-sharing features.",
+    "Changing the post creation UI or emotion tagging system.",
+    "Modifying the admin dashboard crisis or flagging workflows."
   ],
   "imageRequirements": {
     "required": [],

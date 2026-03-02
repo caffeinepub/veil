@@ -29,7 +29,7 @@ interface PostCardProps {
 
 function getToggleErrorMessage(errorMsg: string): string {
   const lower = errorMsg.toLowerCase();
-  if (lower.includes('already toggled') || lower.includes('toggle') && lower.includes('once per')) {
+  if (lower.includes('already toggled') || (lower.includes('toggle') && lower.includes('once per'))) {
     return 'This post has already been toggled today. Try again tomorrow.';
   }
   if (lower.includes('rate limit')) {
@@ -76,13 +76,18 @@ export default function PostCard({ post }: PostCardProps) {
       <div className="flex items-start justify-between gap-2">
         <div className="flex items-center gap-2 flex-wrap">
           <EmotionBadge emotion={post.emotionType as EmotionType} />
-          <span className={`text-xs px-2 py-0.5 rounded-full border ${
-            isPrivate
-              ? 'bg-muted/50 text-muted-foreground border-border'
-              : 'bg-primary/10 text-primary border-primary/30'
-          }`}>
-            {isPrivate ? '🔒 Private' : '🌐 Public'}
-          </span>
+          {/* Visibility badge */}
+          {isPrivate ? (
+            <span className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full border bg-muted/50 text-muted-foreground border-border">
+              <Lock size={10} />
+              Private — visible only to you
+            </span>
+          ) : (
+            <span className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full border bg-primary/10 text-primary border-primary/30">
+              <Globe size={10} />
+              Public
+            </span>
+          )}
         </div>
         <span className="text-xs text-muted-foreground shrink-0">
           {createdAt.toLocaleDateString()}
@@ -97,17 +102,17 @@ export default function PostCard({ post }: PostCardProps) {
         <p className="text-xs text-muted-foreground">{wordCount} words</p>
       )}
 
-      {/* Visibility note */}
+      {/* Visibility description */}
       <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
         {isPrivate ? (
           <>
             <Lock size={11} />
-            <span>Only visible to you</span>
+            <span>Only visible to you — not shown in the community feed</span>
           </>
         ) : (
           <>
             <Globe size={11} />
-            <span>Visible in community feed</span>
+            <span>Visible to all registered members in the community feed</span>
           </>
         )}
       </div>

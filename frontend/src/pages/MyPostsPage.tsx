@@ -4,7 +4,7 @@ import { useAuth } from '../hooks/useAuth';
 import { useGetCallerUserProfile, useGetMyPosts } from '../hooks/useQueries';
 import PostCard from '../components/PostCard';
 import { Button } from '@/components/ui/button';
-import { Loader2, PenLine, Inbox } from 'lucide-react';
+import { Loader2, PenLine, Inbox, Lock, Globe } from 'lucide-react';
 
 export default function MyPostsPage() {
   const navigate = useNavigate();
@@ -35,6 +35,8 @@ export default function MyPostsPage() {
   if (!isAuthenticated) return null;
 
   const sortedPosts = posts ? [...posts].sort((a, b) => Number(b.createdAt - a.createdAt)) : [];
+  const privateCount = sortedPosts.filter(p => p.visibility === 'privateView').length;
+  const publicCount = sortedPosts.filter(p => p.visibility === 'publicView').length;
 
   return (
     <div className="min-h-screen bg-background py-8 px-4">
@@ -43,7 +45,7 @@ export default function MyPostsPage() {
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-2xl font-serif font-bold text-foreground">My Posts</h1>
-            <p className="text-sm text-muted-foreground mt-1">Your private archive of emotions.</p>
+            <p className="text-sm text-muted-foreground mt-1">All your posts — private and public.</p>
           </div>
           <Button
             onClick={() => navigate({ to: '/create' })}
@@ -54,6 +56,21 @@ export default function MyPostsPage() {
             New post
           </Button>
         </div>
+
+        {/* Visibility legend */}
+        {!postsLoading && sortedPosts.length > 0 && (
+          <div className="flex items-center gap-4 text-xs text-muted-foreground bg-muted/30 rounded-lg px-4 py-2.5 border border-border/50">
+            <span className="font-medium text-foreground/70">Visibility:</span>
+            <span className="flex items-center gap-1.5">
+              <Lock size={11} />
+              <span>{privateCount} private — only you can see these</span>
+            </span>
+            <span className="flex items-center gap-1.5">
+              <Globe size={11} />
+              <span>{publicCount} public — visible in community feed</span>
+            </span>
+          </div>
+        )}
 
         {/* Loading */}
         {postsLoading && (

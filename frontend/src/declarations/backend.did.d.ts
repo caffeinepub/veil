@@ -18,6 +18,16 @@ export interface Comment {
   'flagged' : boolean,
   'postId' : string,
 }
+export interface DirectMessage {
+  'id' : DirectMessageId,
+  'to' : Principal,
+  'isCrisisResource' : boolean,
+  'content' : string,
+  'from' : [] | [Principal],
+  'read' : boolean,
+  'timestamp' : Time,
+}
+export type DirectMessageId = string;
 export type EmotionType = { 'confess' : null } |
   { 'happy' : null } |
   { 'broke' : null };
@@ -33,6 +43,8 @@ export interface InviteCode {
   'code' : string,
   'used' : boolean,
 }
+export type MessageType = { 'resource' : null } |
+  { 'admin' : null };
 export interface Post {
   'id' : string,
   'emotionType' : EmotionType,
@@ -40,6 +52,7 @@ export interface Post {
   'createdAt' : Time,
   'author' : Principal,
   'updatedAt' : Time,
+  'flaggedForReview' : ReviewFlag,
   'visibility' : Visibility,
 }
 export interface RSVP {
@@ -69,6 +82,8 @@ export type Result = { 'ok' : Post } |
   { 'err' : string };
 export type Result_1 = { 'ok' : User } |
   { 'err' : RegistrationError };
+export type ReviewFlag = { 'none' : null } |
+  { 'crisisRisk' : null };
 export interface SeatInfo { 'maxSeats' : bigint, 'currentSeats' : bigint }
 export type SubscriptionStatus = { 'active' : null } |
   { 'expired' : null } |
@@ -151,6 +166,7 @@ export interface _SERVICE {
   'getCallerUserProfile' : ActorMethod<[], [] | [UserProfile]>,
   'getCallerUserRole' : ActorMethod<[], UserRole>,
   'getCommentsByPost' : ActorMethod<[string], Array<Comment>>,
+  'getDirectMessagesForUser' : ActorMethod<[Principal], Array<DirectMessage>>,
   'getESPStatus' : ActorMethod<[], boolean>,
   'getInviteCodes' : ActorMethod<[], Array<InviteCode>>,
   'getMyPosts' : ActorMethod<[], Array<Post>>,
@@ -160,9 +176,18 @@ export interface _SERVICE {
   'getTextReactionsForPost' : ActorMethod<[string], Array<TextReaction>>,
   'getUserProfile' : ActorMethod<[Principal], [] | [UserProfile]>,
   'isCallerAdmin' : ActorMethod<[], boolean>,
+  'markDirectMessageAsRead' : ActorMethod<[DirectMessageId], undefined>,
   'register' : ActorMethod<[string, Region, string], Result_1>,
   'revokeInviteCode' : ActorMethod<[string], undefined>,
   'saveCallerUserProfile' : ActorMethod<[UserProfileUpdate], undefined>,
+  'sendAdminMessage' : ActorMethod<
+    [Principal, MessageType, string],
+    DirectMessageId
+  >,
+  'sendCrisisResourceMessage' : ActorMethod<
+    [Principal, MessageType],
+    DirectMessageId
+  >,
   'submitRSVP' : ActorMethod<[string, boolean, string], undefined>,
   'togglePostVisibility' : ActorMethod<[string], Result>,
   'validateInviteCode' : ActorMethod<[string], boolean>,

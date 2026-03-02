@@ -13,9 +13,7 @@ import Nat "mo:core/Nat";
 import InviteLinksModule "invite-links/invite-links-module";
 import MixinAuthorization "authorization/MixinAuthorization";
 import AccessControl "authorization/access-control";
-import Migration "migration";
 
-(with migration = Migration.run)
 actor {
   let accessControlState = AccessControl.initState();
   let inviteState = InviteLinksModule.initState();
@@ -32,6 +30,7 @@ actor {
   let espFlaggedUsers = Map.empty<Principal, Bool>();
   let lastToggleTime = Map.empty<Text, Time.Time>();
   let emotionalAlertCounts = Map.empty<Principal, List.List<(Time.Time, Nat)>>();
+  let directMessages = Map.empty<DirectMessageId, DirectMessage>();
 
   // Types
 
@@ -74,6 +73,16 @@ actor {
     hasAcknowledgedPublicPostMessage : Bool;
   };
 
+  public type DirectMessage = {
+    id : DirectMessageId;
+    from : ?Principal;
+    to : Principal;
+    content : Text;
+    timestamp : Time.Time;
+    read : Bool;
+    isCrisisResource : Bool;
+  };
+
   public type Post = {
     id : Text;
     author : Principal;
@@ -82,6 +91,7 @@ actor {
     visibility : Visibility;
     createdAt : Time.Time;
     updatedAt : Time.Time;
+    flaggedForReview : ReviewFlag;
   };
 
   public type Reaction = {
@@ -157,12 +167,29 @@ actor {
     #InviteCodeUsed;
   };
 
+  public type ReviewFlag = {
+    #none;
+    #crisisRisk;
+  };
+
+  public type CrisisCheckResult = {
+    riskFound : Bool;
+    contentWithMatch : ?Text;
+  };
+
+  public type DirectMessageId = Text;
+  public type MessageType = {
+    #admin;
+    #resource;
+  };
+
   let MAX_USERS : Nat = 100;
   let SEVEN_DAYS_NS : Int = 7 * 24 * 60 * 60 * 1_000_000_000;
   let BROKE_THRESHOLD : Nat = 3;
   let MAX_PRIVATE_POSTS_PER_DAY : Nat = 5;
   let ONE_DAY_NS : Int = 24 * 60 * 60 * 1_000_000_000;
   let MAX_CONTENT_LENGTH : Nat = 1000;
+  let ADMIN_PRINCIPAL_HEX = "0aff83509158af0d11fbb222d877dee7e13f0c55";
 
   func generateUuid() : async Text {
     let blob = await Random.blob();
@@ -176,6 +203,119 @@ actor {
       result := result # Text.fromChar(hexChars[hi]) # Text.fromChar(hexChars[lo]);
     };
     result;
+  };
+
+  // CRISIS DETECTION LOGIC (BACKEND)
+  func containsCrisisKeywords(content : Text) : CrisisCheckResult {
+    let keywords = [
+      "self-harm",
+      "suicide",
+      "kill myself",
+      "end my life",
+      "want to die",
+      "hurt myself",
+      "depressed",
+      "hopeless",
+      "no reason to live",
+      "tired of living",
+    ];
+
+    let lowerContent = content.toLower();
+
+    for (keyword in keywords.values()) {
+      if (lowerContent.contains(#text(keyword))) {
+        return {
+          riskFound = true;
+          contentWithMatch = ?content;
+        };
+      };
+    };
+
+    { riskFound = false; contentWithMatch = null };
+  };
+
+  func computeCrisisFlag(emotionType : EmotionType, visibility : Visibility, content : Text) : ReviewFlag {
+    if (emotionType == #broke and visibility == #publicView) {
+      let result = containsCrisisKeywords(content);
+      if (result.riskFound) { #crisisRisk } else { #none };
+    } else { #none };
+  };
+
+  public query ({ caller }) func getDirectMessagesForUser(_userId : Principal) : async [DirectMessage] {
+    if (caller.isAnonymous()) {
+      Runtime.trap("Anonymous principals cannot get direct messages");
+    };
+    if (caller != _userId and not AccessControl.isAdmin(accessControlState, caller)) {
+      Runtime.trap("Only admins can get all direct messages");
+    };
+    let userMessages = directMessages.values().filter(func(m) { m.to == _userId }).toArray();
+    userMessages.sort(
+      func(a : DirectMessage, b : DirectMessage) : Order.Order {
+        if (a.timestamp < b.timestamp) { #less } else if (a.timestamp > b.timestamp) {
+          #greater;
+        } else {
+          #equal;
+        };
+      }
+    );
+  };
+
+  public shared ({ caller }) func markDirectMessageAsRead(messageId : DirectMessageId) : async () {
+    if (caller.isAnonymous()) {
+      Runtime.trap("Anonymous principals cannot mark direct messages as read");
+    };
+    switch (directMessages.get(messageId)) {
+      case (null) { Runtime.trap("Message does not exist") };
+      case (?message) {
+        if (message.to != caller and not AccessControl.isAdmin(accessControlState, caller)) {
+          Runtime.trap("Unauthorized: Can only mark your own messages as read");
+        };
+        let updated : DirectMessage = { message with read = true };
+        directMessages.add(messageId, updated);
+      };
+    };
+  };
+
+  // Admin-only: send a direct message to a user. Never sent automatically.
+  public shared ({ caller }) func sendAdminMessage(recipient : Principal, _messageType : MessageType, messageContent : Text) : async DirectMessageId {
+    if (not AccessControl.isAdmin(accessControlState, caller)) {
+      Runtime.trap("Unauthorized: Only admins can send admin messages");
+    };
+
+    let messageId = await generateUuid();
+    let message : DirectMessage = {
+      id = messageId;
+      to = recipient;
+      from = ?caller;
+      content = messageContent;
+      timestamp = Time.now();
+      read = false;
+      isCrisisResource = false;
+    };
+    directMessages.add(messageId, message);
+    messageId;
+  };
+
+  // Admin-only: send a predefined crisis resource template message to a user. Never sent automatically.
+  public shared ({ caller }) func sendCrisisResourceMessage(recipient : Principal, _messageType : MessageType) : async DirectMessageId {
+    if (not AccessControl.isAdmin(accessControlState, caller)) {
+      Runtime.trap("Unauthorized: Only admins can send crisis resource messages");
+    };
+
+    let crisisMessageContent = "It is okay to feel this way, but if you cannot see a way out right now please seek professional help: If you are in crisis, please reach out: International Association for Suicide Prevention: https://www.iasp.info/resources/Crisis_Centres/";
+
+    let messageId = await generateUuid();
+    let message : DirectMessage = {
+      id = messageId;
+      to = recipient;
+      from = ?caller;
+      content = crisisMessageContent;
+      timestamp = Time.now();
+      read = false;
+      isCrisisResource = true;
+    };
+    directMessages.add(messageId, message);
+    messageId;
   };
 
   public shared ({ caller }) func generateInviteCode() : async Text {
@@ -529,6 +669,10 @@ actor {
 
     let postId = await generateUuid();
     let now = Time.now();
+
+    // Crisis keyword check runs server-side on post creation for broke posts made public
+    let flagForReview = computeCrisisFlag(emotionType, resolvedVisibility, content);
+
     let post : Post = {
       id = postId;
       author = caller;
@@ -537,6 +681,7 @@ actor {
       visibility = resolvedVisibility;
       createdAt = now;
       updatedAt = now;
+      flaggedForReview = flagForReview;
     };
     posts.add(postId, post);
     #ok(post);
@@ -581,6 +726,9 @@ actor {
           case (#publicView) { #privateView };
         };
 
+        // Crisis keyword check runs server-side on visibility toggle to public for broke posts
+        let newFlagForReview = computeCrisisFlag(post.emotionType, newVisibility, post.content);
+
         let updatedPost : Post = {
           id = post.id;
           author = post.author;
@@ -589,6 +737,7 @@ actor {
           visibility = newVisibility;
           createdAt = post.createdAt;
           updatedAt = now;
+          flaggedForReview = newFlagForReview;
         };
 
         posts.add(postId, updatedPost);

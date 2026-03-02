@@ -1,86 +1,47 @@
 {
   "kind": "implementation_plan",
   "version": "1.0",
-  "title": "Admin Dashboard with Moderation Tools and Emotional Monitoring Alerts",
+  "title": "Enforce post visibility rules (private/public feed access and no resharing)",
   "requirements": [
     {
-      "id": "REQ-5",
-      "summary": "Add 'All Users' tab to AdminDashboard with user management actions (suspend, cooldown, remove)",
+      "id": "REQ-3",
+      "summary": "Display only public posts in chronological order in CommunityFeedPage and remove all resharing/link-sharing UI elements from PublicPostCard",
       "acceptanceCriteria": [
-        "All Users tab renders a list of all users fetched from adminGetAllUsers().",
-        "Each row shows pseudonym, region, subscription status, suspended badge (if applicable), and cooldown expiry (if active).",
-        "Suspend/Unsuspend button toggles suspended status and invalidates the user list query.",
-        "Apply 24-hr Cooldown button calls adminApplyCooldown and shows a success toast.",
-        "Permanently Remove User button opens a confirmation dialog; on confirm, calls adminRemoveUser and removes the user from the list.",
-        "All mutation buttons are disabled while a request is in-flight."
+        "The community feed displays posts in chronological order.",
+        "No share, copy link, or reshare button is visible on any post card in the community feed.",
+        "Private posts never appear in the community feed UI for any user, including the author."
       ],
       "file_operations": [
         {
-          "path": "frontend/src/components/AdminDashboard.tsx",
+          "path": "frontend/src/pages/CommunityFeedPage.tsx",
           "operation": "modify",
-          "description": "Add a new 'All Users' tab to the existing Tabs component. Include tab trigger and content section that renders the AdminAllUsersTab component (to be created). Wire this tab into the existing tab structure alongside User Management, Invite Codes, Flagged Posts, and Flagged Comments tabs."
+          "description": "Verify that the page already fetches only public posts via the getPublicPosts backend capability and displays them chronologically using PublicPostCard components. Confirm that private posts are never rendered in this view. If any filtering or sorting logic needs adjustment to ensure strict chronological ordering, apply it here."
         },
         {
-          "path": "frontend/src/components/AdminAllUsersTab.tsx",
-          "operation": "create",
-          "description": "Create AdminAllUsersTab component that fetches all users via useAdminGetAllUsers hook. Display a table or list showing each user's pseudonym, region, subscription status, suspended badge (if suspended is true), and cooldown expiry timestamp (if present). For each user row, include action buttons: Suspend/Unsuspend (using useAdminToggleUserSuspension), Apply 24-hr Cooldown (using useAdminApplyCooldown), and Permanently Remove User (using useAdminRemoveUser with a confirmation dialog). All buttons must be disabled during mutation loading states. Use toast notifications for success/error feedback."
+          "path": "frontend/src/components/PublicPostCard.tsx",
+          "operation": "modify",
+          "description": "Remove or hide any UI elements that allow resharing a post or copying/sharing a post link. This includes removing share buttons, copy link buttons, or reshare options from the card. Ensure the card displays only the post content, emotion badge, text reactions, comments, and flagging functionality. Verify that no social sharing or link generation features remain visible."
         }
       ]
     },
     {
-      "id": "REQ-6",
-      "summary": "Update AdminFlaggedPosts tab to support 'Remove Post' action with confirmation dialog",
+      "id": "REQ-4",
+      "summary": "Display visibility status (private/public) for user's own posts in MyPostsPage and PostCard, and remove resharing/link-sharing controls",
       "acceptanceCriteria": [
-        "Flagged Posts tab fetches data from adminGetFlaggedPosts().",
-        "Each entry shows post content preview, flag reason, reporter pseudonym (or anonymized ID), and flag timestamp.",
-        "A 'Remove Post' button opens a confirmation dialog; on confirm, calls adminRemovePost(postId).",
-        "After removal, the flagged post entry disappears from the list and a success toast is shown."
+        "Each post card in MyPostsPage shows whether the post is private or public.",
+        "Private posts display a label or badge indicating they are visible only to the author.",
+        "No share or copy-link button is present on any post card in MyPostsPage."
       ],
       "file_operations": [
         {
-          "path": "frontend/src/components/AdminFlaggedPosts.tsx",
+          "path": "frontend/src/components/PostCard.tsx",
           "operation": "modify",
-          "description": "Add a 'Remove Post' button to each flagged post entry in the existing component. When clicked, open a confirmation dialog (using shadcn/ui AlertDialog). On confirmation, call useAdminRemovePost mutation hook with the postId. After successful removal, invalidate the flagged posts query and display a success toast. Ensure the button is disabled during the mutation loading state."
-        }
-      ]
-    },
-    {
-      "id": "REQ-7",
-      "summary": "Add 'Emotional Monitoring Alerts' section to AdminDashboard showing users exceeding 5-BROKE-in-3-days threshold",
-      "acceptanceCriteria": [
-        "A clearly labeled 'Emotional Monitoring Alerts' tab or section is visible only in the AdminDashboard.",
-        "Fetches data from adminGetEmotionalAlerts() via a React Query hook.",
-        "Each alert card displays: user pseudonym, BROKE post count, and the 3-day window dates.",
-        "If no alerts are present, a 'No active alerts' empty state is shown.",
-        "No automated action buttons are shown; admin must navigate to All Users tab to act.",
-        "Alert cards use a visually distinct soft-warning style (e.g., amber/yellow tone) to indicate concern without alarm."
-      ],
-      "file_operations": [
-        {
-          "path": "frontend/src/components/AdminDashboard.tsx",
-          "operation": "modify",
-          "description": "Add a new 'Emotional Monitoring Alerts' tab to the existing Tabs component. Include tab trigger and content section that renders the AdminEmotionalAlertsTab component (to be created). Wire this tab into the existing tab structure."
+          "description": "Add a visual indicator (badge, label, or icon) that displays the post's visibility status (private or public). For private posts, include descriptive text such as 'Private - Visible only to you' to clearly communicate the visibility scope. Remove any share, copy-link, or reshare buttons if they exist. Ensure the visibility status is prominently displayed alongside the emotion badge and other post metadata."
         },
         {
-          "path": "frontend/src/components/AdminEmotionalAlertsTab.tsx",
-          "operation": "create",
-          "description": "Create AdminEmotionalAlertsTab component that fetches emotional monitoring alerts via useAdminGetEmotionalAlerts hook. Display each alert in a card with amber/yellow soft-warning styling. Show user pseudonym, BROKE post count, and the 3-day date window for each alert. If no alerts exist, render an empty state message ('No active alerts'). Do not include any action buttons; include a note directing admins to the All Users tab for manual intervention."
-        }
-      ]
-    },
-    {
-      "id": "REQ-8",
-      "summary": "Add admin mutation and query hooks to useQueries.ts for all new backend capabilities",
-      "acceptanceCriteria": [
-        "All six new hooks are defined in useQueries.ts.",
-        "Mutation hooks call invalidateQueries on the relevant query keys after success.",
-        "Query hooks use appropriate staleTime and are keyed consistently with existing conventions."
-      ],
-      "file_operations": [
-        {
-          "path": "frontend/src/hooks/useQueries.ts",
+          "path": "frontend/src/pages/MyPostsPage.tsx",
           "operation": "modify",
-          "description": "Add the following React Query hooks following existing patterns: useAdminGetAllUsers (query hook for adminGetAllUsers backend method), useAdminRemoveUser (mutation hook for adminPermanentlyRemoveUser, invalidates 'adminAllUsers' query key on success), useAdminToggleUserSuspension (mutation hook for adminToggleUserSuspension, invalidates 'adminAllUsers' on success), useAdminApplyCooldown (mutation hook for adminApplyPublicPostingCooldown, invalidates 'adminAllUsers' on success), useAdminRemovePost (mutation hook for adminRemovePost, invalidates 'adminFlaggedPosts' and 'adminAllPosts' on success), useAdminGetEmotionalAlerts (query hook for adminGetHighRiskEmotionAlerts backend method), and ensure useAdminGetFlaggedPosts exists (query hook for adminGetFlaggedPosts if not already present). All hooks must use the actor from useActor and handle errors appropriately."
+          "description": "Verify that PostCard components rendered on this page properly display the visibility status for each post. Ensure that private posts are clearly labeled and that no resharing or link-sharing controls appear. Confirm that the page handles both private and public posts correctly and that the UI communicates the visibility distinction to the user."
         }
       ]
     }
