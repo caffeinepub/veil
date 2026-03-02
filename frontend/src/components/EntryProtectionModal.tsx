@@ -4,63 +4,45 @@ import {
   DialogHeader,
   DialogTitle,
   DialogDescription,
-  DialogFooter,
 } from '@/components/ui/dialog';
-import { Button } from '@/components/ui/button';
-import { Loader2, Shield } from 'lucide-react';
 
 interface EntryProtectionModalProps {
-  isOpen: boolean;
+  open: boolean;
   onAcknowledge: () => void;
-  isPending?: boolean;
 }
 
-export default function EntryProtectionModal({
-  isOpen,
-  onAcknowledge,
-  isPending = false,
-}: EntryProtectionModalProps) {
+export default function EntryProtectionModal({ open, onAcknowledge }: EntryProtectionModalProps) {
   return (
     <Dialog
-      open={isOpen}
+      open={open}
       onOpenChange={() => {
-        // Intentionally empty — modal can only be dismissed via the button
+        // Non-dismissible
       }}
     >
       <DialogContent
-        className="sm:max-w-md"
+        className="rounded-2xl bg-card border border-border shadow-soft-lg max-w-md"
         onPointerDownOutside={(e) => e.preventDefault()}
         onEscapeKeyDown={(e) => e.preventDefault()}
         onInteractOutside={(e) => e.preventDefault()}
       >
-        <DialogHeader>
-          <div className="flex items-center gap-3 mb-1">
-            <div className="flex h-9 w-9 items-center justify-center rounded-full bg-primary/10">
-              <Shield className="h-5 w-5 text-primary" />
-            </div>
-            <DialogTitle className="font-serif text-xl">A safe space</DialogTitle>
-          </div>
-          <DialogDescription className="text-base leading-relaxed pt-1 text-foreground/80">
-            Veil is a private space for honesty and reflection. We protect vulnerability here. Use this space responsibly.
+        <DialogHeader className="gap-3">
+          <DialogTitle className="font-serif text-lg font-medium text-foreground">
+            A private space
+          </DialogTitle>
+          <DialogDescription className="text-sm text-muted-foreground leading-relaxed">
+            Veil is a private space for honesty and reflection. What you write here is yours.
+            Be gentle with yourself and others. This is not a crisis service — if you are in
+            immediate danger, please contact emergency services.
           </DialogDescription>
         </DialogHeader>
-        <DialogFooter className="mt-2">
-          <Button
+        <div className="mt-4">
+          <button
             onClick={onAcknowledge}
-            disabled={isPending}
-            className="w-full"
-            size="lg"
+            className="w-full py-2.5 rounded-xl bg-secondary text-secondary-foreground text-sm font-medium hover:opacity-80"
           >
-            {isPending ? (
-              <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Please wait…
-              </>
-            ) : (
-              'I Understand'
-            )}
-          </Button>
-        </DialogFooter>
+            I understand
+          </button>
+        </div>
       </DialogContent>
     </Dialog>
   );

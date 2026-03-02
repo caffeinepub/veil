@@ -4,7 +4,6 @@ import {
   createRoute,
   createRootRoute,
   RouterProvider,
-  Outlet,
   redirect,
 } from '@tanstack/react-router';
 import { Toaster } from '@/components/ui/sonner';
@@ -27,13 +26,9 @@ const queryClient = new QueryClient({
   },
 });
 
-// Root route with Layout
+// Root route with Layout — Layout renders <Outlet /> internally
 const rootRoute = createRootRoute({
-  component: () => (
-    <Layout>
-      <Outlet />
-    </Layout>
-  ),
+  component: Layout,
 });
 
 const loginRoute = createRoute({

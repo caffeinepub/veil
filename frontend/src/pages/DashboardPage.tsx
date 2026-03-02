@@ -1,40 +1,46 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from '@tanstack/react-router';
 import { useAuth } from '../hooks/useAuth';
-import { useGetCallerUserProfile } from '../hooks/useQueries';
-import { SubscriptionStatus } from '../backend';
-import { canCreatePost } from '../utils/subscriptionHelpers';
+import { useCreatePost, useGetCallerUserProfile, useAcknowledgeEntryMessage, useAcknowledgePublicPostMessage } from '../hooks/useQueries';
+import { EmotionType, Visibility } from '../backend';
+import { toast } from 'sonner';
+import EntryProtectionModal from '../components/EntryProtectionModal';
+import PublicPostWarningModal from '../components/PublicPostWarningModal';
 import SubscriptionBanner from '../components/SubscriptionBanner';
-import { Loader2 } from 'lucide-react';
+import { canCreatePost } from '../utils/subscriptionHelpers';
+import { hasMinimumWords, needsMinimumWords } from '../utils/wordCounter';
 
-const emotions = [
+const EMOTION_OPTIONS = [
   {
-    key: 'confess',
+    type: EmotionType.confess,
     label: 'Confess',
-    emoji: '🤫',
-    description: 'Something weighing on you',
-    color: 'bg-emotion-confess/10 hover:bg-emotion-confess/20 border-emotion-confess/30 text-emotion-confess',
+    description: 'Something you need to say out loud.',
   },
   {
-    key: 'broke',
+    type: EmotionType.broke,
     label: 'Broke',
-    emoji: '💸',
-    description: 'Financial stress or struggle',
-    color: 'bg-emotion-broke/10 hover:bg-emotion-broke/20 border-emotion-broke/30 text-emotion-broke',
+    description: 'Something that is weighing on you.',
   },
   {
-    key: 'happy',
+    type: EmotionType.happy,
     label: 'Happy',
-    emoji: '🌸',
-    description: 'A moment of joy to share',
-    color: 'bg-emotion-happy/10 hover:bg-emotion-happy/20 border-emotion-happy/30 text-emotion-happy',
+    description: 'Something that brought you lightness.',
   },
 ];
 
 export default function DashboardPage() {
-  const navigate = useNavigate();
   const { isAuthenticated, isInitializing } = useAuth();
-  const { data: profile, isLoading: profileLoading, isFetched: profileFetched } = useGetCallerUserProfile();
+  const navigate = useNavigate();
+  const { data: profile, isLoading: profileLoading } = useGetCallerUserProfile();
+  const createPost = useCreatePost();
+  const acknowledgeEntry = useAcknowledgeEntryMessage();
+  const acknowledgePublicPost = useAcknowledgePublicPostMessage();
+
+  const [selectedEmotion, setSelectedEmotion] = useState<EmotionType>(EmotionType.confess);
+  const [content, setContent] = useState('');
+  const [isPublic, setIsPublic] = useState(false);
+  const [showPublicWarning, setShowPublicWarning] = useState(false);
+  const [pendingSubmit, setPendingSubmit] = useState(false);
 
   useEffect(() => {
     if (!isInitializing && !isAuthenticated) {
@@ -42,94 +48,170 @@ export default function DashboardPage() {
     }
   }, [isAuthenticated, isInitializing, navigate]);
 
-  useEffect(() => {
-    if (profileFetched && !profile && isAuthenticated) {
-      navigate({ to: '/signup' });
-    }
-  }, [profileFetched, profile, isAuthenticated, navigate]);
-
   if (isInitializing || profileLoading) {
     return (
-      <div className="min-h-[60vh] flex items-center justify-center">
-        <Loader2 className="animate-spin text-muted-foreground" size={28} />
+      <div className="flex items-center justify-center min-h-[calc(100vh-3rem)]">
+        <p className="text-sm text-muted-foreground">Loading…</p>
       </div>
     );
   }
 
   if (!isAuthenticated || !profile) return null;
 
-  const subscriptionStatus = profile.subscriptionStatus;
-  const isExpired = subscriptionStatus === SubscriptionStatus.expired;
-  const canPost = canCreatePost(subscriptionStatus);
+  const canPost = canCreatePost(profile.subscriptionStatus);
+  const needsEntryAck = !profile.hasAcknowledgedEntryMessage;
 
-  const handleEmotionClick = (emotionKey: string) => {
-    if (!canPost) return;
-    navigate({ to: '/create', search: { emotion: emotionKey } });
+  const wordCount = content.trim().split(/\s+/).filter(Boolean).length;
+  const needsMinWords = needsMinimumWords(selectedEmotion);
+  const meetsMinWords = !needsMinWords || hasMinimumWords(content);
+  const maxChars = 1000;
+
+  const handleAcknowledgeEntry = async () => {
+    await acknowledgeEntry.mutateAsync();
+  };
+
+  const handleAcknowledgePublicPost = async () => {
+    await acknowledgePublicPost.mutateAsync();
+    if (pendingSubmit) {
+      setPendingSubmit(false);
+      await submitPost();
+    }
+  };
+
+  const submitPost = async () => {
+    try {
+      await createPost.mutateAsync({
+        emotionType: selectedEmotion,
+        content: content.trim(),
+        visibility: isPublic ? Visibility.publicView : Visibility.privateView,
+      });
+      toast.success('Your entry has been saved.');
+      setContent('');
+      setIsPublic(false);
+    } catch (err: any) {
+      toast.error(err?.message || 'Could not save entry.');
+    }
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!content.trim() || !meetsMinWords) return;
+
+    if (isPublic && !profile.hasAcknowledgedPublicPostMessage) {
+      setPendingSubmit(true);
+      setShowPublicWarning(true);
+      return;
+    }
+
+    await submitPost();
   };
 
   return (
-    <div className="max-w-2xl mx-auto px-4 py-10 space-y-8">
-      {/* Welcome */}
-      <div className="space-y-1">
-        <h1 className="font-serif text-2xl font-semibold text-foreground">
-          Welcome back, {profile.pseudonym}
-        </h1>
-        <p className="text-sm text-muted-foreground">What are you feeling today?</p>
-      </div>
+    <div className="max-w-2xl mx-auto px-5 py-10 flex flex-col gap-8">
+      {needsEntryAck && (
+        <EntryProtectionModal open={needsEntryAck} onAcknowledge={handleAcknowledgeEntry} />
+      )}
+      {showPublicWarning && (
+        <PublicPostWarningModal
+          open={showPublicWarning}
+          onAcknowledge={() => {
+            setShowPublicWarning(false);
+            handleAcknowledgePublicPost();
+          }}
+        />
+      )}
 
-      {/* Subscription banner */}
-      {isExpired && <SubscriptionBanner region={profile.region} />}
+      {!canPost && profile.region && (
+        <SubscriptionBanner region={profile.region} />
+      )}
 
-      {/* Emotion buttons */}
-      <div className="space-y-3">
-        <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
-          Choose an emotion to write about
+      <div className="flex flex-col gap-2">
+        <h1 className="font-serif text-xl font-medium text-foreground">Write</h1>
+        <p className="text-sm text-muted-foreground">
+          This is your private space. Take your time.
         </p>
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-          {emotions.map((emotion) => (
-            <button
-              key={emotion.key}
-              onClick={() => handleEmotionClick(emotion.key)}
-              disabled={!canPost}
-              className={`
-                flex flex-col items-center gap-2 p-5 rounded-xl border transition-all text-center
-                ${
-                  canPost
-                    ? `${emotion.color} cursor-pointer`
-                    : 'bg-muted/30 border-border text-muted-foreground cursor-not-allowed opacity-60'
-                }
-              `}
-            >
-              <span className="text-2xl">{emotion.emoji}</span>
-              <div>
-                <p className="font-semibold text-sm">{emotion.label}</p>
-                <p className="text-xs opacity-75 mt-0.5">{emotion.description}</p>
-              </div>
-            </button>
-          ))}
-        </div>
-        {!canPost && (
-          <p className="text-xs text-muted-foreground text-center">
-            Your subscription has expired. Renew to create new posts.
-          </p>
-        )}
       </div>
 
-      {/* Quick links */}
-      <div className="flex gap-3 flex-wrap">
+      <form onSubmit={handleSubmit} className="flex flex-col gap-6">
+        {/* Emotion selector */}
+        <div className="flex flex-col gap-2">
+          <p className="text-xs text-muted-foreground">How are you feeling?</p>
+          <div className="flex gap-2 flex-wrap">
+            {EMOTION_OPTIONS.map((opt) => (
+              <button
+                key={opt.type}
+                type="button"
+                onClick={() => setSelectedEmotion(opt.type)}
+                className={`px-4 py-2 rounded-xl text-sm border transition-all ${
+                  selectedEmotion === opt.type
+                    ? 'bg-secondary text-secondary-foreground border-border'
+                    : 'bg-transparent text-muted-foreground border-border hover:text-foreground'
+                }`}
+              >
+                {opt.label}
+              </button>
+            ))}
+          </div>
+          <p className="text-xs text-muted-foreground">
+            {EMOTION_OPTIONS.find((o) => o.type === selectedEmotion)?.description}
+          </p>
+        </div>
+
+        {/* Content area */}
+        <div className="flex flex-col gap-2">
+          <textarea
+            value={content}
+            onChange={(e) => setContent(e.target.value)}
+            placeholder="Write here…"
+            maxLength={maxChars}
+            rows={7}
+            disabled={!canPost}
+            className="w-full bg-muted border border-border rounded-xl px-4 py-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring resize-none leading-relaxed disabled:opacity-40"
+          />
+          <div className="flex items-center justify-between">
+            <p className="text-xs text-muted-foreground">
+              {needsMinWords && !meetsMinWords && content.length > 0
+                ? `${wordCount} / 24 words minimum`
+                : ''}
+            </p>
+            <p className="text-xs text-muted-foreground">
+              {content.length} / {maxChars}
+            </p>
+          </div>
+        </div>
+
+        {/* Visibility toggle */}
+        <div className="flex items-center justify-between py-3 border-t border-border">
+          <div className="flex flex-col gap-0.5">
+            <p className="text-sm text-foreground">Share with community</p>
+            <p className="text-xs text-muted-foreground">
+              {isPublic ? 'Visible to all members.' : 'Only visible to you.'}
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={() => setIsPublic((v) => !v)}
+            disabled={!canPost}
+            className={`relative w-10 h-5 rounded-full border transition-colors disabled:opacity-40 ${
+              isPublic ? 'bg-secondary border-border' : 'bg-muted border-border'
+            }`}
+          >
+            <span
+              className={`absolute top-0.5 w-4 h-4 rounded-full bg-foreground transition-all ${
+                isPublic ? 'left-5' : 'left-0.5'
+              }`}
+            />
+          </button>
+        </div>
+
         <button
-          onClick={() => navigate({ to: '/posts' })}
-          className="text-sm text-muted-foreground hover:text-foreground underline underline-offset-2 transition-colors"
+          type="submit"
+          disabled={createPost.isPending || !content.trim() || !meetsMinWords || !canPost}
+          className="w-full py-3 rounded-xl bg-secondary text-secondary-foreground text-sm font-medium hover:opacity-80 disabled:opacity-40"
         >
-          View my posts →
+          {createPost.isPending ? 'Saving…' : 'Save entry'}
         </button>
-        <button
-          onClick={() => navigate({ to: '/community' })}
-          className="text-sm text-muted-foreground hover:text-foreground underline underline-offset-2 transition-colors"
-        >
-          Community feed →
-        </button>
-      </div>
+      </form>
     </div>
   );
 }

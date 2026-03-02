@@ -1,33 +1,123 @@
 {
   "kind": "spec_vs_diff_report",
   "version": "1.0",
-  "generatedAt": "2026-03-02T00:34:12.928Z",
-  "summary": "The diff modifies PublicPostCard.tsx (frontend component), a frontend file summaries text file, and project_state.json. Neither the backend getPublicPosts query nor the CommunityFeedPage component appears to have been substantively changed to enforce the required behavior. The project_state.json marks both REQ-1 and REQ-2 as 'pending', and the CommunityFeedPage.tsx summary only mentions auth guard changes — not removal of explore sections, client-side sorting, or metrics. The PublicPostCard.tsx diff shows the component still includes reaction counts, comment counts, and engagement UI (reactions, comments, flagging), which conflicts with REQ-2's AC requiring no engagement metrics on feed post cards.",
+  "generatedAt": "2026-03-02T01:09:40.078Z",
+  "summary": "The diff only adds a trivial migration module (backend/migration.mo) and modifies backend/main.mo (backend data structures/types) and project_state.json (planning metadata). No frontend code is present, and the backend changes are limited to type definitions and state declarations. The vast majority of requirements — especially all frontend requirements and most backend logic — are not implemented in this diff.",
   "missing_requirements": [
     {
       "id": "REQ-1",
-      "requirement": "The backend getPublicPosts must return only public posts sorted strictly by createdAt descending with no ranking or engagement weight.",
-      "reason": "No backend file changes are present in the diff. The project_state.json lists REQ-1 as 'pending', confirming the backend query was not updated.",
+      "requirement": "Signup page fetches and displays the remaining seat count from the backend; seat count updates on new registration; displayed near registration form without urgency framing.",
+      "reason": "No frontend Signup page is present in the diff. While SeatInfo type is defined in main.mo, no query endpoint returning seat count or frontend UI is implemented.",
       "evidence": [
-        "project_state.json"
+        "backend/main.mo"
       ]
     },
     {
       "id": "REQ-2",
-      "requirement": "CommunityFeedPage must render public posts in createdAt DESC order with no explore/suggested sections, no client-side re-sorting, and no engagement metrics on PublicPostCard.",
-      "reason": "The CommunityFeedPage.tsx summary only mentions auth guard changes, not removal of explore sections, suggested posts, or client-side sorting. Additionally, PublicPostCard.tsx still contains reaction/comment UI and engagement interactions. The project_state.json lists REQ-2 as 'pending'.",
+      "requirement": "Registration flow requires a valid invite code; invalid/used code shows clear error; valid code allows pseudonym registration; redirects to login after success.",
+      "reason": "InviteCode types and RegistrationError types are defined, but no registration endpoint logic, invite validation logic, or frontend registration UI is visible in the diff.",
       "evidence": [
-        "frontend-file-summaries.txt",
-        "frontend/src/components/PublicPostCard.tsx",
-        "project_state.json"
+        "backend/main.mo"
+      ]
+    },
+    {
+      "id": "REQ-3",
+      "requirement": "Login flow uses Internet Identity exclusively; successful login redirects to feed/dashboard; unauthenticated access redirects to /login; auth state persists across reloads.",
+      "reason": "No frontend login page, Internet Identity integration, route guards, or auth persistence logic is present in the diff.",
+      "evidence": []
+    },
+    {
+      "id": "REQ-4",
+      "requirement": "Post creation page with 'Happy' emotion selector, Public/Private toggle defaulting to Private, confirmation modal when toggling to Public, and correct post creation on submit.",
+      "reason": "No frontend post creation UI is present. EmotionType and Visibility types are defined in main.mo but no createPost endpoint or UI logic is implemented in the diff.",
+      "evidence": [
+        "backend/main.mo"
+      ]
+    },
+    {
+      "id": "REQ-5",
+      "requirement": "Community Feed displays all public posts in chronological order (newest first); new public post appears after creation; each card shows pseudonym, emotion badge, content, timestamp; no popularity indicators.",
+      "reason": "No frontend Community Feed page or backend query for public posts sorted by date is visible in the diff.",
+      "evidence": []
+    },
+    {
+      "id": "REQ-6",
+      "requirement": "Each public post card shows predefined text reactions; authenticated users can select a reaction; no reaction counts displayed; user's own reaction visually acknowledged.",
+      "reason": "TextReaction type is defined but no reaction endpoint, predefined reaction list, or frontend reaction UI is implemented in the diff.",
+      "evidence": [
+        "backend/main.mo"
+      ]
+    },
+    {
+      "id": "REQ-7",
+      "requirement": "Each public post card has a comments section; authenticated users can submit comments; comments appear in chronological order; no vote/like/popularity mechanism.",
+      "reason": "Comment type is defined but no addComment endpoint or frontend comments UI is present in the diff.",
+      "evidence": [
+        "backend/main.mo"
+      ]
+    },
+    {
+      "id": "REQ-8",
+      "requirement": "Flag/Report button visible on posts not authored by current user; clicking submits report to backend; user cannot flag own post; confirmation shown; flag stored on backend.",
+      "reason": "Flag type is defined but no flagPost endpoint, ownership check, or frontend flag button UI is implemented in the diff.",
+      "evidence": [
+        "backend/main.mo"
+      ]
+    },
+    {
+      "id": "REQ-9",
+      "requirement": "Admin panel Flagged Posts tab listing flagged posts; each entry shows content, author pseudonym, creation date; admin can permanently remove post via confirmation dialog; removed posts disappear from feed.",
+      "reason": "No admin panel frontend, no getFlaggedPosts query, and no removePost endpoint are present in the diff.",
+      "evidence": []
+    },
+    {
+      "id": "REQ-10",
+      "requirement": "All gamification elements, engagement metrics, popularity indicators, streak counters, leaderboards removed/hidden from every page; UI reflects calm, stability, containment.",
+      "reason": "No frontend UI is present to verify the absence of gamification or engagement metrics.",
+      "evidence": []
+    }
+  ],
+  "hallucinated_features": [
+    {
+      "description": "DirectMessage and DirectMessageId types and associated state are defined in the backend.",
+      "reason": "Direct messaging between users is explicitly listed as out of scope for this MVP in the non-goals section.",
+      "evidence": [
+        "backend/main.mo"
+      ]
+    },
+    {
+      "description": "CrisisCheckResult, emotionalAlertCounts, and ReviewFlag (#crisisRisk) types are defined in the backend.",
+      "reason": "Crisis detection and emotional alert systems are explicitly listed as out of scope for this MVP.",
+      "evidence": [
+        "backend/main.mo"
+      ]
+    },
+    {
+      "description": "SubscriptionStatus type with #grace, #active, #expired variants is defined in the backend.",
+      "reason": "Subscription or payment flows are explicitly out of scope for this MVP.",
+      "evidence": [
+        "backend/main.mo"
+      ]
+    },
+    {
+      "description": "Region type (#India, #Global) is defined in the backend as part of the User model.",
+      "reason": "No region-based functionality was requested in any of the requirements or acceptance criteria.",
+      "evidence": [
+        "backend/main.mo"
+      ]
+    },
+    {
+      "description": "espFlaggedUsers and lastToggleTime state maps are defined in the backend.",
+      "reason": "ESP flagging and toggle time tracking are not mentioned in any requirement.",
+      "evidence": [
+        "backend/main.mo"
       ]
     }
   ],
-  "hallucinated_features": [],
   "confidence": 0.82,
   "changed_files": [
-    "frontend-file-summaries.txt",
-    "frontend/src/components/PublicPostCard.tsx",
+    "backend/main.mo",
+    "backend/migration.mo",
     "project_state.json"
   ]
 }

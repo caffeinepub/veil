@@ -1,42 +1,130 @@
 {
   "kind": "coverage_report",
   "version": "1.0",
-  "generatedAt": "2026-03-02T00:34:12.931Z",
+  "generatedAt": "2026-03-02T01:09:40.081Z",
   "sources": {
     "buildRequest": true,
     "implementationPlan": true
   },
   "requirements": {
-    "total": 2,
-    "implemented": 1,
+    "total": 10,
+    "implemented": 0,
     "items": [
       {
         "id": "REQ-1",
-        "summary": "The backend getPublicPosts (or equivalent feed query) must return only posts where visibility is public, sorted strictly by createdAt descending. No ranking score, engagement weight, or any secondary sort criteria may be applied.",
-        "status": "unknown",
-        "plannedFiles": [],
+        "summary": "On the Signup page, display the remaining available seat count fetched from the backend so users can see how many spots are left in the closed ecosystem before registering.",
+        "status": "missing",
+        "plannedFiles": [
+          "frontend/src/pages/SignupPage.tsx"
+        ],
+        "matchedFiles": []
+      },
+      {
+        "id": "REQ-10",
+        "summary": "Remove or hide all gamification elements, engagement metrics, popularity indicators, streak counters, leaderboards, and growth-oriented UI from every page. The interface must reflect containment and witnessing — not performance or engagement optimization.",
+        "status": "missing",
+        "plannedFiles": [
+          "frontend/src/components/PublicPostCard.tsx",
+          "frontend/src/pages/CommunityFeedPage.tsx",
+          "frontend/src/pages/DashboardPage.tsx",
+          "frontend/src/pages/MyPostsPage.tsx",
+          "frontend/src/components/Header.tsx",
+          "frontend/src/index.css",
+          "frontend/tailwind.config.js"
+        ],
         "matchedFiles": []
       },
       {
         "id": "REQ-2",
-        "summary": "CommunityFeedPage must render the feed exactly as returned (public posts, createdAt DESC). Remove any client-side re-sorting, ranking, engagement-based filtering, explore sections, or suggested-posts sections. No metrics (like counts, reaction counts, view counts) should be displayed on feed post cards in this page.",
-        "status": "implemented",
+        "summary": "Ensure the registration flow requires a valid invite code. A user who submits an invalid or already-used invite code must see a clear error. A user with a valid code must be able to complete registration with a pseudonym and proceed to login.",
+        "status": "missing",
+        "plannedFiles": [
+          "frontend/src/pages/SignupPage.tsx",
+          "frontend/src/hooks/useQueries.ts"
+        ],
+        "matchedFiles": []
+      },
+      {
+        "id": "REQ-3",
+        "summary": "Ensure the login flow uses Internet Identity exclusively. After authenticating, the user must be redirected to the main feed or dashboard. Unauthenticated users attempting to access protected pages must be redirected to the login page.",
+        "status": "missing",
+        "plannedFiles": [
+          "frontend/src/pages/LoginPage.tsx",
+          "frontend/src/components/ProtectedRoute.tsx",
+          "frontend/src/hooks/useInternetIdentity.ts"
+        ],
+        "matchedFiles": []
+      },
+      {
+        "id": "REQ-4",
+        "summary": "On the post creation page, provide a 'Happy' emotion option. The user must be able to write content, select 'Happy' as the emotion, and submit the post. The post creation UI must include a Public/Private visibility toggle. The default state must be Private. If the user toggles to Public, a confirmation warning modal must be shown before the post is submitted publicly.",
+        "status": "missing",
+        "plannedFiles": [
+          "frontend/src/pages/PostCreationPage.tsx",
+          "frontend/src/pages/DashboardPage.tsx",
+          "frontend/src/components/PublicPostWarningModal.tsx"
+        ],
+        "matchedFiles": []
+      },
+      {
+        "id": "REQ-5",
+        "summary": "The Community Feed page must display all public posts in chronological order. After a user creates a public 'Happy' post, it must appear in the feed immediately (or on refresh) without requiring any additional action.",
+        "status": "missing",
         "plannedFiles": [
           "frontend/src/pages/CommunityFeedPage.tsx",
           "frontend/src/components/PublicPostCard.tsx"
         ],
-        "matchedFiles": [
-          "frontend/src/components/PublicPostCard.tsx"
-        ]
+        "matchedFiles": []
+      },
+      {
+        "id": "REQ-6",
+        "summary": "On each public post card in the Community Feed, display a set of predefined text reactions (e.g., 'I feel this', 'You are not alone'). Any authenticated user must be able to select a reaction. Reaction counts must NOT be displayed — reactions serve as witnessing gestures, not engagement metrics.",
+        "status": "missing",
+        "plannedFiles": [
+          "frontend/src/components/PublicPostCard.tsx",
+          "frontend/src/hooks/useQueries.ts"
+        ],
+        "matchedFiles": []
+      },
+      {
+        "id": "REQ-7",
+        "summary": "On each public post card in the Community Feed, display a comments section. Any authenticated user must be able to submit a text comment on a post. Comments must appear under the post in submission order. No upvotes, likes, or sorting by popularity.",
+        "status": "missing",
+        "plannedFiles": [
+          "frontend/src/components/PublicPostCard.tsx",
+          "frontend/src/hooks/useQueries.ts"
+        ],
+        "matchedFiles": []
+      },
+      {
+        "id": "REQ-8",
+        "summary": "On public post cards authored by other users, display a 'Flag' or 'Report' button. An authenticated user must be able to flag a post from another account. The flag action must be submitted to the backend and recorded against the post.",
+        "status": "missing",
+        "plannedFiles": [
+          "frontend/src/components/PublicPostCard.tsx",
+          "frontend/src/hooks/useQueries.ts"
+        ],
+        "matchedFiles": []
+      },
+      {
+        "id": "REQ-9",
+        "summary": "The Admin panel must include a 'Flagged Posts' tab listing all posts that have been reported by users. Each entry must show the post content and a button for the admin to permanently remove the post. No popularity metrics or report counts visible to the admin beyond the post content.",
+        "status": "missing",
+        "plannedFiles": [
+          "frontend/src/components/AdminDashboard.tsx",
+          "frontend/src/components/AdminFlaggedPosts.tsx",
+          "frontend/src/hooks/useQueries.ts"
+        ],
+        "matchedFiles": []
       }
     ]
   },
   "changedFiles": [
+    "backend/main.mo",
+    "backend/migration.mo",
     "build-request.json",
     "feature_evidence.json",
-    "frontend-file-summaries.txt",
     "frontend-implementation-plan.json",
-    "frontend/src/components/PublicPostCard.tsx",
     "project_state.json",
     "scratch/component-selection.json",
     "spec.md",

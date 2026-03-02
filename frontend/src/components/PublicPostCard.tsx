@@ -1,385 +1,172 @@
 import { useState } from 'react';
-import { EmotionType, Visibility, type Post } from '../backend';
-import {
-  useTextReactionsForPost,
-  useAddTextReaction,
-  useGetCommentsForPost,
-  useAddComment,
-  useFlagComment,
-  useFlagPost,
-} from '../hooks/useQueries';
-import { useInternetIdentity } from '../hooks/useInternetIdentity';
+import { Post, EmotionType } from '../backend';
 import EmotionBadge from './EmotionBadge';
-import { Button } from '@/components/ui/button';
-import { Textarea } from '@/components/ui/textarea';
-import { Loader2, Flag, MessageCircle, ChevronDown, ChevronUp, AlertTriangle } from 'lucide-react';
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-  DialogFooter,
-} from '@/components/ui/dialog';
+import { useAddTextReaction, useTextReactionsForPost, useGetCommentsForPost, useAddComment, useFlagPost } from '../hooks/useQueries';
+import { toast } from 'sonner';
+import { ChevronDown, ChevronUp, Flag } from 'lucide-react';
 
 interface PublicPostCardProps {
   post: Post;
+  currentUserId?: string;
 }
-
-const REACTION_OPTIONS: Record<EmotionType, string[]> = {
-  [EmotionType.happy]: [
-    "I'm smiling with you.",
-    "This is beautiful.",
-    "You deserve this.",
-    "So happy for you.",
-  ],
-  [EmotionType.confess]: [
-    "I see you.",
-    "That took courage.",
-    "You're not alone in this.",
-    "Thank you for sharing this.",
-  ],
-  [EmotionType.broke]: [
-    "I'm holding space for you.",
-    "You don't have to carry this alone.",
-    "This sounds heavy.",
-    "Stay. We're here.",
-  ],
-};
 
 function formatRelativeTime(timestamp: bigint): string {
   const ms = Number(timestamp / BigInt(1_000_000));
   const diff = Date.now() - ms;
-  const minutes = Math.floor(diff / 60_000);
-  const hours = Math.floor(diff / 3_600_000);
-  const days = Math.floor(diff / 86_400_000);
-
+  const minutes = Math.floor(diff / 60000);
+  const hours = Math.floor(diff / 3600000);
+  const days = Math.floor(diff / 86400000);
   if (minutes < 1) return 'just now';
   if (minutes < 60) return `${minutes}m ago`;
   if (hours < 24) return `${hours}h ago`;
-  if (days < 7) return `${days}d ago`;
-  return new Date(ms).toLocaleDateString();
+  return `${days}d ago`;
 }
 
-export default function PublicPostCard({ post }: PublicPostCardProps) {
-  const { identity } = useInternetIdentity();
-  const { data: textReactions, isLoading: reactionsLoading } = useTextReactionsForPost(post.id);
-  const addTextReaction = useAddTextReaction();
+const TEXT_REACTIONS: Record<EmotionType, string[]> = {
+  [EmotionType.confess]: ['I hear you', 'You are not alone', 'Thank you for sharing'],
+  [EmotionType.broke]: ['Sending strength', 'This too shall pass', 'You matter'],
+  [EmotionType.happy]: ['This made me smile', 'Grateful for this', 'Beautiful'],
+};
 
-  const { data: comments, isLoading: commentsLoading } = useGetCommentsForPost(post.id);
-  const addComment = useAddComment();
-  const flagComment = useFlagComment();
-  const flagPost = useFlagPost();
-
+export default function PublicPostCard({ post, currentUserId }: PublicPostCardProps) {
   const [showComments, setShowComments] = useState(false);
   const [commentText, setCommentText] = useState('');
-  const [commentError, setCommentError] = useState<string | null>(null);
-  const [locallyFlaggedComments, setLocallyFlaggedComments] = useState<Set<string>>(new Set());
+  const [hasReacted, setHasReacted] = useState(false);
 
-  const [showFlagDialog, setShowFlagDialog] = useState(false);
-  const [flagReason, setFlagReason] = useState('');
-  const [flagError, setFlagError] = useState<string | null>(null);
-  const [postFlagged, setPostFlagged] = useState(false);
+  const addTextReaction = useAddTextReaction();
+  const { data: textReactions = [] } = useTextReactionsForPost(post.id);
+  // useGetCommentsForPost only accepts postId — fetch is always enabled when postId is present
+  const { data: comments = [] } = useGetCommentsForPost(post.id);
+  const addComment = useAddComment();
+  const flagPost = useFlagPost();
 
-  const currentUserId = identity?.getPrincipal().toString();
-  const isOwner = currentUserId === post.author.toString();
+  const reactions = TEXT_REACTIONS[post.emotionType] || [];
+  const isOwnPost = currentUserId && post.author.toString() === currentUserId;
 
-  // Only show comments on public posts
-  const isPublic = post.visibility === Visibility.publicView;
-
-  const myReaction = textReactions?.find(
-    r => r.userId.toString() === currentUserId
-  ) ?? null;
-  const hasReacted = myReaction !== null;
-
-  const reactionOptions = REACTION_OPTIONS[post.emotionType as EmotionType] ?? REACTION_OPTIONS[EmotionType.confess];
-
-  const createdAt = new Date(Number(post.createdAt / BigInt(1_000_000)));
-
-  const handleReaction = async (reactionText: string) => {
-    if (isOwner || hasReacted || addTextReaction.isPending) return;
+  const handleReact = async (reactionText: string) => {
+    if (hasReacted || isOwnPost) return;
     try {
       await addTextReaction.mutateAsync({ postId: post.id, reactionText });
+      setHasReacted(true);
     } catch {
-      // Silently handle — user may have already reacted
+      toast.error('Could not send reaction.');
     }
   };
 
-  const handleCommentSubmit = async (e: React.FormEvent) => {
+  const handleComment = async (e: React.FormEvent) => {
     e.preventDefault();
-    setCommentError(null);
     if (!commentText.trim()) return;
     try {
       await addComment.mutateAsync({ postId: post.id, content: commentText.trim() });
       setCommentText('');
-    } catch (err: unknown) {
-      setCommentError(err instanceof Error ? err.message : 'Failed to add comment.');
-    }
-  };
-
-  const handleFlagComment = async (commentId: string) => {
-    try {
-      await flagComment.mutateAsync(commentId);
-      setLocallyFlaggedComments(prev => new Set(prev).add(commentId));
     } catch {
-      setLocallyFlaggedComments(prev => new Set(prev).add(commentId));
+      toast.error('Could not post comment.');
     }
   };
 
   const handleFlag = async () => {
-    setFlagError(null);
-    if (!flagReason.trim()) {
-      setFlagError('Please provide a reason.');
-      return;
-    }
     try {
-      await flagPost.mutateAsync({ postId: post.id, reason: flagReason.trim() });
-      setPostFlagged(true);
-      setShowFlagDialog(false);
-      setFlagReason('');
-    } catch (err: unknown) {
-      setFlagError(err instanceof Error ? err.message : 'Failed to flag post.');
+      await flagPost.mutateAsync({ postId: post.id, reason: 'Reported by user' });
+      toast.success('Post reported.');
+    } catch {
+      toast.error('Could not report post.');
     }
   };
 
-  const sortedComments = [...(comments ?? [])].sort(
-    (a, b) => Number(a.createdAt - b.createdAt)
-  );
-
   return (
-    <div className="veil-card space-y-3">
-      {/* Header */}
-      <div className="flex items-start justify-between gap-2">
-        <EmotionBadge emotion={post.emotionType as EmotionType} />
-        <span className="text-xs text-muted-foreground shrink-0">
-          {createdAt.toLocaleDateString()}
-        </span>
+    <article className="bg-card rounded-xl shadow-card border border-border p-5 flex flex-col gap-4">
+      <div className="flex items-start justify-between gap-3">
+        <EmotionBadge emotionType={post.emotionType} />
+        <div className="flex items-center gap-3">
+          <time className="text-xs text-muted-foreground">
+            {formatRelativeTime(post.createdAt)}
+          </time>
+          {!isOwnPost && (
+            <button
+              onClick={handleFlag}
+              className="text-muted-foreground hover:text-foreground opacity-40 hover:opacity-70"
+              title="Report post"
+            >
+              <Flag size={13} />
+            </button>
+          )}
+        </div>
       </div>
 
-      {/* Content */}
       <p className="text-sm text-foreground leading-relaxed whitespace-pre-wrap">{post.content}</p>
 
-      {/* Text reactions — emotion-type specific, no counts */}
-      {!isOwner && (
-        <div className="pt-1 space-y-1.5">
-          {reactionsLoading ? (
-            <div className="flex items-center gap-1.5 py-1">
-              <Loader2 size={12} className="animate-spin text-muted-foreground" />
-              <span className="text-xs text-muted-foreground italic">Loading…</span>
-            </div>
-          ) : (
-            <div className="flex flex-wrap gap-2">
-              {reactionOptions.map(text => {
-                const isSelected = myReaction?.reactionText === text;
-                const isDisabled = hasReacted || addTextReaction.isPending;
-
-                return (
-                  <button
-                    key={text}
-                    onClick={() => handleReaction(text)}
-                    disabled={isDisabled}
-                    title={
-                      hasReacted && !isSelected
-                        ? "You've already responded to this post"
-                        : text
-                    }
-                    className={[
-                      'px-3 py-1.5 rounded-md border text-xs transition-all text-left',
-                      isSelected
-                        ? 'bg-primary/10 border-primary/30 text-primary font-medium cursor-default'
-                        : hasReacted
-                        ? 'bg-muted/20 border-border/40 text-muted-foreground/40 cursor-not-allowed'
-                        : addTextReaction.isPending
-                        ? 'bg-muted/20 border-border/40 text-muted-foreground cursor-wait'
-                        : 'bg-background border-border/60 text-muted-foreground hover:border-primary/30 hover:text-foreground hover:bg-muted/30 cursor-pointer',
-                    ].join(' ')}
-                  >
-                    {addTextReaction.isPending && !hasReacted ? (
-                      <span className="flex items-center gap-1.5">
-                        <Loader2 size={10} className="animate-spin shrink-0" />
-                        {text}
-                      </span>
-                    ) : (
-                      text
-                    )}
-                  </button>
-                );
-              })}
-            </div>
-          )}
+      {!isOwnPost && !hasReacted && (
+        <div className="flex flex-wrap gap-2">
+          {reactions.map((r) => (
+            <button
+              key={r}
+              onClick={() => handleReact(r)}
+              className="text-xs px-3 py-1.5 rounded-full border border-border text-muted-foreground hover:text-foreground hover:border-muted-foreground"
+            >
+              {r}
+            </button>
+          ))}
         </div>
       )}
 
-      {/* Comment & Flag actions — only for public posts */}
-      {isPublic && (
-        <>
-          <div className="flex items-center gap-2 pt-1 border-t border-border/50">
-            <button
-              onClick={() => setShowComments(v => !v)}
-              className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
-            >
-              <MessageCircle size={13} />
-              <span>Comments</span>
-              {showComments ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
-            </button>
-
-            <div className="ml-auto">
-              {postFlagged ? (
-                <span className="text-xs text-muted-foreground italic">Flagged for review</span>
-              ) : (
-                <button
-                  onClick={() => setShowFlagDialog(true)}
-                  disabled={isOwner}
-                  className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-                  title={isOwner ? 'You cannot flag your own post' : 'Flag this post'}
-                >
-                  <Flag size={12} />
-                  <span>Flag</span>
-                </button>
-              )}
-            </div>
-          </div>
-
-          {/* Comments section */}
-          {showComments && (
-            <div className="space-y-3 pt-1">
-              {commentsLoading ? (
-                <div className="flex justify-center py-3">
-                  <Loader2 size={16} className="animate-spin text-muted-foreground" />
-                </div>
-              ) : sortedComments.length === 0 ? (
-                <p className="text-xs text-muted-foreground italic text-center py-2">
-                  No comments yet. Be the first to respond.
-                </p>
-              ) : (
-                <div className="space-y-2">
-                  {sortedComments.map(comment => {
-                    const isFlagged = comment.flagged || locallyFlaggedComments.has(comment.id);
-                    const isMyComment = comment.userId.toString() === currentUserId;
-
-                    return (
-                      <div
-                        key={comment.id}
-                        className={[
-                          'rounded-lg px-3 py-2 space-y-1 group',
-                          isFlagged
-                            ? 'bg-muted/15 opacity-50'
-                            : 'bg-muted/30',
-                        ].join(' ')}
-                      >
-                        <div className="flex items-start justify-between gap-2">
-                          <p className={[
-                            'text-xs leading-relaxed flex-1',
-                            isFlagged ? 'text-muted-foreground' : 'text-foreground',
-                          ].join(' ')}>
-                            {comment.content}
-                          </p>
-                          {/* Flag button — only for others' comments, not already flagged */}
-                          {!isMyComment && !isFlagged && (
-                            <button
-                              onClick={() => handleFlagComment(comment.id)}
-                              disabled={flagComment.isPending}
-                              title="Flag this comment"
-                              className="opacity-0 group-hover:opacity-100 transition-opacity shrink-0 text-muted-foreground/50 hover:text-amber-600 dark:hover:text-amber-400 mt-0.5"
-                            >
-                              {flagComment.isPending ? (
-                                <Loader2 size={11} className="animate-spin" />
-                              ) : (
-                                <Flag size={11} />
-                              )}
-                            </button>
-                          )}
-                          {isFlagged && (
-                            <span className="shrink-0 mt-0.5" title="Flagged for review">
-                              <AlertTriangle size={11} className="text-amber-500/60" />
-                            </span>
-                          )}
-                        </div>
-                        <p className="text-xs text-muted-foreground/60">
-                          {formatRelativeTime(comment.createdAt)}
-                        </p>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-
-              {/* Reminder + Add comment form */}
-              <div className="space-y-2">
-                <p className="text-xs text-muted-foreground/70 italic text-center tracking-wide">
-                  Respond with care. Witness before advising.
-                </p>
-                <form onSubmit={handleCommentSubmit} className="space-y-2">
-                  <Textarea
-                    placeholder="Write a response…"
-                    value={commentText}
-                    onChange={e => setCommentText(e.target.value)}
-                    rows={2}
-                    className="resize-none text-sm bg-background"
-                    disabled={addComment.isPending}
-                  />
-                  {commentError && (
-                    <p className="text-xs text-amber-700 dark:text-amber-400">{commentError}</p>
-                  )}
-                  <div className="flex justify-end">
-                    <Button
-                      type="submit"
-                      size="sm"
-                      disabled={addComment.isPending || !commentText.trim()}
-                    >
-                      {addComment.isPending ? (
-                        <Loader2 size={13} className="animate-spin mr-1" />
-                      ) : null}
-                      Respond
-                    </Button>
-                  </div>
-                </form>
-              </div>
-            </div>
-          )}
-        </>
+      {hasReacted && (
+        <p className="text-xs text-muted-foreground italic">Response sent.</p>
       )}
 
-      {/* Flag post dialog */}
-      <Dialog open={showFlagDialog} onOpenChange={setShowFlagDialog}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Flag this post</DialogTitle>
-            <DialogDescription>
-              Let us know why this post needs review. Your report is confidential.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-3 py-2">
-            <Textarea
-              placeholder="Describe your concern…"
-              value={flagReason}
-              onChange={e => setFlagReason(e.target.value)}
-              rows={3}
-              className="resize-none text-sm"
-              disabled={flagPost.isPending}
-            />
-            {flagError && (
-              <p className="text-xs text-amber-700 dark:text-amber-400">{flagError}</p>
+      {textReactions.length > 0 && (
+        <div className="flex flex-wrap gap-1.5">
+          {textReactions.map((tr) => (
+            <span
+              key={tr.id}
+              className="text-xs px-2.5 py-1 rounded-full bg-muted text-muted-foreground"
+            >
+              {tr.reactionText}
+            </span>
+          ))}
+        </div>
+      )}
+
+      <div className="border-t border-border pt-3">
+        <button
+          onClick={() => setShowComments((v) => !v)}
+          className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground"
+        >
+          {showComments ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
+          Comments
+        </button>
+
+        {showComments && (
+          <div className="mt-3 flex flex-col gap-3">
+            {comments.length === 0 && (
+              <p className="text-xs text-muted-foreground">No comments yet.</p>
+            )}
+            {comments.map((c) => (
+              <div key={c.id} className="text-xs text-foreground leading-relaxed">
+                <p>{c.content}</p>
+              </div>
+            ))}
+
+            {!isOwnPost && (
+              <form onSubmit={handleComment} className="flex gap-2 mt-1">
+                <input
+                  value={commentText}
+                  onChange={(e) => setCommentText(e.target.value)}
+                  placeholder="Add a comment…"
+                  maxLength={300}
+                  className="flex-1 text-xs bg-muted border border-border rounded-lg px-3 py-2 text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+                />
+                <button
+                  type="submit"
+                  disabled={addComment.isPending || !commentText.trim()}
+                  className="text-xs px-3 py-2 rounded-lg bg-secondary text-secondary-foreground hover:opacity-80 disabled:opacity-40"
+                >
+                  {addComment.isPending ? '…' : 'Send'}
+                </button>
+              </form>
             )}
           </div>
-          <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => { setShowFlagDialog(false); setFlagReason(''); setFlagError(null); }}
-              disabled={flagPost.isPending}
-            >
-              Cancel
-            </Button>
-            <Button
-              onClick={handleFlag}
-              disabled={flagPost.isPending || !flagReason.trim()}
-            >
-              {flagPost.isPending ? <Loader2 size={13} className="animate-spin mr-1" /> : null}
-              Submit Report
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-    </div>
+        )}
+      </div>
+    </article>
   );
 }

@@ -1,25 +1,4 @@
 {
   "kind": "feature_evidence_report",
-  "features": [
-    {
-      "featureId": "feature-communityfeedpage-must-render-the-feed-exactly-as-returned-public-posts-createdat-desc-remove-any-client-side-re-sorting-ranking-engagement-based-filtering-explore-sections-or-suggested-posts-sections-no-metrics-like-counts-reaction-counts-view-counts-should-be-displayed-on-feed-post-cards-in-this-page",
-      "featureTitle": "CommunityFeedPage must render the feed exactly as returned (public posts, createdAt DESC). Remove any client-side re-sorting, ranking, engagement-based filtering, explore sections, or suggested-posts sections. No metrics (like counts, reaction counts, view counts) should be displayed on feed post cards in this page.",
-      "files": [
-        "frontend/src/components/PublicPostCard.tsx"
-      ],
-      "components": [
-        "authorization@4.0.0",
-        "invite-links@3.0.0",
-        "core-infrastructure@1.0.2",
-        "shadcn-ui@1.0.0",
-        "build-template-react@1.0.0",
-        "initial-app@1.0.0",
-        "github-export-icp-cli@1.0.0"
-      ],
-      "testIds": [
-        "REQ-2"
-      ],
-      "confidence": "high"
-    }
-  ]
+  "features": []
 }

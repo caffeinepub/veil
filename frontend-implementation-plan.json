@@ -1,28 +1,262 @@
 {
   "kind": "implementation_plan",
   "version": "1.0",
-  "title": "Enforce strict chronological public-only home feed",
+  "title": "VEIL MVP — Closed Emotional Ecosystem Core Flow (Frontend)",
   "requirements": [
     {
-      "id": "REQ-2",
-      "summary": "Remove all client-side ranking, engagement metrics, and discovery features from CommunityFeedPage to display only chronological public posts",
+      "id": "REQ-1",
+      "summary": "Display remaining seat count on the Signup page fetched from the backend",
       "acceptanceCriteria": [
-        "CommunityFeedPage displays only public posts in the order they are returned from the backend (createdAt DESC).",
-        "No explore section, suggested posts section, or trending section is rendered.",
-        "No engagement metrics (reaction counts, comment counts, view counts) are displayed on PublicPostCard within the feed.",
-        "No client-side re-sorting or ranking logic is applied to the fetched post list.",
-        "The feed contains no UI affordances for filtering, ranking, or discovering posts beyond the plain chronological list."
+        "Signup page fetches and displays the remaining seat count from the backend.",
+        "Seat count updates when a new user registers.",
+        "Count is displayed clearly near the registration form without framing it as urgency or social pressure."
+      ],
+      "file_operations": [
+        {
+          "path": "frontend/src/pages/SignupPage.tsx",
+          "operation": "modify",
+          "description": "The page already displays seat count using useGetSeatInfo(). Ensure the seat count display uses neutral, calm language (e.g., 'Available seats: X of Y') without urgency framing. Position it near the registration form header. Verify the hook correctly fetches SeatInfo from the backend."
+        }
+      ]
+    },
+    {
+      "id": "REQ-2",
+      "summary": "Implement registration flow with invite code validation, pseudonym entry, and redirect to login on success",
+      "acceptanceCriteria": [
+        "Submitting an invalid or used invite code shows a clear error message.",
+        "Submitting a valid invite code allows the user to register with a pseudonym.",
+        "After successful registration the user is redirected to the login page.",
+        "Registered user is able to log in via Internet Identity."
+      ],
+      "file_operations": [
+        {
+          "path": "frontend/src/pages/SignupPage.tsx",
+          "operation": "modify",
+          "description": "The page already implements registration with invite code, pseudonym, and region fields. Ensure error handling displays clear messages for InvalidInviteCode and InviteCodeUsed registration errors. On successful registration, redirect to /login. Verify the invite code field validates against the backend register function and shows user-friendly error messages for all RegistrationError enum values."
+        },
+        {
+          "path": "frontend/src/hooks/useQueries.ts",
+          "operation": "modify",
+          "description": "Review the useRegisterUser mutation hook. Ensure it properly handles Result_1 type errors (RegistrationError variants) and surfaces them to the UI. Confirm onSuccess callback enables navigation to /login after successful registration."
+        }
+      ]
+    },
+    {
+      "id": "REQ-3",
+      "summary": "Ensure login flow uses Internet Identity exclusively and redirects authenticated users to the main feed",
+      "acceptanceCriteria": [
+        "Login page presents the Internet Identity authentication button.",
+        "Successful login redirects to the community feed or dashboard.",
+        "Accessing a protected route while unauthenticated redirects to /login.",
+        "Auth state persists across page reloads."
+      ],
+      "file_operations": [
+        {
+          "path": "frontend/src/pages/LoginPage.tsx",
+          "operation": "modify",
+          "description": "Ensure the page triggers Internet Identity login via useInternetIdentity().login() and redirects to /community (the main feed) on success. Verify the authorization component's usage instructions for Internet Identity integration. Remove any alternative authentication UI if present."
+        },
+        {
+          "path": "frontend/src/components/ProtectedRoute.tsx",
+          "operation": "modify",
+          "description": "Confirm this component redirects unauthenticated users to /login and shows a loading spinner during auth initialization. Ensure it uses useAuth() or useInternetIdentity() to check authentication state."
+        },
+        {
+          "path": "frontend/src/hooks/useInternetIdentity.ts",
+          "operation": "modify",
+          "description": "Verify the Internet Identity context persists auth state across page reloads using AuthClient. Ensure login() and clear() methods work correctly and that identity state is available immediately after page reload."
+        }
+      ]
+    },
+    {
+      "id": "REQ-4",
+      "summary": "Provide 'Happy' emotion option on post creation with Public/Private visibility toggle and confirmation modal for public posts",
+      "acceptanceCriteria": [
+        "Post creation form includes a 'Happy' emotion selector.",
+        "A Public/Private visibility toggle is present and defaults to Private.",
+        "Toggling to Public before submitting shows a confirmation modal explaining community visibility.",
+        "Submitting with Public=true creates a public post.",
+        "Submitting with Public=false creates a private post."
+      ],
+      "file_operations": [
+        {
+          "path": "frontend/src/pages/PostCreationPage.tsx",
+          "operation": "modify",
+          "description": "Ensure the emotion selector includes 'happy' as an EmotionType option. Verify the visibility toggle defaults to 'privateView'. Before submitting a post with visibility='publicView', trigger the PublicPostWarningModal. On modal acknowledgment, proceed with post creation via createPost(emotionType, content, visibility). Ensure the happy emotion is visually distinct and labeled clearly."
+        },
+        {
+          "path": "frontend/src/pages/DashboardPage.tsx",
+          "operation": "modify",
+          "description": "This page also includes post creation UI. Ensure it mirrors the emotion selector (including 'happy'), visibility toggle (defaults to Private), and triggers PublicPostWarningModal before creating a public post. Keep the UI consistent with PostCreationPage."
+        },
+        {
+          "path": "frontend/src/components/PublicPostWarningModal.tsx",
+          "operation": "modify",
+          "description": "Ensure this modal is non-dismissible and displays a clear warning about community visibility. The user must explicitly acknowledge before the post is submitted publicly. The modal should emphasize witnessing over performance."
+        }
+      ]
+    },
+    {
+      "id": "REQ-5",
+      "summary": "Display all public posts in chronological order on the Community Feed page",
+      "acceptanceCriteria": [
+        "Community Feed page lists all public posts sorted by creation date (newest first).",
+        "A newly created public post appears in the feed after creation.",
+        "Each post card shows the pseudonym, emotion badge, content, and timestamp.",
+        "No popularity scores, engagement counts, or trending indicators are shown."
       ],
       "file_operations": [
         {
           "path": "frontend/src/pages/CommunityFeedPage.tsx",
           "operation": "modify",
-          "description": "Remove any client-side sorting, ranking, or filtering logic applied to the fetched public posts array. Ensure the component renders posts exactly as returned by the backend query (getPublicPosts) without re-ordering. Remove any explore, suggested posts, or trending sections from the JSX. Verify that the page displays a simple chronological list of PublicPostCard components with no additional discovery UI."
+          "description": "Ensure the page fetches public posts via useGetPublicPosts() and sorts them by createdAt (newest first). Each post is rendered using PublicPostCard. Confirm no engagement metrics (reaction counts, comment counts, view counts) are displayed. After creating a public post, the feed should refresh automatically or on manual reload."
         },
         {
           "path": "frontend/src/components/PublicPostCard.tsx",
           "operation": "modify",
-          "description": "Remove all engagement metric displays (reaction count badges, comment count indicators, view counts) from the card UI when rendered in the community feed context. Keep the text reaction and comment interaction capabilities intact (users can still add reactions and comments), but do not display aggregate counts or engagement statistics. Ensure the card focuses solely on post content, emotion badge, and interaction buttons without numerical feedback."
+          "description": "Verify the card displays the author's pseudonym, EmotionBadge, post content, and a relative or absolute timestamp. Remove or hide any reaction counts, comment counts, popularity scores, or trending badges. Ensure the UI reflects witnessing and containment principles."
+        }
+      ]
+    },
+    {
+      "id": "REQ-6",
+      "summary": "Display predefined text reactions on public post cards without showing reaction counts",
+      "acceptanceCriteria": [
+        "Each public post card shows predefined reaction options.",
+        "An authenticated user can select a reaction on any post.",
+        "No reaction counts, totals, or popularity indicators are displayed.",
+        "A user's own reaction is visually acknowledged (e.g., highlighted) but not counted publicly."
+      ],
+      "file_operations": [
+        {
+          "path": "frontend/src/components/PublicPostCard.tsx",
+          "operation": "modify",
+          "description": "Add predefined text reaction options (e.g., 'I feel this', 'You are not alone') to the post card. Use the addTextReaction(postId, reactionText) backend method to submit reactions. Visually highlight the user's own reaction (e.g., with a border or background color) but do not display reaction counts or totals. Ensure reactions are treated as witnessing gestures, not engagement metrics."
+        },
+        {
+          "path": "frontend/src/hooks/useQueries.ts",
+          "operation": "modify",
+          "description": "Ensure useAddTextReaction mutation hook is available and triggers a refetch of the post or reactions after submission. Confirm the hook does not fetch or return reaction counts to the UI."
+        }
+      ]
+    },
+    {
+      "id": "REQ-7",
+      "summary": "Display a comments section on public post cards and allow authenticated users to submit comments",
+      "acceptanceCriteria": [
+        "Each public post card has a visible comments section.",
+        "An authenticated user can write and submit a comment.",
+        "Comments appear under the post in chronological order.",
+        "No vote, like, or popularity mechanism is present on comments."
+      ],
+      "file_operations": [
+        {
+          "path": "frontend/src/components/PublicPostCard.tsx",
+          "operation": "modify",
+          "description": "Ensure the card includes a comments section that fetches comments via getCommentsByPost(postId). Display comments in chronological order (oldest first or as submitted). Provide a text input and submit button for authenticated users to add a comment using addComment(postId, content). Do not display upvotes, likes, or any popularity indicators on comments."
+        },
+        {
+          "path": "frontend/src/hooks/useQueries.ts",
+          "operation": "modify",
+          "description": "Verify useGetCommentsByPost and useAddComment hooks are available. Ensure useAddComment mutation invalidates the comments query for the relevant post after submission, so new comments appear immediately."
+        }
+      ]
+    },
+    {
+      "id": "REQ-8",
+      "summary": "Display a Flag/Report button on public posts authored by other users and submit flags to the backend",
+      "acceptanceCriteria": [
+        "A Flag/Report button is visible on public posts not authored by the current user.",
+        "Clicking Flag submits the report to the backend.",
+        "A user cannot flag their own post.",
+        "A confirmation or acknowledgment is shown after flagging.",
+        "The flag is stored on the backend associated with the post."
+      ],
+      "file_operations": [
+        {
+          "path": "frontend/src/components/PublicPostCard.tsx",
+          "operation": "modify",
+          "description": "Add a Flag/Report button to the post card. Show the button only if the current user is not the post author (compare identity.getPrincipal() with post.author). On click, prompt for an optional reason and call flagPost(postId, reason). Show a toast or confirmation message after submission. Ensure the button is labeled clearly and does not imply punitive action."
+        },
+        {
+          "path": "frontend/src/hooks/useQueries.ts",
+          "operation": "modify",
+          "description": "Ensure useFlagPost mutation hook is available and submits flags to the backend. After flagging, invalidate relevant queries (e.g., public posts or flagged posts) if needed."
+        }
+      ]
+    },
+    {
+      "id": "REQ-9",
+      "summary": "Add a Flagged Posts tab to the Admin panel listing flagged posts with a remove button",
+      "acceptanceCriteria": [
+        "Admin dashboard has a Flagged Posts tab.",
+        "The tab lists all posts that have received at least one flag.",
+        "Each entry shows the post content, author pseudonym, and creation date.",
+        "Admin can permanently remove a flagged post via a confirmation dialog.",
+        "Removed posts no longer appear in the community feed."
+      ],
+      "file_operations": [
+        {
+          "path": "frontend/src/components/AdminDashboard.tsx",
+          "operation": "modify",
+          "description": "Ensure the Flagged Posts tab is visible and uses the AdminFlaggedPosts component. Verify the tab is included in the tabbed navigation and accessible to admins only."
+        },
+        {
+          "path": "frontend/src/components/AdminFlaggedPosts.tsx",
+          "operation": "modify",
+          "description": "Ensure this component fetches flagged posts via useGetFlaggedPosts() or useAdminGetAllFlaggedPostsWithRecords() and displays each post's content, author pseudonym, and creation date. Provide a Remove/Delete button that calls adminRemovePost(postId) or adminDeletePost(postId) after a confirmation dialog. Do not display flag counts or popularity metrics."
+        },
+        {
+          "path": "frontend/src/hooks/useQueries.ts",
+          "operation": "modify",
+          "description": "Verify hooks for fetching flagged posts and removing posts (useGetFlaggedPosts, useAdminGetAllFlaggedPostsWithRecords, useAdminRemovePost, useAdminDeletePost) are available. Ensure mutations invalidate the flagged posts and public posts queries after removal."
+        }
+      ]
+    },
+    {
+      "id": "REQ-10",
+      "summary": "Remove or hide all gamification, engagement metrics, and popularity indicators from every page",
+      "acceptanceCriteria": [
+        "No streak counters, badges, points, or gamification UI is visible anywhere.",
+        "No engagement metrics (view counts, reaction totals, comment counts) are displayed publicly.",
+        "No trending, popular, or recommended post sections exist.",
+        "The overall UI communicates calm, stability, and containment."
+      ],
+      "file_operations": [
+        {
+          "path": "frontend/src/components/PublicPostCard.tsx",
+          "operation": "modify",
+          "description": "Remove or hide any reaction counts, comment counts, view counts, or engagement metrics. Ensure the card displays only the content, author pseudonym, emotion badge, timestamp, and reaction/comment UI without numerical indicators. Verify no trending or popularity badges are shown."
+        },
+        {
+          "path": "frontend/src/pages/CommunityFeedPage.tsx",
+          "operation": "modify",
+          "description": "Remove any trending, popular, or recommended post sections. Ensure posts are displayed strictly in chronological order without sorting by engagement. Verify no leaderboards, streak counters, or growth-oriented UI elements are present."
+        },
+        {
+          "path": "frontend/src/pages/DashboardPage.tsx",
+          "operation": "modify",
+          "description": "Remove any streak counters, badges, points, or gamification elements from the dashboard. Ensure the post creation flow focuses on emotional expression and witnessing, not performance or engagement."
+        },
+        {
+          "path": "frontend/src/pages/MyPostsPage.tsx",
+          "operation": "modify",
+          "description": "Ensure the user's post archive displays posts without engagement metrics (no reaction counts, comment counts, or popularity indicators). Keep the UI focused on personal reflection and containment."
+        },
+        {
+          "path": "frontend/src/components/Header.tsx",
+          "operation": "modify",
+          "description": "Remove any gamification UI elements (e.g., streak counters, badges, points) from the header. Keep navigation simple and calm, reflecting the containment principle."
+        },
+        {
+          "path": "frontend/src/index.css",
+          "operation": "modify",
+          "description": "Review the global stylesheet and ensure no CSS variables, classes, or utility tokens are defined for gamification elements (e.g., streak-badge, popularity-score). Keep the design system focused on calm, neutral, and muted aesthetics."
+        },
+        {
+          "path": "frontend/tailwind.config.js",
+          "operation": "modify",
+          "description": "Review Tailwind configuration and ensure no gamification-related color tokens, shadows, or animations are defined. Keep the design system aligned with witnessing and containment principles."
         }
       ]
     }

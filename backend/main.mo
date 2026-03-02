@@ -13,14 +13,16 @@ import Nat "mo:core/Nat";
 import InviteLinksModule "invite-links/invite-links-module";
 import MixinAuthorization "authorization/MixinAuthorization";
 import AccessControl "authorization/access-control";
+import Migration "migration";
 
+(with migration = Migration.run)
 actor {
   let accessControlState = AccessControl.initState();
   let inviteState = InviteLinksModule.initState();
   include MixinAuthorization(accessControlState);
 
   // Persistent Variables
-  let users = Map.empty<Principal, User>();
+  let users : Map.Map<Principal, User> = Map.empty<Principal, User>();
   let posts = Map.empty<Text, Post>();
   let reactions = Map.empty<Text, Reaction>();
   let textReactions = Map.empty<Text, TextReaction>();
@@ -998,6 +1000,8 @@ actor {
     };
   };
 
+  // An authenticated registered user may flag a post authored by another user.
+  // Users must not be able to flag their own posts.
   public shared ({ caller }) func flagPost(postId : Text, reason : Text) : async Text {
     if (caller.isAnonymous()) {
       Runtime.trap("Anonymous principals cannot flag posts");
@@ -1005,7 +1009,13 @@ actor {
     requireRegisteredUser(caller);
 
     switch (posts.get(postId)) {
-      case (?_) {
+      case (?post) {
+        if (post.visibility == #privateView) {
+          Runtime.trap("Cannot flag a private post");
+        };
+        if (post.author == caller) {
+          Runtime.trap("Unauthorized: You cannot flag your own post");
+        };
         let flagId = await generateUuid();
         let flag : Flag = {
           id = flagId;
@@ -1239,7 +1249,6 @@ actor {
     switch (users.get(userId)) {
       case (null) { Runtime.trap("User does not exist") };
       case (?user) {
-        let now = Time.now();
         let updated : User = {
           id = user.id;
           pseudonym = user.pseudonym;
@@ -1262,7 +1271,7 @@ actor {
     switch (posts.get(postId)) {
       case (null) { Runtime.trap("Post does not exist") };
       case (?_) {
-        posts.remove(postId); // Remove post
+        posts.remove(postId);
       };
     };
   };

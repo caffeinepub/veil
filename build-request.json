@@ -1,66 +1,222 @@
 {
   "kind": "build_request",
-  "title": "Enforce strict chronological public-only home feed",
-  "projectName": "Veil",
-  "priority": "normal",
+  "title": "VEIL MVP — Closed Emotional Ecosystem Core Flow",
+  "projectName": "VEIL",
+  "priority": "high",
   "requirements": [
     {
       "id": "REQ-1",
-      "text": "The backend getPublicPosts (or equivalent feed query) must return only posts where visibility is public, sorted strictly by createdAt descending. No ranking score, engagement weight, or any secondary sort criteria may be applied.",
-      "target": "backend",
-      "source": {
-        "messageIds": [
-          "msg-4"
-        ],
-        "quotes": [
-          "Public posts only.",
-          "Sorted by createdAt DESC.",
-          "No ranking.",
-          "No engagement sorting."
-        ]
-      },
-      "acceptanceCriteria": [
-        "Only posts with public visibility are returned by the feed query.",
-        "Posts are ordered by createdAt descending — newest first.",
-        "No ranking algorithm, engagement score, or weighted sort is applied.",
-        "Private posts never appear in the feed response."
-      ]
-    },
-    {
-      "id": "REQ-2",
-      "text": "CommunityFeedPage must render the feed exactly as returned (public posts, createdAt DESC). Remove any client-side re-sorting, ranking, engagement-based filtering, explore sections, or suggested-posts sections. No metrics (like counts, reaction counts, view counts) should be displayed on feed post cards in this page.",
+      "text": "On the Signup page, display the remaining available seat count fetched from the backend so users can see how many spots are left in the closed ecosystem before registering.",
       "target": "frontend",
       "source": {
         "messageIds": [
           "msg-4"
         ],
         "quotes": [
-          "No ranking.",
-          "No metrics.",
-          "No explore.",
-          "No suggested posts.",
-          "No engagement sorting."
+          "See seat counter"
         ]
       },
       "acceptanceCriteria": [
-        "CommunityFeedPage displays only public posts in the order they are returned from the backend (createdAt DESC).",
-        "No explore section, suggested posts section, or trending section is rendered.",
-        "No engagement metrics (reaction counts, comment counts, view counts) are displayed on PublicPostCard within the feed.",
-        "No client-side re-sorting or ranking logic is applied to the fetched post list.",
-        "The feed contains no UI affordances for filtering, ranking, or discovering posts beyond the plain chronological list."
+        "Signup page fetches and displays the remaining seat count from the backend.",
+        "Seat count updates when a new user registers.",
+        "Count is displayed clearly near the registration form without framing it as urgency or social pressure."
+      ]
+    },
+    {
+      "id": "REQ-2",
+      "text": "Ensure the registration flow requires a valid invite code. A user who submits an invalid or already-used invite code must see a clear error. A user with a valid code must be able to complete registration with a pseudonym and proceed to login.",
+      "target": "both",
+      "source": {
+        "messageIds": [
+          "msg-4"
+        ],
+        "quotes": [
+          "Register using invite code"
+        ]
+      },
+      "acceptanceCriteria": [
+        "Submitting an invalid or used invite code shows a clear error message.",
+        "Submitting a valid invite code allows the user to register with a pseudonym.",
+        "After successful registration the user is redirected to the login page.",
+        "Registered user is able to log in via Internet Identity."
+      ]
+    },
+    {
+      "id": "REQ-3",
+      "text": "Ensure the login flow uses Internet Identity exclusively. After authenticating, the user must be redirected to the main feed or dashboard. Unauthenticated users attempting to access protected pages must be redirected to the login page.",
+      "target": "frontend",
+      "source": {
+        "messageIds": [
+          "msg-4"
+        ],
+        "quotes": [
+          "Login securely"
+        ]
+      },
+      "acceptanceCriteria": [
+        "Login page presents the Internet Identity authentication button.",
+        "Successful login redirects to the community feed or dashboard.",
+        "Accessing a protected route while unauthenticated redirects to /login.",
+        "Auth state persists across page reloads."
+      ]
+    },
+    {
+      "id": "REQ-4",
+      "text": "On the post creation page, provide a 'Happy' emotion option. The user must be able to write content, select 'Happy' as the emotion, and submit the post. The post creation UI must include a Public/Private visibility toggle. The default state must be Private. If the user toggles to Public, a confirmation warning modal must be shown before the post is submitted publicly.",
+      "target": "frontend",
+      "source": {
+        "messageIds": [
+          "msg-4"
+        ],
+        "quotes": [
+          "Create a Happy post",
+          "Toggle Public"
+        ]
+      },
+      "acceptanceCriteria": [
+        "Post creation form includes a 'Happy' emotion selector.",
+        "A Public/Private visibility toggle is present and defaults to Private.",
+        "Toggling to Public before submitting shows a confirmation modal explaining community visibility.",
+        "Submitting with Public=true creates a public post.",
+        "Submitting with Public=false creates a private post."
+      ]
+    },
+    {
+      "id": "REQ-5",
+      "text": "The Community Feed page must display all public posts in chronological order. After a user creates a public 'Happy' post, it must appear in the feed immediately (or on refresh) without requiring any additional action.",
+      "target": "frontend",
+      "source": {
+        "messageIds": [
+          "msg-4"
+        ],
+        "quotes": [
+          "See it appear in feed"
+        ]
+      },
+      "acceptanceCriteria": [
+        "Community Feed page lists all public posts sorted by creation date (newest first).",
+        "A newly created public post appears in the feed after creation.",
+        "Each post card shows the pseudonym, emotion badge, content, and timestamp.",
+        "No popularity scores, engagement counts, or trending indicators are shown."
+      ]
+    },
+    {
+      "id": "REQ-6",
+      "text": "On each public post card in the Community Feed, display a set of predefined text reactions (e.g., 'I feel this', 'You are not alone'). Any authenticated user must be able to select a reaction. Reaction counts must NOT be displayed — reactions serve as witnessing gestures, not engagement metrics.",
+      "target": "both",
+      "source": {
+        "messageIds": [
+          "msg-4"
+        ],
+        "quotes": [
+          "React to it",
+          "No metrics.",
+          "No popularity systems."
+        ]
+      },
+      "acceptanceCriteria": [
+        "Each public post card shows predefined reaction options.",
+        "An authenticated user can select a reaction on any post.",
+        "No reaction counts, totals, or popularity indicators are displayed.",
+        "A user's own reaction is visually acknowledged (e.g., highlighted) but not counted publicly."
+      ]
+    },
+    {
+      "id": "REQ-7",
+      "text": "On each public post card in the Community Feed, display a comments section. Any authenticated user must be able to submit a text comment on a post. Comments must appear under the post in submission order. No upvotes, likes, or sorting by popularity.",
+      "target": "both",
+      "source": {
+        "messageIds": [
+          "msg-4"
+        ],
+        "quotes": [
+          "Comment on it"
+        ]
+      },
+      "acceptanceCriteria": [
+        "Each public post card has a visible comments section.",
+        "An authenticated user can write and submit a comment.",
+        "Comments appear under the post in chronological order.",
+        "No vote, like, or popularity mechanism is present on comments."
+      ]
+    },
+    {
+      "id": "REQ-8",
+      "text": "On public post cards authored by other users, display a 'Flag' or 'Report' button. An authenticated user must be able to flag a post from another account. The flag action must be submitted to the backend and recorded against the post.",
+      "target": "both",
+      "source": {
+        "messageIds": [
+          "msg-4"
+        ],
+        "quotes": [
+          "Flag it (from another account)"
+        ]
+      },
+      "acceptanceCriteria": [
+        "A Flag/Report button is visible on public posts not authored by the current user.",
+        "Clicking Flag submits the report to the backend.",
+        "A user cannot flag their own post.",
+        "A confirmation or acknowledgment is shown after flagging.",
+        "The flag is stored on the backend associated with the post."
+      ]
+    },
+    {
+      "id": "REQ-9",
+      "text": "The Admin panel must include a 'Flagged Posts' tab listing all posts that have been reported by users. Each entry must show the post content and a button for the admin to permanently remove the post. No popularity metrics or report counts visible to the admin beyond the post content.",
+      "target": "both",
+      "source": {
+        "messageIds": [
+          "msg-4"
+        ],
+        "quotes": [
+          "View flagged post in admin panel"
+        ]
+      },
+      "acceptanceCriteria": [
+        "Admin dashboard has a Flagged Posts tab.",
+        "The tab lists all posts that have received at least one flag.",
+        "Each entry shows the post content, author pseudonym, and creation date.",
+        "Admin can permanently remove a flagged post via a confirmation dialog.",
+        "Removed posts no longer appear in the community feed."
+      ]
+    },
+    {
+      "id": "REQ-10",
+      "text": "Remove or hide all gamification elements, engagement metrics, popularity indicators, streak counters, leaderboards, and growth-oriented UI from every page. The interface must reflect containment and witnessing — not performance or engagement optimization.",
+      "target": "frontend",
+      "source": {
+        "messageIds": [
+          "msg-4"
+        ],
+        "quotes": [
+          "No gamification.",
+          "No metrics.",
+          "No popularity systems.",
+          "Witnessing over performance.",
+          "Containment over engagement."
+        ]
+      },
+      "acceptanceCriteria": [
+        "No streak counters, badges, points, or gamification UI is visible anywhere.",
+        "No engagement metrics (view counts, reaction totals, comment counts) are displayed publicly.",
+        "No trending, popular, or recommended post sections exist.",
+        "The overall UI communicates calm, stability, and containment."
       ]
     }
   ],
   "constraints": [
-    "Do not alter authentication, post creation, or visibility toggle logic.",
-    "Do not modify files under frontend/src/hooks/useInternetIdentity.ts, frontend/src/hooks/useActor.ts, frontend/src/main.tsx, or frontend/src/components/ui.",
-    "Feed ordering must be purely chronological (createdAt DESC) — no secondary sort by any engagement signal."
+    "Do not add any gamification, streak tracking, leaderboards, or engagement metrics.",
+    "Do not display reaction counts, comment counts, or any popularity signals publicly.",
+    "Authentication must use Internet Identity exclusively — no username/password auth.",
+    "Registration must require a valid invite code.",
+    "The closed ecosystem principle must be enforced: no open registration, no public-facing growth hooks."
   ],
   "nonGoals": [
-    "Adding explore, discovery, or trending features.",
-    "Adding suggested or recommended posts.",
-    "Displaying engagement metrics or reaction counts in the feed.",
-    "Any form of algorithmic or ranked feed."
+    "Subscription or payment flows are out of scope for this MVP.",
+    "Direct messaging between users is out of scope.",
+    "Crisis detection and emotional alert systems are out of scope for this MVP.",
+    "Admin user management beyond viewing flagged posts is out of scope.",
+    "Any third-party integrations (email, SMS, social) are out of scope."
   ],
   "imageRequirements": {
     "required": [],

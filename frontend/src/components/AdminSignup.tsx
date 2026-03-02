@@ -1,122 +1,63 @@
 import { useState } from 'react';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
-import { Loader2, CheckCircle2 } from 'lucide-react';
-import { useAdminGenerateInviteCode, useAdminRegister } from '../hooks/useQueries';
+import { useAdminRegister, useAdminGenerateInviteCode } from '../hooks/useQueries';
 import { Region } from '../backend';
+import { toast } from 'sonner';
 
 export default function AdminSignup() {
   const [pseudonym, setPseudonym] = useState('');
-  const [region, setRegion] = useState<Region>(Region.India);
-  const [successMessage, setSuccessMessage] = useState('');
-
-  const generateCode = useAdminGenerateInviteCode();
+  const [region, setRegion] = useState<Region>(Region.Global);
   const adminRegister = useAdminRegister();
-
-  const isPending = generateCode.isPending || adminRegister.isPending;
-  const error = generateCode.error || adminRegister.error;
+  const generateCode = useAdminGenerateInviteCode();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setSuccessMessage('');
+    if (!pseudonym.trim()) return;
 
     try {
-      // Generate a fresh invite code, then register with it
-      const inviteCode = await generateCode.mutateAsync();
-      await adminRegister.mutateAsync({ pseudonym: pseudonym.trim(), region, inviteCode });
-      setSuccessMessage('Account created successfully.');
+      const code = await generateCode.mutateAsync();
+      await adminRegister.mutateAsync({ pseudonym: pseudonym.trim(), region, inviteCode: code });
+      toast.success('Member account created.');
       setPseudonym('');
-      setRegion(Region.India);
-    } catch {
-      // error shown via error state
+      setRegion(Region.Global);
+    } catch (err: any) {
+      toast.error(err?.message || 'Could not create account.');
     }
   };
 
-  const errorMessage = error
-    ? error instanceof Error
-      ? error.message
-      : 'An unexpected error occurred.'
-    : null;
+  const isPending = generateCode.isPending || adminRegister.isPending;
 
   return (
-    <Card className="max-w-md">
-      <CardHeader>
-        <CardTitle className="font-serif text-lg">Create Account (Admin)</CardTitle>
-        <CardDescription className="text-sm">
-          Register a new member account. An invite code will be generated and used automatically.
-        </CardDescription>
-      </CardHeader>
-      <CardContent>
-        <form onSubmit={handleSubmit} className="space-y-5">
-          <div className="space-y-1.5">
-            <Label htmlFor="admin-pseudonym">Pseudonym</Label>
-            <Input
-              id="admin-pseudonym"
-              type="text"
-              placeholder="Enter a pseudonym"
-              value={pseudonym}
-              onChange={(e) => {
-                setPseudonym(e.target.value);
-                if (successMessage) setSuccessMessage('');
-              }}
-              disabled={isPending}
-              required
-            />
-          </div>
+    <form onSubmit={handleSubmit} className="flex flex-col gap-4 max-w-sm">
+      <div className="flex flex-col gap-1.5">
+        <label className="text-xs text-muted-foreground">Anonymous display name</label>
+        <input
+          value={pseudonym}
+          onChange={(e) => setPseudonym(e.target.value)}
+          placeholder="e.g. quiet_river"
+          required
+          className="text-sm bg-muted border border-border rounded-xl px-3 py-2.5 text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+        />
+      </div>
 
-          <div className="space-y-2">
-            <Label>Region</Label>
-            <RadioGroup
-              value={region}
-              onValueChange={(val) => setRegion(val as Region)}
-              className="flex gap-6"
-              disabled={isPending}
-            >
-              <div className="flex items-center gap-2">
-                <RadioGroupItem value={Region.India} id="admin-region-india" />
-                <Label htmlFor="admin-region-india" className="cursor-pointer font-normal">
-                  India
-                </Label>
-              </div>
-              <div className="flex items-center gap-2">
-                <RadioGroupItem value={Region.Global} id="admin-region-global" />
-                <Label htmlFor="admin-region-global" className="cursor-pointer font-normal">
-                  Global
-                </Label>
-              </div>
-            </RadioGroup>
-          </div>
+      <div className="flex flex-col gap-1.5">
+        <label className="text-xs text-muted-foreground">Region</label>
+        <select
+          value={region}
+          onChange={(e) => setRegion(e.target.value as Region)}
+          className="text-sm bg-muted border border-border rounded-xl px-3 py-2.5 text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+        >
+          <option value={Region.Global}>Global</option>
+          <option value={Region.India}>India</option>
+        </select>
+      </div>
 
-          <Button
-            type="submit"
-            disabled={isPending || !pseudonym.trim()}
-            className="w-full"
-          >
-            {isPending ? (
-              <>
-                <Loader2 size={15} className="animate-spin mr-2" />
-                Creating account…
-              </>
-            ) : (
-              'Create Account'
-            )}
-          </Button>
-
-          {successMessage && (
-            <div className="flex items-center gap-2 text-sm text-green-700 dark:text-green-400">
-              <CheckCircle2 size={15} />
-              {successMessage}
-            </div>
-          )}
-
-          {errorMessage && (
-            <p className="text-sm text-destructive">{errorMessage}</p>
-          )}
-        </form>
-      </CardContent>
-    </Card>
+      <button
+        type="submit"
+        disabled={isPending || !pseudonym.trim()}
+        className="py-2.5 rounded-xl bg-secondary text-secondary-foreground text-sm font-medium hover:opacity-80 disabled:opacity-40"
+      >
+        {isPending ? 'Creating…' : 'Create member account'}
+      </button>
+    </form>
   );
 }

@@ -1,243 +1,214 @@
-import { useNavigate } from '@tanstack/react-router';
+import { useState } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import { Label } from '@/components/ui/label';
+import { ShieldAlert, Loader2, VolumeX, Send } from 'lucide-react';
+import { toast } from 'sonner';
 import AdminPublicPostsList from './AdminPublicPostsList';
 import AdminUserManagement from './AdminUserManagement';
 import AdminInviteCodes from './AdminInviteCodes';
 import AdminUserPostHistory from './AdminUserPostHistory';
-import AdminSignup from './AdminSignup';
 import AdminFlaggedPosts from './AdminFlaggedPosts';
 import AdminFlaggedComments from './AdminFlaggedComments';
 import AdminAllUsersTab from './AdminAllUsersTab';
 import AdminEmotionalAlertsTab from './AdminEmotionalAlertsTab';
 import AdminCrisisRiskTab from './AdminCrisisRiskTab';
 import {
-  useAdminGetSeatCount,
-  useAdminGetESPFlaggedUsers,
-  useAdminClearESPFlag,
-  useAdminGetEmotionalAlerts,
   useGetCrisisRiskPosts,
+  useAdminGetHighRiskEmotionAlerts,
+  useCheckEcosystemSilence,
+  usePublishPromptPost,
 } from '../hooks/useQueries';
-import { ArrowLeft, Users, AlertTriangle, ShieldAlert, Loader2 } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Principal } from '@dfinity/principal';
+import { EmotionType } from '../backend';
 
 export default function AdminDashboard() {
-  const navigate = useNavigate();
-  const { data: seatInfo, isLoading: seatLoading } = useAdminGetSeatCount();
-  const { data: espUsers, isLoading: espLoading } = useAdminGetESPFlaggedUsers();
-  const { data: emotionalAlerts } = useAdminGetEmotionalAlerts();
-  const { data: crisisPosts } = useGetCrisisRiskPosts();
-  const clearESPFlag = useAdminClearESPFlag();
+  const { data: crisisRiskPosts } = useGetCrisisRiskPosts();
+  const { data: emotionAlerts } = useAdminGetHighRiskEmotionAlerts();
+  const { data: isSilent, isLoading: silenceLoading } = useCheckEcosystemSilence();
+  const publishPromptPost = usePublishPromptPost();
 
-  const currentSeats = seatInfo ? Number(seatInfo.currentSeats) : 0;
-  const maxSeats = seatInfo ? Number(seatInfo.maxSeats) : 100;
-  const emotionalAlertCount = emotionalAlerts?.length ?? 0;
-  const crisisCount = crisisPosts?.length ?? 0;
+  const [selectedEmotion, setSelectedEmotion] = useState<EmotionType.happy | EmotionType.confess>(
+    EmotionType.happy
+  );
 
-  const handleClearESP = async (principalStr: string) => {
-    try {
-      await clearESPFlag.mutateAsync(Principal.fromText(principalStr));
-    } catch {
-      // silently handle
-    }
+  const crisisCount = crisisRiskPosts?.length ?? 0;
+  const emotionAlertCount = emotionAlerts?.length ?? 0;
+
+  const handlePublishPrompt = () => {
+    publishPromptPost.mutate(selectedEmotion, {
+      onSuccess: () => {
+        toast.success('Prompt post published to the community feed.');
+      },
+      onError: (err: any) => {
+        toast.error(err?.message ?? 'Failed to publish prompt post.');
+      },
+    });
   };
 
   return (
-    <div className="max-w-5xl mx-auto px-4 py-10 space-y-6">
-      <div className="flex items-center gap-3">
-        <button
-          onClick={() => navigate({ to: '/dashboard' })}
-          className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
-        >
-          <ArrowLeft size={15} />
-          Dashboard
-        </button>
-      </div>
-
-      <div className="space-y-1">
-        <h1 className="font-serif text-2xl font-semibold text-foreground">Admin Panel</h1>
-        <p className="text-sm text-muted-foreground">Manage the Veil community</p>
-      </div>
-
-      {/* Seat counter */}
-      <div className="flex items-center gap-4 p-4 bg-card border border-border rounded-xl">
-        <div className="flex items-center gap-2 text-muted-foreground">
-          <Users size={16} />
-          <span className="text-sm font-medium text-foreground">Seat Usage</span>
-        </div>
-        {seatLoading ? (
-          <Loader2 size={14} className="animate-spin text-muted-foreground" />
-        ) : (
-          <div className="flex items-center gap-2">
-            <span className="text-sm font-semibold text-foreground">{currentSeats}</span>
-            <span className="text-sm text-muted-foreground">/ {maxSeats} seats filled</span>
-            <div className="ml-2 h-2 w-24 bg-muted rounded-full overflow-hidden">
-              <div
-                className="h-full bg-primary rounded-full transition-all"
-                style={{ width: `${Math.min((currentSeats / maxSeats) * 100, 100)}%` }}
-              />
+    <div className="space-y-4">
+      {/* ── Ecosystem Silence Banner ── */}
+      {!silenceLoading && isSilent && (
+        <div className="rounded-lg border border-amber-300 bg-amber-50 dark:bg-amber-950/30 dark:border-amber-700 p-4 space-y-4">
+          <div className="flex items-start gap-3">
+            <VolumeX className="h-5 w-5 text-amber-600 dark:text-amber-400 mt-0.5 shrink-0" />
+            <div className="flex-1 min-w-0">
+              <p className="font-semibold text-amber-800 dark:text-amber-300 text-sm">
+                Ecosystem Silence Detected
+              </p>
+              <p className="text-amber-700 dark:text-amber-400 text-xs mt-0.5">
+                No public posts have been created in the last 5 days. You may publish a gentle
+                prompt to encourage the community.
+              </p>
             </div>
           </div>
-        )}
-      </div>
 
-      {/* Crisis Risk Alert Banner */}
+          <div className="pl-8 space-y-3">
+            <p className="text-xs font-medium text-amber-800 dark:text-amber-300">
+              Select emotion mode for the prompt post:
+            </p>
+            <RadioGroup
+              value={selectedEmotion}
+              onValueChange={(val) =>
+                setSelectedEmotion(val as EmotionType.happy | EmotionType.confess)
+              }
+              className="flex gap-6"
+            >
+              <div className="flex items-center gap-2">
+                <RadioGroupItem
+                  value={EmotionType.happy}
+                  id="silence-happy"
+                  className="border-amber-500 text-amber-600"
+                />
+                <Label
+                  htmlFor="silence-happy"
+                  className="text-sm text-amber-800 dark:text-amber-300 cursor-pointer"
+                >
+                  Happy
+                </Label>
+              </div>
+              <div className="flex items-center gap-2">
+                <RadioGroupItem
+                  value={EmotionType.confess}
+                  id="silence-confess"
+                  className="border-amber-500 text-amber-600"
+                />
+                <Label
+                  htmlFor="silence-confess"
+                  className="text-sm text-amber-800 dark:text-amber-300 cursor-pointer"
+                >
+                  Confess
+                </Label>
+              </div>
+            </RadioGroup>
+
+            <Button
+              size="sm"
+              onClick={handlePublishPrompt}
+              disabled={publishPromptPost.isPending}
+              className="bg-amber-600 hover:bg-amber-700 text-white border-0 gap-2"
+            >
+              {publishPromptPost.isPending ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              ) : (
+                <Send className="h-3.5 w-3.5" />
+              )}
+              Publish Prompt Post
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {/* ── Crisis Alert Banner ── */}
       {crisisCount > 0 && (
-        <div className="flex items-center gap-3 p-4 rounded-xl border-2 border-rose-300/80 dark:border-rose-700/60 bg-rose-50/70 dark:bg-rose-950/25">
-          <ShieldAlert size={16} className="text-rose-600 dark:text-rose-400 shrink-0" />
-          <div className="flex-1 min-w-0">
-            <p className="text-sm font-semibold text-rose-800 dark:text-rose-300">
+        <div className="rounded-lg border border-red-300 bg-red-50 dark:bg-red-950/30 dark:border-red-700 p-4 flex items-start gap-3">
+          <ShieldAlert className="h-5 w-5 text-red-600 dark:text-red-400 mt-0.5 shrink-0" />
+          <div>
+            <p className="font-semibold text-red-800 dark:text-red-300 text-sm">
               Crisis Risk Alert
             </p>
-            <p className="text-xs text-rose-700 dark:text-rose-400 mt-0.5">
-              {crisisCount} post{crisisCount !== 1 ? 's require' : ' requires'} immediate human
-              review. Open the <strong>Crisis Risk</strong> tab to respond.
+            <p className="text-red-700 dark:text-red-400 text-xs mt-0.5">
+              {crisisCount} post{crisisCount !== 1 ? 's' : ''} flagged for crisis risk. Review
+              immediately in the Crisis Risk tab.
             </p>
           </div>
         </div>
       )}
 
-      {/* Emotional Monitoring Alert Banner */}
-      {emotionalAlertCount > 0 && (
-        <div className="flex items-center gap-3 p-4 rounded-xl border border-amber-300/60 dark:border-amber-700/50 bg-amber-50/60 dark:bg-amber-950/20">
-          <AlertTriangle size={16} className="text-amber-600 dark:text-amber-400 shrink-0" />
-          <div className="flex-1 min-w-0">
-            <p className="text-sm font-medium text-amber-800 dark:text-amber-300">
-              Emotional Monitoring Alert
-            </p>
-            <p className="text-xs text-amber-700 dark:text-amber-400 mt-0.5">
-              {emotionalAlertCount} user{emotionalAlertCount !== 1 ? 's have' : ' has'} posted 5+
-              BROKE posts in the last 3 days. Review in the <strong>Alerts</strong> tab.
-            </p>
-          </div>
-        </div>
-      )}
-
-      {/* ESP Flagged Users */}
-      {!espLoading && espUsers && espUsers.length > 0 && (
-        <div className="p-4 bg-card border border-border rounded-xl space-y-3">
-          <div className="flex items-center gap-2">
-            <AlertTriangle size={15} className="text-amber-600 dark:text-amber-400" />
-            <span className="text-sm font-medium text-foreground">
-              Emotional Stability Protocol — {espUsers.length} user{espUsers.length !== 1 ? 's' : ''} flagged
-            </span>
-          </div>
-          <div className="space-y-2">
-            {espUsers.map((principal: any) => {
-              const principalStr = principal.toString();
-              return (
-                <div
-                  key={principalStr}
-                  className="flex items-center justify-between gap-2 py-1.5 border-t border-border/50"
-                >
-                  <span className="text-xs font-mono text-muted-foreground">
-                    {principalStr.slice(0, 24)}…
-                  </span>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => handleClearESP(principalStr)}
-                    disabled={clearESPFlag.isPending}
-                    className="h-7 text-xs"
-                  >
-                    {clearESPFlag.isPending ? (
-                      <Loader2 size={11} className="animate-spin mr-1" />
-                    ) : null}
-                    Clear Flag
-                  </Button>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      )}
-
-      <Tabs defaultValue="crisis">
-        <TabsList className="flex flex-wrap h-auto gap-1 w-full justify-start bg-muted/50 p-1 rounded-xl">
-          <TabsTrigger
-            value="crisis"
-            className="text-xs relative data-[state=active]:bg-rose-600 data-[state=active]:text-white"
-          >
-            <ShieldAlert size={12} className="mr-1" />
+      {/* ── Tabs ── */}
+      <Tabs defaultValue="crisis" className="w-full">
+        <TabsList className="flex flex-wrap h-auto gap-1 mb-4">
+          <TabsTrigger value="crisis" className="flex items-center gap-1.5">
             Crisis Risk
             {crisisCount > 0 && (
-              <span className="ml-1.5 inline-flex items-center justify-center w-4 h-4 text-[10px] font-bold rounded-full bg-rose-600 text-white data-[state=active]:bg-white data-[state=active]:text-rose-600">
+              <Badge variant="destructive" className="h-4 px-1 text-xs">
                 {crisisCount}
-              </span>
+              </Badge>
             )}
           </TabsTrigger>
-          <TabsTrigger value="users" className="text-xs">
-            All Users
-          </TabsTrigger>
-          <TabsTrigger value="alerts" className="text-xs relative">
-            Alerts
-            {emotionalAlertCount > 0 && (
-              <span className="ml-1.5 inline-flex items-center justify-center w-4 h-4 text-[10px] font-bold rounded-full bg-amber-500 text-white">
-                {emotionalAlertCount}
-              </span>
+          <TabsTrigger value="emotional-alerts" className="flex items-center gap-1.5">
+            Emotional Alerts
+            {emotionAlertCount > 0 && (
+              <Badge className="h-4 px-1 text-xs bg-amber-500 hover:bg-amber-500">
+                {emotionAlertCount}
+              </Badge>
             )}
           </TabsTrigger>
-          <TabsTrigger value="flagged" className="text-xs">
-            Flagged
-          </TabsTrigger>
-          <TabsTrigger value="comments" className="text-xs">
-            Comments
-          </TabsTrigger>
-          <TabsTrigger value="codes" className="text-xs">
-            Invites
-          </TabsTrigger>
-          <TabsTrigger value="posts" className="text-xs">
-            Posts
-          </TabsTrigger>
-          <TabsTrigger value="members" className="text-xs">
-            Members
-          </TabsTrigger>
-          <TabsTrigger value="history" className="text-xs">
-            History
-          </TabsTrigger>
-          <TabsTrigger value="signup" className="text-xs">
-            Signup
-          </TabsTrigger>
+          <TabsTrigger value="posts">Public Posts</TabsTrigger>
+          <TabsTrigger value="flagged">Flagged Posts</TabsTrigger>
+          <TabsTrigger value="flagged-comments">Flagged Comments</TabsTrigger>
+          <TabsTrigger value="users">User Management</TabsTrigger>
+          <TabsTrigger value="all-users">All Users</TabsTrigger>
+          <TabsTrigger value="invite-codes">Invite Codes</TabsTrigger>
+          <TabsTrigger value="post-history">Post History</TabsTrigger>
+          <TabsTrigger value="signup">New Member</TabsTrigger>
         </TabsList>
 
-        <TabsContent value="crisis" className="mt-4">
+        <TabsContent value="crisis">
           <AdminCrisisRiskTab />
         </TabsContent>
 
-        <TabsContent value="users" className="mt-4">
-          <AdminAllUsersTab />
-        </TabsContent>
-
-        <TabsContent value="alerts" className="mt-4">
+        <TabsContent value="emotional-alerts">
           <AdminEmotionalAlertsTab />
         </TabsContent>
 
-        <TabsContent value="flagged" className="mt-4">
-          <AdminFlaggedPosts />
-        </TabsContent>
-
-        <TabsContent value="comments" className="mt-4">
-          <AdminFlaggedComments />
-        </TabsContent>
-
-        <TabsContent value="codes" className="mt-4">
-          <AdminInviteCodes />
-        </TabsContent>
-
-        <TabsContent value="posts" className="mt-4">
+        <TabsContent value="posts">
           <AdminPublicPostsList />
         </TabsContent>
 
-        <TabsContent value="members" className="mt-4">
+        <TabsContent value="flagged">
+          <AdminFlaggedPosts />
+        </TabsContent>
+
+        <TabsContent value="flagged-comments">
+          <AdminFlaggedComments />
+        </TabsContent>
+
+        <TabsContent value="users">
           <AdminUserManagement />
         </TabsContent>
 
-        <TabsContent value="history" className="mt-4">
+        <TabsContent value="all-users">
+          <AdminAllUsersTab />
+        </TabsContent>
+
+        <TabsContent value="invite-codes">
+          <AdminInviteCodes />
+        </TabsContent>
+
+        <TabsContent value="post-history">
           <AdminUserPostHistory />
         </TabsContent>
 
-        <TabsContent value="signup" className="mt-4">
-          <AdminSignup />
+        <TabsContent value="signup">
+          <div className="p-4">
+            <p className="text-muted-foreground text-sm">
+              Use the Invite Codes tab to generate a code, then share the signup link with the new
+              member.
+            </p>
+          </div>
         </TabsContent>
       </Tabs>
     </div>

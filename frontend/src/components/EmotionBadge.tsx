@@ -1,28 +1,31 @@
 import { EmotionType } from '../backend';
 
 interface EmotionBadgeProps {
-  emotion: EmotionType;
+  emotionType: EmotionType;
+  className?: string;
 }
 
 const emotionConfig: Record<EmotionType, { label: string; className: string }> = {
+  [EmotionType.happy]: {
+    label: 'Happy',
+    className: 'bg-[var(--emotion-happy-bg)] text-[var(--emotion-happy-text)]',
+  },
   [EmotionType.confess]: {
     label: 'Confess',
-    className: 'bg-emotion-confess/10 text-emotion-confess border-emotion-confess/30',
+    className: 'bg-[var(--emotion-confess-bg)] text-[var(--emotion-confess-text)]',
   },
   [EmotionType.broke]: {
     label: 'Broke',
-    className: 'bg-emotion-broke/10 text-emotion-broke border-emotion-broke/30',
-  },
-  [EmotionType.happy]: {
-    label: 'Happy',
-    className: 'bg-emotion-happy/10 text-emotion-happy border-emotion-happy/30',
+    className: 'bg-[var(--emotion-broke-bg)] text-[var(--emotion-broke-text)]',
   },
 };
 
-export default function EmotionBadge({ emotion }: EmotionBadgeProps) {
-  const config = emotionConfig[emotion] ?? emotionConfig[EmotionType.confess];
+export default function EmotionBadge({ emotionType, className = '' }: EmotionBadgeProps) {
+  const config = emotionConfig[emotionType];
   return (
-    <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium border ${config.className}`}>
+    <span
+      className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium tracking-wide ${config.className} ${className}`}
+    >
       {config.label}
     </span>
   );

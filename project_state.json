@@ -1,40 +1,159 @@
 {
   "schemaVersion": "1.0.0",
   "projectStateVersion": 3,
-  "summary": "Social app with a strictly minimal home feed: public posts only, sorted by createdAt DESC, no ranking, no metrics, no explore, no suggested posts, no engagement sorting.",
+  "summary": "VEIL is a closed emotional ecosystem app. MVP focuses on invite-only registration, secure login, seat counter, post creation (Happy posts with Public toggle), feed, reactions, comments, flagging, and an admin panel for flagged posts. No gamification, no metrics, no popularity systems. Core values: stability over growth, containment over engagement, witnessing over performance.",
   "architectural_notes": [
-    "Feed query: SELECT public posts ORDER BY createdAt DESC — no ranking, scoring, or engagement signals"
+    "Closed ecosystem: access via invite codes only",
+    "No gamification, no metrics, no popularity/ranking systems",
+    "Core values: stability over growth, containment over engagement, witnessing over performance"
   ],
   "known_issues": [],
   "isFixRequest": false,
-  "existing_features": [
-    {
-      "id": "feature-communityfeedpage-must-render-the-feed-exactly-as-returned-public-posts-createdat-desc-remove-any-client-side-re-sorting-ranking-engagement-based-filtering-explore-sections-or-suggested-posts-sections-no-metrics-like-counts-reaction-counts-view-counts-should-be-displayed-on-feed-post-cards-in-this-page",
-      "title": "CommunityFeedPage must render the feed exactly as returned (public posts, createdAt DESC). Remove any client-side re-sorting, ranking, engagement-based filtering, explore sections, or suggested-posts sections. No metrics (like counts, reaction counts, view counts) should be displayed on feed post cards in this page.",
-      "reqIds": [
-        "REQ-2"
-      ],
-      "version": 1
-    }
-  ],
+  "existing_features": [],
   "new_feature_requests": [
     {
       "id": "AR-1",
-      "summary": "Home feed shows public posts only, sorted by createdAt DESC, with no ranking, metrics, explore, suggested posts, or engagement sorting",
+      "summary": "Register using invite code",
       "reqIds": [],
       "status": "pending"
     },
     {
       "id": "AR-2",
-      "summary": "The backend getPublicPosts (or equivalent feed query) must return only posts where visibility is public, sorted strictly by createdAt descending. No ranking score, engagement weight, or any secondary sort criteria may be applied.",
+      "summary": "Secure login",
+      "reqIds": [],
+      "status": "pending"
+    },
+    {
+      "id": "AR-3",
+      "summary": "Seat counter display",
+      "reqIds": [],
+      "status": "pending"
+    },
+    {
+      "id": "AR-4",
+      "summary": "Create a Happy post",
+      "reqIds": [],
+      "status": "pending"
+    },
+    {
+      "id": "AR-5",
+      "summary": "Toggle Public on a post",
+      "reqIds": [],
+      "status": "pending"
+    },
+    {
+      "id": "AR-6",
+      "summary": "Post appears in feed",
+      "reqIds": [],
+      "status": "pending"
+    },
+    {
+      "id": "AR-7",
+      "summary": "React to a post",
+      "reqIds": [],
+      "status": "pending"
+    },
+    {
+      "id": "AR-8",
+      "summary": "Comment on a post",
+      "reqIds": [],
+      "status": "pending"
+    },
+    {
+      "id": "AR-9",
+      "summary": "Flag a post from another account",
+      "reqIds": [],
+      "status": "pending"
+    },
+    {
+      "id": "AR-10",
+      "summary": "Admin panel to view flagged posts",
+      "reqIds": [],
+      "status": "pending"
+    },
+    {
+      "id": "AR-11",
+      "summary": "On the Signup page, display the remaining available seat count fetched from the backend so users can see how many spots are left in the closed ecosystem before registering.",
       "reqIds": [
         "REQ-1"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "AR-12",
+      "summary": "Ensure the registration flow requires a valid invite code. A user who submits an invalid or already-used invite code must see a clear error. A user with a valid code must be able to complete registration with a pseudonym and proceed to login.",
+      "reqIds": [
+        "REQ-2"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "AR-13",
+      "summary": "Ensure the login flow uses Internet Identity exclusively. After authenticating, the user must be redirected to the main feed or dashboard. Unauthenticated users attempting to access protected pages must be redirected to the login page.",
+      "reqIds": [
+        "REQ-3"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "AR-14",
+      "summary": "On the post creation page, provide a 'Happy' emotion option. The user must be able to write content, select 'Happy' as the emotion, and submit the post. The post creation UI must include a Public/Private visibility toggle. The default state must be Private. If the user toggles to Public, a confirmation warning modal must be shown before the post is submitted publicly.",
+      "reqIds": [
+        "REQ-4"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "AR-15",
+      "summary": "The Community Feed page must display all public posts in chronological order. After a user creates a public 'Happy' post, it must appear in the feed immediately (or on refresh) without requiring any additional action.",
+      "reqIds": [
+        "REQ-5"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "AR-16",
+      "summary": "On each public post card in the Community Feed, display a set of predefined text reactions (e.g., 'I feel this', 'You are not alone'). Any authenticated user must be able to select a reaction. Reaction counts must NOT be displayed — reactions serve as witnessing gestures, not engagement metrics.",
+      "reqIds": [
+        "REQ-6"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "AR-17",
+      "summary": "On each public post card in the Community Feed, display a comments section. Any authenticated user must be able to submit a text comment on a post. Comments must appear under the post in submission order. No upvotes, likes, or sorting by popularity.",
+      "reqIds": [
+        "REQ-7"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "AR-18",
+      "summary": "On public post cards authored by other users, display a 'Flag' or 'Report' button. An authenticated user must be able to flag a post from another account. The flag action must be submitted to the backend and recorded against the post.",
+      "reqIds": [
+        "REQ-8"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "AR-19",
+      "summary": "The Admin panel must include a 'Flagged Posts' tab listing all posts that have been reported by users. Each entry must show the post content and a button for the admin to permanently remove the post. No popularity metrics or report counts visible to the admin beyond the post content.",
+      "reqIds": [
+        "REQ-9"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "AR-20",
+      "summary": "Remove or hide all gamification elements, engagement metrics, popularity indicators, streak counters, leaderboards, and growth-oriented UI from every page. The interface must reflect containment and witnessing — not performance or engagement optimization.",
+      "reqIds": [
+        "REQ-10"
       ],
       "status": "pending"
     }
   ],
   "gameProjectType": "none",
-  "projectName": "Veil",
+  "projectName": "VEIL",
   "clarification_mode": "instant",
   "clarification_rounds": 0
 }

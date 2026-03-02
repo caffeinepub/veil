@@ -1,82 +1,82 @@
-import { useNavigate, useLocation } from '@tanstack/react-router';
+import { Link } from '@tanstack/react-router';
 import { useAuth } from '../hooks/useAuth';
-import { useGetCallerUserProfile } from '../hooks/useQueries';
-import { Button } from '@/components/ui/button';
-import { LogOut } from 'lucide-react';
+import { useQueryClient } from '@tanstack/react-query';
 
 export default function Header() {
-  const navigate = useNavigate();
-  const location = useLocation();
-  const { isAuthenticated, role, logout } = useAuth();
-  const { data: profile } = useGetCallerUserProfile();
+  const { isAuthenticated, isInitializing, role, logout } = useAuth();
+  const queryClient = useQueryClient();
 
-  const isAdmin = role === 'admin';
-
-  const navLinks = [
-    { label: 'Home', path: '/dashboard' },
-    { label: 'My Posts', path: '/posts' },
-    { label: 'Community', path: '/community' },
-    ...(isAdmin ? [{ label: 'Admin', path: '/admin' }] : []),
-  ];
-
-  const isActive = (path: string) => location.pathname === path;
+  const handleLogout = async () => {
+    await logout();
+    queryClient.clear();
+  };
 
   return (
-    <header className="sticky top-0 z-50 bg-background/90 backdrop-blur-sm border-b border-border/50">
-      <div className="max-w-5xl mx-auto px-4 h-14 flex items-center justify-between gap-4">
-        {/* Logo */}
-        <button
-          onClick={() => navigate({ to: isAuthenticated ? '/dashboard' : '/login' })}
-          className="flex items-center gap-2 shrink-0"
+    <header className="sticky top-0 z-40 bg-background border-b border-border">
+      <div className="max-w-3xl mx-auto px-5 h-12 flex items-center justify-between">
+        <Link
+          to="/"
+          className="font-serif text-base font-medium text-foreground hover:opacity-70 tracking-tight"
         >
-          <img
-            src="/assets/generated/veil-logo.dim_256x256.png"
-            alt="Veil"
-            className="w-7 h-7 rounded-md"
-          />
-          <span className="font-serif font-semibold text-lg text-foreground tracking-tight">
-            Veil
-          </span>
-        </button>
+          Veil
+        </Link>
 
-        {/* Nav Links */}
-        {isAuthenticated && profile && (
-          <nav className="hidden sm:flex items-center gap-1">
-            {navLinks.map((link) => (
-              <button
-                key={link.path}
-                onClick={() => navigate({ to: link.path })}
-                className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
-                  isActive(link.path)
-                    ? 'bg-primary/10 text-primary'
-                    : 'text-muted-foreground hover:text-foreground hover:bg-muted'
-                }`}
-              >
-                {link.label}
-              </button>
-            ))}
+        {!isInitializing && (
+          <nav className="flex items-center gap-5">
+            {isAuthenticated && (
+              <>
+                <Link
+                  to="/dashboard"
+                  className="text-sm text-muted-foreground hover:text-foreground [&.active]:text-foreground"
+                >
+                  Write
+                </Link>
+                <Link
+                  to="/posts"
+                  className="text-sm text-muted-foreground hover:text-foreground [&.active]:text-foreground"
+                >
+                  Archive
+                </Link>
+                <Link
+                  to="/community"
+                  className="text-sm text-muted-foreground hover:text-foreground [&.active]:text-foreground"
+                >
+                  Community
+                </Link>
+                {role === 'admin' && (
+                  <Link
+                    to="/admin"
+                    className="text-sm text-muted-foreground hover:text-foreground [&.active]:text-foreground"
+                  >
+                    Admin
+                  </Link>
+                )}
+                <button
+                  onClick={handleLogout}
+                  className="text-sm text-muted-foreground hover:text-foreground"
+                >
+                  Sign out
+                </button>
+              </>
+            )}
+            {!isAuthenticated && (
+              <>
+                <Link
+                  to="/login"
+                  className="text-sm text-muted-foreground hover:text-foreground [&.active]:text-foreground"
+                >
+                  Sign in
+                </Link>
+                <Link
+                  to="/signup"
+                  className="text-sm text-foreground hover:opacity-70"
+                >
+                  Join
+                </Link>
+              </>
+            )}
           </nav>
         )}
-
-        {/* Right side */}
-        <div className="flex items-center gap-2 shrink-0">
-          {isAuthenticated && profile && (
-            <span className="hidden sm:block text-sm text-muted-foreground font-medium truncate max-w-[120px]">
-              {profile.pseudonym}
-            </span>
-          )}
-          {isAuthenticated && (
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={logout}
-              className="text-muted-foreground hover:text-foreground gap-1.5"
-            >
-              <LogOut className="w-4 h-4" />
-              <span className="hidden sm:inline">Sign out</span>
-            </Button>
-          )}
-        </div>
       </div>
     </header>
   );
