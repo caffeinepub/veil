@@ -2,11 +2,10 @@
   "kind": "feature_evidence_report",
   "features": [
     {
-      "featureId": "feature-in-the-frontend-mypostspage-and-postcard-component-display-the-visibility-status-private-or-public-for-each-of-the-user-s-own-posts-private-posts-should-be-clearly-labeled-as-visible-only-to-the-author-no-resharing-or-link-sharing-controls-should-appear-on-private-post-cards",
-      "featureTitle": "In the frontend MyPostsPage and PostCard component, display the visibility status (private or public) for each of the user's own posts. Private posts should be clearly labeled as visible only to the author. No resharing or link-sharing controls should appear on private post cards.",
+      "featureId": "feature-communityfeedpage-must-render-the-feed-exactly-as-returned-public-posts-createdat-desc-remove-any-client-side-re-sorting-ranking-engagement-based-filtering-explore-sections-or-suggested-posts-sections-no-metrics-like-counts-reaction-counts-view-counts-should-be-displayed-on-feed-post-cards-in-this-page",
+      "featureTitle": "CommunityFeedPage must render the feed exactly as returned (public posts, createdAt DESC). Remove any client-side re-sorting, ranking, engagement-based filtering, explore sections, or suggested-posts sections. No metrics (like counts, reaction counts, view counts) should be displayed on feed post cards in this page.",
       "files": [
-        "frontend/src/components/PostCard.tsx",
-        "frontend/src/pages/MyPostsPage.tsx"
+        "frontend/src/components/PublicPostCard.tsx"
       ],
       "components": [
         "authorization@4.0.0",
@@ -18,7 +17,7 @@
         "github-export-icp-cli@1.0.0"
       ],
       "testIds": [
-        "REQ-4"
+        "REQ-2"
       ],
       "confidence": "high"
     }

@@ -1,62 +1,42 @@
 {
   "kind": "coverage_report",
   "version": "1.0",
-  "generatedAt": "2026-03-02T00:27:40.346Z",
+  "generatedAt": "2026-03-02T00:34:12.931Z",
   "sources": {
     "buildRequest": true,
     "implementationPlan": true
   },
   "requirements": {
-    "total": 4,
+    "total": 2,
     "implemented": 1,
     "items": [
       {
         "id": "REQ-1",
-        "summary": "In the backend, enforce that private posts are never returned in any feed or community query. Only the post's author should be able to retrieve their own private posts (e.g., via getMyPosts). Any query that returns posts for the community feed must filter out posts where visibility is private.",
+        "summary": "The backend getPublicPosts (or equivalent feed query) must return only posts where visibility is public, sorted strictly by createdAt descending. No ranking score, engagement weight, or any secondary sort criteria may be applied.",
         "status": "unknown",
         "plannedFiles": [],
         "matchedFiles": []
       },
       {
         "id": "REQ-2",
-        "summary": "In the backend, enforce that public posts returned by the community feed are ordered strictly chronologically (oldest to newest, or newest to oldest — consistently by creation timestamp). No resharing or link-sharing mechanism should exist or be callable.",
-        "status": "unknown",
-        "plannedFiles": [],
-        "matchedFiles": []
-      },
-      {
-        "id": "REQ-3",
-        "summary": "In the frontend CommunityFeedPage, display only public posts in chronological order. Remove or hide any UI element that allows resharing a post or copying/sharing a post link. If such controls exist (share button, copy link button, reshare option), they must be removed from PublicPostCard and any other feed-related components.",
-        "status": "missing",
+        "summary": "CommunityFeedPage must render the feed exactly as returned (public posts, createdAt DESC). Remove any client-side re-sorting, ranking, engagement-based filtering, explore sections, or suggested-posts sections. No metrics (like counts, reaction counts, view counts) should be displayed on feed post cards in this page.",
+        "status": "implemented",
         "plannedFiles": [
           "frontend/src/pages/CommunityFeedPage.tsx",
           "frontend/src/components/PublicPostCard.tsx"
         ],
-        "matchedFiles": []
-      },
-      {
-        "id": "REQ-4",
-        "summary": "In the frontend MyPostsPage and PostCard component, display the visibility status (private or public) for each of the user's own posts. Private posts should be clearly labeled as visible only to the author. No resharing or link-sharing controls should appear on private post cards.",
-        "status": "implemented",
-        "plannedFiles": [
-          "frontend/src/components/PostCard.tsx",
-          "frontend/src/pages/MyPostsPage.tsx"
-        ],
         "matchedFiles": [
-          "frontend/src/components/PostCard.tsx",
-          "frontend/src/pages/MyPostsPage.tsx"
+          "frontend/src/components/PublicPostCard.tsx"
         ]
       }
     ]
   },
   "changedFiles": [
-    "backend/main.mo",
     "build-request.json",
     "feature_evidence.json",
     "frontend-file-summaries.txt",
     "frontend-implementation-plan.json",
-    "frontend/src/components/PostCard.tsx",
-    "frontend/src/pages/MyPostsPage.tsx",
+    "frontend/src/components/PublicPostCard.tsx",
     "project_state.json",
     "scratch/component-selection.json",
     "spec.md",

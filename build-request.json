@@ -1,93 +1,66 @@
 {
   "kind": "build_request",
-  "title": "Enforce post visibility rules (private/public feed access and no resharing)",
+  "title": "Enforce strict chronological public-only home feed",
   "projectName": "Veil",
   "priority": "normal",
   "requirements": [
     {
       "id": "REQ-1",
-      "text": "In the backend, enforce that private posts are never returned in any feed or community query. Only the post's author should be able to retrieve their own private posts (e.g., via getMyPosts). Any query that returns posts for the community feed must filter out posts where visibility is private.",
+      "text": "The backend getPublicPosts (or equivalent feed query) must return only posts where visibility is public, sorted strictly by createdAt descending. No ranking score, engagement weight, or any secondary sort criteria may be applied.",
       "target": "backend",
       "source": {
         "messageIds": [
           "msg-4"
         ],
         "quotes": [
-          "PRIVATE posts: Visible only to author. Not visible in feed."
+          "Public posts only.",
+          "Sorted by createdAt DESC.",
+          "No ranking.",
+          "No engagement sorting."
         ]
       },
       "acceptanceCriteria": [
-        "A call to the community feed query (e.g., getPublicPosts) never returns posts with visibility set to private, regardless of caller.",
-        "A call to getMyPosts returns all of the authenticated caller's posts, including private ones.",
-        "A non-author caller cannot retrieve a specific private post by ID."
+        "Only posts with public visibility are returned by the feed query.",
+        "Posts are ordered by createdAt descending — newest first.",
+        "No ranking algorithm, engagement score, or weighted sort is applied.",
+        "Private posts never appear in the feed response."
       ]
     },
     {
       "id": "REQ-2",
-      "text": "In the backend, enforce that public posts returned by the community feed are ordered strictly chronologically (oldest to newest, or newest to oldest — consistently by creation timestamp). No resharing or link-sharing mechanism should exist or be callable.",
-      "target": "backend",
-      "source": {
-        "messageIds": [
-          "msg-4"
-        ],
-        "quotes": [
-          "PUBLIC posts: Visible to all registered users. Chronological order. No resharing. No sharing links."
-        ]
-      },
-      "acceptanceCriteria": [
-        "The community feed query returns public posts sorted by creation timestamp in a consistent chronological order.",
-        "There is no backend method that allows resharing or generating shareable post links.",
-        "Public posts are accessible to all authenticated registered users."
-      ]
-    },
-    {
-      "id": "REQ-3",
-      "text": "In the frontend CommunityFeedPage, display only public posts in chronological order. Remove or hide any UI element that allows resharing a post or copying/sharing a post link. If such controls exist (share button, copy link button, reshare option), they must be removed from PublicPostCard and any other feed-related components.",
+      "text": "CommunityFeedPage must render the feed exactly as returned (public posts, createdAt DESC). Remove any client-side re-sorting, ranking, engagement-based filtering, explore sections, or suggested-posts sections. No metrics (like counts, reaction counts, view counts) should be displayed on feed post cards in this page.",
       "target": "frontend",
       "source": {
         "messageIds": [
           "msg-4"
         ],
         "quotes": [
-          "PUBLIC posts: Visible to all registered users. Chronological order. No resharing. No sharing links."
+          "No ranking.",
+          "No metrics.",
+          "No explore.",
+          "No suggested posts.",
+          "No engagement sorting."
         ]
       },
       "acceptanceCriteria": [
-        "The community feed displays posts in chronological order.",
-        "No share, copy link, or reshare button is visible on any post card in the community feed.",
-        "Private posts never appear in the community feed UI for any user, including the author."
-      ]
-    },
-    {
-      "id": "REQ-4",
-      "text": "In the frontend MyPostsPage and PostCard component, display the visibility status (private or public) for each of the user's own posts. Private posts should be clearly labeled as visible only to the author. No resharing or link-sharing controls should appear on private post cards.",
-      "target": "frontend",
-      "source": {
-        "messageIds": [
-          "msg-4"
-        ],
-        "quotes": [
-          "PRIVATE posts: Visible only to author.",
-          "No resharing. No sharing links."
-        ]
-      },
-      "acceptanceCriteria": [
-        "Each post card in MyPostsPage shows whether the post is private or public.",
-        "Private posts display a label or badge indicating they are visible only to the author.",
-        "No share or copy-link button is present on any post card in MyPostsPage."
+        "CommunityFeedPage displays only public posts in the order they are returned from the backend (createdAt DESC).",
+        "No explore section, suggested posts section, or trending section is rendered.",
+        "No engagement metrics (reaction counts, comment counts, view counts) are displayed on PublicPostCard within the feed.",
+        "No client-side re-sorting or ranking logic is applied to the fetched post list.",
+        "The feed contains no UI affordances for filtering, ranking, or discovering posts beyond the plain chronological list."
       ]
     }
   ],
   "constraints": [
-    "Do not change the authentication or invite-code system.",
-    "Admin views (AdminPublicPostsList, AdminUserPostHistory) may still display all posts regardless of visibility for moderation purposes.",
-    "Do not alter the post creation flow beyond what is needed to enforce visibility rules."
+    "Do not alter authentication, post creation, or visibility toggle logic.",
+    "Do not modify files under frontend/src/hooks/useInternetIdentity.ts, frontend/src/hooks/useActor.ts, frontend/src/main.tsx, or frontend/src/components/ui.",
+    "Feed ordering must be purely chronological (createdAt DESC) — no secondary sort by any engagement signal."
   ],
   "nonGoals": [
-    "Adding new visibility levels beyond private and public.",
-    "Implementing resharing or link-sharing features.",
-    "Changing the post creation UI or emotion tagging system.",
-    "Modifying the admin dashboard crisis or flagging workflows."
+    "Adding explore, discovery, or trending features.",
+    "Adding suggested or recommended posts.",
+    "Displaying engagement metrics or reaction counts in the feed.",
+    "Any form of algorithmic or ranked feed."
   ],
   "imageRequirements": {
     "required": [],

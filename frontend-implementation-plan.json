@@ -1,47 +1,28 @@
 {
   "kind": "implementation_plan",
   "version": "1.0",
-  "title": "Enforce post visibility rules (private/public feed access and no resharing)",
+  "title": "Enforce strict chronological public-only home feed",
   "requirements": [
     {
-      "id": "REQ-3",
-      "summary": "Display only public posts in chronological order in CommunityFeedPage and remove all resharing/link-sharing UI elements from PublicPostCard",
+      "id": "REQ-2",
+      "summary": "Remove all client-side ranking, engagement metrics, and discovery features from CommunityFeedPage to display only chronological public posts",
       "acceptanceCriteria": [
-        "The community feed displays posts in chronological order.",
-        "No share, copy link, or reshare button is visible on any post card in the community feed.",
-        "Private posts never appear in the community feed UI for any user, including the author."
+        "CommunityFeedPage displays only public posts in the order they are returned from the backend (createdAt DESC).",
+        "No explore section, suggested posts section, or trending section is rendered.",
+        "No engagement metrics (reaction counts, comment counts, view counts) are displayed on PublicPostCard within the feed.",
+        "No client-side re-sorting or ranking logic is applied to the fetched post list.",
+        "The feed contains no UI affordances for filtering, ranking, or discovering posts beyond the plain chronological list."
       ],
       "file_operations": [
         {
           "path": "frontend/src/pages/CommunityFeedPage.tsx",
           "operation": "modify",
-          "description": "Verify that the page already fetches only public posts via the getPublicPosts backend capability and displays them chronologically using PublicPostCard components. Confirm that private posts are never rendered in this view. If any filtering or sorting logic needs adjustment to ensure strict chronological ordering, apply it here."
+          "description": "Remove any client-side sorting, ranking, or filtering logic applied to the fetched public posts array. Ensure the component renders posts exactly as returned by the backend query (getPublicPosts) without re-ordering. Remove any explore, suggested posts, or trending sections from the JSX. Verify that the page displays a simple chronological list of PublicPostCard components with no additional discovery UI."
         },
         {
           "path": "frontend/src/components/PublicPostCard.tsx",
           "operation": "modify",
-          "description": "Remove or hide any UI elements that allow resharing a post or copying/sharing a post link. This includes removing share buttons, copy link buttons, or reshare options from the card. Ensure the card displays only the post content, emotion badge, text reactions, comments, and flagging functionality. Verify that no social sharing or link generation features remain visible."
-        }
-      ]
-    },
-    {
-      "id": "REQ-4",
-      "summary": "Display visibility status (private/public) for user's own posts in MyPostsPage and PostCard, and remove resharing/link-sharing controls",
-      "acceptanceCriteria": [
-        "Each post card in MyPostsPage shows whether the post is private or public.",
-        "Private posts display a label or badge indicating they are visible only to the author.",
-        "No share or copy-link button is present on any post card in MyPostsPage."
-      ],
-      "file_operations": [
-        {
-          "path": "frontend/src/components/PostCard.tsx",
-          "operation": "modify",
-          "description": "Add a visual indicator (badge, label, or icon) that displays the post's visibility status (private or public). For private posts, include descriptive text such as 'Private - Visible only to you' to clearly communicate the visibility scope. Remove any share, copy-link, or reshare buttons if they exist. Ensure the visibility status is prominently displayed alongside the emotion badge and other post metadata."
-        },
-        {
-          "path": "frontend/src/pages/MyPostsPage.tsx",
-          "operation": "modify",
-          "description": "Verify that PostCard components rendered on this page properly display the visibility status for each post. Ensure that private posts are clearly labeled and that no resharing or link-sharing controls appear. Confirm that the page handles both private and public posts correctly and that the UI communicates the visibility distinction to the user."
+          "description": "Remove all engagement metric displays (reaction count badges, comment count indicators, view counts) from the card UI when rendered in the community feed context. Keep the text reaction and comment interaction capabilities intact (users can still add reactions and comments), but do not display aggregate counts or engagement statistics. Ensure the card focuses solely on post content, emotion badge, and interaction buttons without numerical feedback."
         }
       ]
     }

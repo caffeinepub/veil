@@ -74,7 +74,6 @@ export default function PublicPostCard({ post }: PublicPostCardProps) {
   const [showComments, setShowComments] = useState(false);
   const [commentText, setCommentText] = useState('');
   const [commentError, setCommentError] = useState<string | null>(null);
-  // Track locally flagged comment IDs for immediate UI feedback
   const [locallyFlaggedComments, setLocallyFlaggedComments] = useState<Set<string>>(new Set());
 
   const [showFlagDialog, setShowFlagDialog] = useState(false);
@@ -88,7 +87,6 @@ export default function PublicPostCard({ post }: PublicPostCardProps) {
   // Only show comments on public posts
   const isPublic = post.visibility === Visibility.publicView;
 
-  // Determine if current user has already reacted and which text they chose
   const myReaction = textReactions?.find(
     r => r.userId.toString() === currentUserId
   ) ?? null;
@@ -124,7 +122,6 @@ export default function PublicPostCard({ post }: PublicPostCardProps) {
       await flagComment.mutateAsync(commentId);
       setLocallyFlaggedComments(prev => new Set(prev).add(commentId));
     } catch {
-      // Comment may already be flagged — still mark locally
       setLocallyFlaggedComments(prev => new Set(prev).add(commentId));
     }
   };
@@ -222,9 +219,7 @@ export default function PublicPostCard({ post }: PublicPostCardProps) {
               className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
             >
               <MessageCircle size={13} />
-              <span>
-                {commentsLoading ? '…' : `${sortedComments.length} comment${sortedComments.length !== 1 ? 's' : ''}`}
-              </span>
+              <span>Comments</span>
               {showComments ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
             </button>
 

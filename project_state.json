@@ -1,19 +1,18 @@
 {
   "schemaVersion": "1.0.0",
   "projectStateVersion": 3,
-  "summary": "A social/community platform with post visibility rules: private posts visible only to author and excluded from feed; public posts visible to all registered users in chronological order with no resharing or link sharing.",
+  "summary": "Social app with a strictly minimal home feed: public posts only, sorted by createdAt DESC, no ranking, no metrics, no explore, no suggested posts, no engagement sorting.",
   "architectural_notes": [
-    "Private posts: visible only to author, excluded from all feeds",
-    "Public posts: visible to all registered users, chronological feed only, no resharing or shareable links"
+    "Feed query: SELECT public posts ORDER BY createdAt DESC — no ranking, scoring, or engagement signals"
   ],
   "known_issues": [],
   "isFixRequest": false,
   "existing_features": [
     {
-      "id": "feature-in-the-frontend-mypostspage-and-postcard-component-display-the-visibility-status-private-or-public-for-each-of-the-user-s-own-posts-private-posts-should-be-clearly-labeled-as-visible-only-to-the-author-no-resharing-or-link-sharing-controls-should-appear-on-private-post-cards",
-      "title": "In the frontend MyPostsPage and PostCard component, display the visibility status (private or public) for each of the user's own posts. Private posts should be clearly labeled as visible only to the author. No resharing or link-sharing controls should appear on private post cards.",
+      "id": "feature-communityfeedpage-must-render-the-feed-exactly-as-returned-public-posts-createdat-desc-remove-any-client-side-re-sorting-ranking-engagement-based-filtering-explore-sections-or-suggested-posts-sections-no-metrics-like-counts-reaction-counts-view-counts-should-be-displayed-on-feed-post-cards-in-this-page",
+      "title": "CommunityFeedPage must render the feed exactly as returned (public posts, createdAt DESC). Remove any client-side re-sorting, ranking, engagement-based filtering, explore sections, or suggested-posts sections. No metrics (like counts, reaction counts, view counts) should be displayed on feed post cards in this page.",
       "reqIds": [
-        "REQ-4"
+        "REQ-2"
       ],
       "version": 1
     }
@@ -21,31 +20,15 @@
   "new_feature_requests": [
     {
       "id": "AR-1",
-      "summary": "Post visibility rules: private posts visible only to author (hidden from feed); public posts visible to all registered users in chronological order with no resharing or sharing links",
+      "summary": "Home feed shows public posts only, sorted by createdAt DESC, with no ranking, metrics, explore, suggested posts, or engagement sorting",
       "reqIds": [],
       "status": "pending"
     },
     {
       "id": "AR-2",
-      "summary": "In the backend, enforce that private posts are never returned in any feed or community query. Only the post's author should be able to retrieve their own private posts (e.g., via getMyPosts). Any query that returns posts for the community feed must filter out posts where visibility is private.",
+      "summary": "The backend getPublicPosts (or equivalent feed query) must return only posts where visibility is public, sorted strictly by createdAt descending. No ranking score, engagement weight, or any secondary sort criteria may be applied.",
       "reqIds": [
         "REQ-1"
-      ],
-      "status": "pending"
-    },
-    {
-      "id": "AR-3",
-      "summary": "In the backend, enforce that public posts returned by the community feed are ordered strictly chronologically (oldest to newest, or newest to oldest — consistently by creation timestamp). No resharing or link-sharing mechanism should exist or be callable.",
-      "reqIds": [
-        "REQ-2"
-      ],
-      "status": "pending"
-    },
-    {
-      "id": "AR-4",
-      "summary": "In the frontend CommunityFeedPage, display only public posts in chronological order. Remove or hide any UI element that allows resharing a post or copying/sharing a post link. If such controls exist (share button, copy link button, reshare option), they must be removed from PublicPostCard and any other feed-related components.",
-      "reqIds": [
-        "REQ-3"
       ],
       "status": "pending"
     }

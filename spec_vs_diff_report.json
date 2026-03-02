@@ -1,43 +1,33 @@
 {
   "kind": "spec_vs_diff_report",
   "version": "1.0",
-  "generatedAt": "2026-03-02T00:27:40.343Z",
-  "summary": "The diff implements most of the required visibility enforcement features. Frontend changes (PostCard, MyPostsPage) clearly address REQ-4. Backend changes in main.mo appear to include visibility types and post structures. However, the backend diff is heavily truncated, making it difficult to confirm full implementation of REQ-1 (private post filtering in feed queries, per-ID access control) and REQ-2 (chronological ordering, no reshare methods). The CommunityFeedPage file summary mentions auth guard changes but does not explicitly confirm removal of share/reshare UI elements (REQ-3), and the PublicPostCard component is not shown in the diff at all.",
+  "generatedAt": "2026-03-02T00:34:12.928Z",
+  "summary": "The diff modifies PublicPostCard.tsx (frontend component), a frontend file summaries text file, and project_state.json. Neither the backend getPublicPosts query nor the CommunityFeedPage component appears to have been substantively changed to enforce the required behavior. The project_state.json marks both REQ-1 and REQ-2 as 'pending', and the CommunityFeedPage.tsx summary only mentions auth guard changes — not removal of explore sections, client-side sorting, or metrics. The PublicPostCard.tsx diff shows the component still includes reaction counts, comment counts, and engagement UI (reactions, comments, flagging), which conflicts with REQ-2's AC requiring no engagement metrics on feed post cards.",
   "missing_requirements": [
     {
       "id": "REQ-1",
-      "requirement": "A non-author caller cannot retrieve a specific private post by ID.",
-      "reason": "The backend diff is truncated and does not show a per-ID access control check that blocks non-authors from fetching private posts by ID. The filtering logic is not visible in the truncated diff.",
+      "requirement": "The backend getPublicPosts must return only public posts sorted strictly by createdAt descending with no ranking or engagement weight.",
+      "reason": "No backend file changes are present in the diff. The project_state.json lists REQ-1 as 'pending', confirming the backend query was not updated.",
       "evidence": [
-        "backend/main.mo"
+        "project_state.json"
       ]
     },
     {
-      "id": "REQ-3",
-      "requirement": "No share, copy link, or reshare button is visible on any post card in the community feed. PublicPostCard and other feed-related components must have these controls removed.",
-      "reason": "The CommunityFeedPage file summary only mentions auth guard changes. There is no mention of PublicPostCard modifications or removal of share/reshare/copy-link UI elements. The PublicPostCard component does not appear in the diff at all.",
+      "id": "REQ-2",
+      "requirement": "CommunityFeedPage must render public posts in createdAt DESC order with no explore/suggested sections, no client-side re-sorting, and no engagement metrics on PublicPostCard.",
+      "reason": "The CommunityFeedPage.tsx summary only mentions auth guard changes, not removal of explore sections, suggested posts, or client-side sorting. Additionally, PublicPostCard.tsx still contains reaction/comment UI and engagement interactions. The project_state.json lists REQ-2 as 'pending'.",
       "evidence": [
-        "frontend/src/pages/CommunityFeedPage.tsx",
-        "frontend-file-summaries.txt"
-      ]
-    },
-    {
-      "id": "REQ-3",
-      "requirement": "The community feed displays posts in chronological order in the frontend.",
-      "reason": "The CommunityFeedPage summary only mentions auth guard refactoring. No chronological sorting logic is described for the frontend feed page.",
-      "evidence": [
-        "frontend/src/pages/CommunityFeedPage.tsx",
-        "frontend-file-summaries.txt"
+        "frontend-file-summaries.txt",
+        "frontend/src/components/PublicPostCard.tsx",
+        "project_state.json"
       ]
     }
   ],
   "hallucinated_features": [],
-  "confidence": 0.62,
+  "confidence": 0.82,
   "changed_files": [
-    "backend/main.mo",
     "frontend-file-summaries.txt",
-    "frontend/src/components/PostCard.tsx",
-    "frontend/src/pages/MyPostsPage.tsx",
+    "frontend/src/components/PublicPostCard.tsx",
     "project_state.json"
   ]
 }
